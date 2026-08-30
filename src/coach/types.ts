@@ -125,10 +125,24 @@ export type HintToken = (typeof HINT_TOKENS)[number];
  *
  * - `{count}` is `finding.cells.length` — the size of the pattern. Never a
  *   digit, never a count of eliminations.
- * - `{house}` is `finding.houses[0]` and `{house2}` is `finding.houses[1]`.
- *   Order is therefore part of each detector's contract, and the catalog fixes
- *   it as: pointing `[box, line]`, claiming `[line, box]`, fish
- *   `[...base lines, ...cover lines]`, subsets and hidden singles `[house]`.
+ * - `{house}` and `{house2}` are the *semantic* first and second house of the
+ *   pattern — for pointing the box then its line, for claiming the line then
+ *   its box, for a fish the base lines then the cover lines.
+ *
+ *   **`finding.houses` is not in that order.** `buildFinding` runs every
+ *   detector's houses through `orderHouses`, which sorts them into canonical
+ *   `HOUSES` position. Since `HOUSES` interleaves row/col/box by index, the
+ *   result sometimes coincides with the semantic order and sometimes inverts
+ *   it: `box0` precedes `row1`, but `col1` precedes `box3`. Read literally,
+ *   level-1 copy such as "the candidates all lie in {house2}" is then not
+ *   vague but *false* — true of a box and its line, untrue of a line and its
+ *   box.
+ *
+ *   So callers must derive the roles rather than index into the array:
+ *   `coach/format.ts::orderedHouses` reconstructs them (by kind for
+ *   pointing/claiming, by which houses carry the eliminations for a fish).
+ *   Fixing `orderHouses` to preserve detector order would make that function a
+ *   no-op; until then it is load-bearing. Tracked in the contract-gaps issue.
  * - **Chain techniques must not use `{house}`.** `xy_wing`, `simple_coloring`
  *   and `remote_pairs` populate `houses` with every house carrying a chain
  *   link, so `houses[0]` is one arbitrary member of a set that may span six
