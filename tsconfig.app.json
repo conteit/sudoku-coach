@@ -18,6 +18,10 @@
     "jsx": "react-jsx",
 
     /* Linting */
+    /* strict is TypeScript 6's default, but state it: the setting the whole
+       codebase depends on should not be an implicit property of the compiler
+       version, and a major bump is already queued. */
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
