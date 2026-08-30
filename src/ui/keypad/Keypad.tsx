@@ -130,7 +130,7 @@ export function Keypad({
                 aria-hidden="true"
                 className="border-t border-rule py-0.5 text-center text-[0.625rem] font-medium tracking-[0.08em] text-ink-faint tabular-nums"
               >
-                {done ? 'done' : `${left} left`}
+                {done ? t('keypad.done') : t('keypad.left', { left })}
               </span>
             </button>
           );
@@ -140,28 +140,28 @@ export function Keypad({
       <div className="mt-1.5 flex gap-1.5">
         <IconButton
           label={pencilMode ? t('keypad.notesOn') : t('keypad.notesOff')}
-          caption="Notes"
+          caption={t('keypad.captionNotes')}
           icon={<PencilIcon />}
           pressed={pencilMode}
           onClick={() => fire('toggle', onTogglePencil)}
         />
         <IconButton
           label={t('keypad.erase')}
-          caption="Erase"
+          caption={t('keypad.captionErase')}
           icon={<EraserIcon />}
           disabled={disabled}
           onClick={() => fire('tap', onErase)}
         />
         <IconButton
           label={t('action.undo')}
-          caption="Undo"
+          caption={t('keypad.captionUndo')}
           icon={<UndoIcon />}
           disabled={!canUndo}
           onClick={() => fire('tap', onUndo)}
         />
         <IconButton
           label={t('action.redo')}
-          caption="Redo"
+          caption={t('keypad.captionRedo')}
           icon={<RedoIcon />}
           disabled={!canRedo}
           onClick={() => fire('tap', onRedo)}

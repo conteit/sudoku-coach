@@ -122,6 +122,12 @@ export const en = {
   'keypad.notesOn': 'Notes on',
   'keypad.notesOff': 'Notes off',
   'keypad.erase': 'Erase cell',
+  'keypad.left': '{left} left',
+  'keypad.done': 'done',
+  'keypad.captionNotes': 'Notes',
+  'keypad.captionErase': 'Erase',
+  'keypad.captionUndo': 'Undo',
+  'keypad.captionRedo': 'Redo',
 
   'games.deskEmpty': 'Nothing on the desk',
   'games.puzzleCountOne': '{count} puzzle',
