@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { preferredLocale } from './i18n/locale';
 import { LocaleProvider } from './i18n/react';
 import { useProfile } from './state/profile';
 import { useGameStore } from './state/store';
@@ -37,7 +38,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    void useProfile.getState().hydrate();
+    void useProfile.getState().hydrate(preferredLocale());
     void useGameStore.getState().hydrate();
   }, []);
 

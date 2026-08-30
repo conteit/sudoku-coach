@@ -14,7 +14,7 @@
  */
 
 import { create, createStore, type StateCreator, type StoreApi } from 'zustand';
-import { db, loadProfile, saveProfile, type SudokuCoachDB } from './db';
+import { db, readProfile, saveProfile, type SudokuCoachDB } from './db';
 import { DEFAULT_PROFILE } from './mastery';
 import type { Locale, PlayerProfile } from './types';
 
@@ -25,8 +25,12 @@ export interface ProfileDeps {
 export interface ProfileStore {
   profile: PlayerProfile;
   hydrated: boolean;
-  /** Reads the stored profile, or keeps the defaults when there is none yet. */
-  hydrate: () => Promise<void>;
+  /**
+   * Reads the stored profile. On a first run there is none, and `preferred` —
+   * whatever the browser asks for — decides the language instead of the
+   * built-in default.
+   */
+  hydrate: (preferred?: Locale) => Promise<void>;
   /** Applies a pure transition and persists the result. */
   update: (change: (profile: PlayerProfile) => PlayerProfile) => void;
   setLocale: (locale: Locale) => void;
@@ -49,8 +53,15 @@ function profileStore(deps: ProfileDeps): StateCreator<ProfileStore> {
       profile: DEFAULT_PROFILE,
       hydrated: false,
 
-      hydrate: async () => {
-        set({ profile: await loadProfile(deps.conn), hydrated: true });
+      hydrate: async (preferred) => {
+        const stored = await readProfile(deps.conn);
+        // A first run is not persisted here: nothing has been chosen yet, and
+        // writing the guess would turn it into a choice.
+        set({
+          profile:
+            stored ?? (preferred === undefined ? DEFAULT_PROFILE : { ...DEFAULT_PROFILE, locale: preferred }),
+          hydrated: true,
+        });
       },
 
       update: (change) => {

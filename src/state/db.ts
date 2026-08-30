@@ -158,8 +158,17 @@ export async function listSummaries(
  * so opening the app never dirties storage.
  */
 export async function loadProfile(conn: SudokuCoachDB = db): Promise<PlayerProfile> {
-  return (await conn.profile.get('profile')) ?? DEFAULT_PROFILE;
+  return (await readProfile(conn)) ?? DEFAULT_PROFILE;
 }
+
+/**
+ * The stored profile, or undefined on a first run. The distinction matters
+ * exactly once: a player who has never chosen a language should get the one
+ * their browser asks for, and a player who has chosen must never be overridden
+ * by it.
+ */
+export const readProfile = (conn: SudokuCoachDB = db): Promise<PlayerProfile | undefined> =>
+  conn.profile.get('profile');
 
 export const saveProfile = (profile: PlayerProfile, conn: SudokuCoachDB = db): Promise<string> =>
   conn.profile.put({ ...profile, id: 'profile' });

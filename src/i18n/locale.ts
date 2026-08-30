@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useMemo } from 'react';
 import type { Locale } from '../state/types';
-import { DEFAULT_LOCALE, t } from './index';
+import { DEFAULT_LOCALE, LOCALES, t } from './index';
 import type { MessageArgs, MessageKey } from './types';
 
 /**
@@ -29,4 +29,20 @@ export function useT(): Translate {
         t(locale, key, ...args),
     [locale],
   );
+}
+
+/**
+ * The locale to open with on a first run: the first language the browser asks
+ * for that this app actually speaks. It is a guess, not a choice — the settings
+ * sheet is where a choice is made, and once made it wins forever.
+ */
+export function preferredLocale(
+  requested: readonly string[] = navigator.languages ?? [navigator.language],
+): Locale | undefined {
+  for (const tag of requested) {
+    const base = tag.toLowerCase().split('-')[0];
+    const match = LOCALES.find((locale) => locale === base);
+    if (match !== undefined) return match;
+  }
+  return undefined;
 }
