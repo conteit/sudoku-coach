@@ -21,6 +21,7 @@ import { DIGITS } from '../../engine/types';
 import { IconButton } from '../primitives/IconButton';
 import { EraserIcon, PencilIcon, RedoIcon, UndoIcon } from '../primitives/icons';
 import { cx } from '../primitives/cx';
+import { useT } from '../../i18n/locale';
 
 /** A short vibration hint the host can route to the Vibration API. */
 export type HapticPattern = 'tap' | 'toggle' | 'blocked';
@@ -65,6 +66,7 @@ export function Keypad({
   onHaptic,
   className,
 }: KeypadProps) {
+  const t = useT();
   const remaining = useMemo(() => remainingCounts(values), [values]);
 
   const fire = (pattern: HapticPattern, action: () => void) => {
@@ -76,7 +78,7 @@ export function Keypad({
     <div
       className={cx('w-full', className)}
       data-pencil={pencilMode || undefined}
-      aria-label={pencilMode ? 'Keypad, notes mode' : 'Keypad'}
+      aria-label={pencilMode ? t('keypad.labelNotes') : t('keypad.label')}
       role="group"
     >
       <div className="grid grid-cols-3 gap-1.5">
@@ -89,7 +91,11 @@ export function Keypad({
               type="button"
               disabled={disabled || done}
               onClick={() => fire('tap', () => onDigit(digit))}
-              aria-label={`${pencilMode ? 'Note' : 'Place'} ${digit}, ${left} left`}
+              aria-label={
+                pencilMode
+                  ? t('keypad.note', { digit, left })
+                  : t('keypad.place', { digit, left })
+              }
               data-digit={digit}
               data-complete={done || undefined}
               className={cx(
@@ -133,28 +139,28 @@ export function Keypad({
 
       <div className="mt-1.5 flex gap-1.5">
         <IconButton
-          label={pencilMode ? 'Notes on' : 'Notes off'}
+          label={pencilMode ? t('keypad.notesOn') : t('keypad.notesOff')}
           caption="Notes"
           icon={<PencilIcon />}
           pressed={pencilMode}
           onClick={() => fire('toggle', onTogglePencil)}
         />
         <IconButton
-          label="Erase cell"
+          label={t('keypad.erase')}
           caption="Erase"
           icon={<EraserIcon />}
           disabled={disabled}
           onClick={() => fire('tap', onErase)}
         />
         <IconButton
-          label="Undo"
+          label={t('action.undo')}
           caption="Undo"
           icon={<UndoIcon />}
           disabled={!canUndo}
           onClick={() => fire('tap', onUndo)}
         />
         <IconButton
-          label="Redo"
+          label={t('action.redo')}
           caption="Redo"
           icon={<RedoIcon />}
           disabled={!canRedo}

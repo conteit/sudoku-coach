@@ -224,6 +224,36 @@ describe('surviving a kill (R5)', () => {
   });
 });
 
+describe('closing a game', () => {
+  it('parks the game on the way out: clock stopped, record written', async () => {
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    store.getState().dispatch({ type: 'setValue', cell: 2, digit: 4 });
+    clock += 7000;
+
+    await store.getState().closeGame();
+
+    expect(store.getState().activeGameId).toBeNull();
+    const parked = await stored(id);
+    expect(parked.runningSince).toBeNull();
+    expect(parked.elapsedMs).toBe(7000);
+    expect(parked.cells[2].value).toBe(4);
+  });
+
+  it('refreshes the summaries so the row shows what was just played', async () => {
+    await store.getState().startGame(PUZZLE_INPUT);
+    store.getState().dispatch({ type: 'setValue', cell: 2, digit: 4 });
+
+    await store.getState().closeGame();
+
+    expect(store.getState().summaries[0].progress).toBeGreaterThan(0);
+  });
+
+  it('does nothing when there is no active game', async () => {
+    await expect(store.getState().closeGame()).resolves.toBeUndefined();
+    expect(store.getState().activeGameId).toBeNull();
+  });
+});
+
 describe('autosave', () => {
   it('coalesces a burst of moves into a single debounced write', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });

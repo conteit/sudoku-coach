@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { CloseIcon } from './icons';
 import { cx } from './cx';
+import { useT } from '../../i18n/locale';
 
 export interface SheetProps {
   open: boolean;
@@ -38,6 +39,7 @@ export function Sheet({
   footer,
   dismissible = true,
 }: SheetProps) {
+  const t = useT();
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
@@ -89,7 +91,7 @@ export function Sheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t('action.close')}
         tabIndex={-1}
         onClick={dismissible ? onClose : undefined}
         className="absolute inset-0 cursor-default bg-ink/25 backdrop-blur-[1px]"
@@ -119,7 +121,7 @@ export function Sheet({
             ) : null}
           </div>
           {dismissible ? (
-            <IconButton size="sm" label="Close" icon={<CloseIcon />} onClick={onClose} />
+            <IconButton size="sm" label={t('action.close')} icon={<CloseIcon />} onClick={onClose} />
           ) : null}
         </header>
         {children ? <div className="px-5 py-4">{children}</div> : null}

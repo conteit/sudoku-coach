@@ -24,6 +24,7 @@ import { memo } from 'react';
 import type { CellIndex, Digit } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { cellName, colOf, rowOf } from '../../engine/board';
+import { useT, type Translate } from '../../i18n/locale';
 import { cx } from '../primitives/cx';
 import {
   CELL_CONFLICT,
@@ -90,11 +91,21 @@ function digitClass(flags: number, given: boolean): string {
   return `${weight} ${given ? 'text-ink' : 'text-entry'}`;
 }
 
-function describe(index: CellIndex, value: Digit | null, given: boolean, marks: number): string {
-  const where = cellName(index);
-  if (value !== null) return `${where}, ${value}${given ? ', given' : ''}`;
+function describe(
+  t: Translate,
+  index: CellIndex,
+  value: Digit | null,
+  given: boolean,
+  marks: number,
+): string {
+  const cell = cellName(index);
+  if (value !== null) {
+    return given ? t('cell.valueGiven', { cell, digit: value }) : t('cell.value', { cell, digit: value });
+  }
   const noted = DIGITS.filter((d) => maskHas(marks, d));
-  return noted.length > 0 ? `${where}, empty, notes ${noted.join(', ')}` : `${where}, empty`;
+  return noted.length > 0
+    ? t('cell.emptyNotes', { cell, notes: noted.join(', ') })
+    : t('cell.empty', { cell });
 }
 
 function CellImpl({
@@ -107,6 +118,7 @@ function CellImpl({
   tabIndex,
   onSelect,
 }: CellProps) {
+  const t = useT();
   const selected = has(flags, CELL_SELECTED);
 
   return (
@@ -118,7 +130,7 @@ function CellImpl({
       data-spotlight={has(flags, CELL_SPOTLIGHT) || undefined}
       data-conflict={has(flags, CELL_CONFLICT) || undefined}
       aria-selected={selected}
-      aria-label={describe(index, value, given, marks)}
+      aria-label={describe(t, index, value, given, marks)}
       tabIndex={tabIndex}
       onPointerDown={() => onSelect(index)}
       className={cx(
