@@ -36,6 +36,26 @@ publishing anything under Paolo's identity. One line is enough — the point is 
 surprised, not that he is blocked on a prompt. Ordinary commits and pushes to this repo need no
 announcement.
 
+## Context is expensive — GitHub is the memory
+
+Issue **#22** is the living build status and the resume point. Keep it current: when a wave lands or
+a decision is made, edit that issue. It exists so a session can be cleared and picked up cold from
+`gh issue view 22` + `docs/architecture.md` + this file, without re-reading the source tree.
+
+Rules that follow from that:
+
+- **Do not read files to build context.** Read a file when you are about to change it. The frozen
+  contracts and #22 are the summary; the source is not.
+- **Delegate wide reads.** A question spanning many files goes to a subagent that returns the
+  conclusion, not to a sequence of reads that lands every file in the main context.
+- **Redirect heavy command output to a file and tail it.** Builds, installs and test suites produce
+  hundreds of lines that are worth twenty: `npm ci > /tmp/x.log 2>&1; tail -20 /tmp/x.log`.
+- **Record decisions where they survive.** A conclusion that only exists in a transcript is lost at
+  the next clear. It belongs in an issue, a commit message, or `docs/architecture.md`.
+
+Watch the usage quota (`/usage`) and clear proactively at a wave boundary rather than mid-task —
+a clear between waves costs nothing because #22 carries the state across it.
+
 ## Verify contract
 
 `npm run verify` = lint → `tsc -b` → vitest → build. CI runs exactly this, plus `npm run e2e`.
