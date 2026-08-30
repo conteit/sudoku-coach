@@ -240,6 +240,13 @@ interface Search {
   /** Where each cell currently sits in `empties`. */
   slot: Int32Array;
   open: number;
+  /**
+   * Branch nodes expanded so far. A deterministic proxy for how hard the
+   * search worked: identical on every machine, unlike elapsed time, so a
+   * performance regression can be asserted in CI without the assertion
+   * turning into a flake under coverage instrumentation or a loaded runner.
+   */
+  nodes: number;
 }
 
 /** Builds the search state, or null when the givens already conflict. */
@@ -250,6 +257,7 @@ function load(values: readonly (Digit | null)[]): Search | null {
     cols: new Int32Array(9),
     boxes: new Int32Array(9),
     empties: new Int32Array(CELL_COUNT),
+    nodes: 0,
     slot: new Int32Array(CELL_COUNT),
     open: 0,
   };
@@ -328,6 +336,7 @@ function mostConstrained(state: Search): number {
 /** Counts up to `remaining` solutions from the current state. */
 function countFrom(state: Search, remaining: number): number {
   if (state.open === 0) return 1;
+  state.nodes++;
   const choice = mostConstrained(state);
   const cell = choice & 0xff;
   let bits = choice >> 8;
@@ -351,10 +360,30 @@ function countFrom(state: Search, remaining: number): number {
  * solution appears rather than enumerating a half-empty grid's millions.
  */
 export function countSolutions(board: BoardView, limit = 2): number {
-  if (limit <= 0) return 0;
+  return countSolutionsWithStats(board, limit).solutions;
+}
+
+export interface SearchStats {
+  solutions: number;
+  /** Branch nodes expanded. Deterministic — the same board always costs the same. */
+  nodes: number;
+}
+
+/**
+ * `countSolutions` plus the work it took.
+ *
+ * Exposed so a performance regression can be caught by asserting on search
+ * effort rather than on elapsed milliseconds. A wall-clock assertion measures
+ * the machine as much as the algorithm, and a twenty-fold spread between a
+ * developer's laptop and a shared CI runner under coverage instrumentation
+ * makes it a flake generator rather than a guard.
+ */
+export function countSolutionsWithStats(board: BoardView, limit = 2): SearchStats {
+  if (limit <= 0) return { solutions: 0, nodes: 0 };
   const state = load(board.values);
-  if (state === null) return 0;
-  return countFrom(state, limit);
+  if (state === null) return { solutions: 0, nodes: 0 };
+  const solutions = countFrom(state, limit);
+  return { solutions, nodes: state.nodes };
 }
 
 /** A source of numbers in [0,1). Injected so generation and tests are seedable. */

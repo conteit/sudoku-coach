@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { Board, CELL_COUNT } from './board';
-import { CandidateGrid, countSolutions, firstFinding, solveBruteForce, solveLogically } from './solver';
+import {
+  CandidateGrid,
+  countSolutions,
+  countSolutionsWithStats,
+  firstFinding,
+  solveBruteForce,
+  solveLogically,
+} from './solver';
 import { CATALOG } from './techniques';
 import {
   EMPTY_GRID, EXAMPLES, lcg, maskGrid, PUZZLES, SOLVED_GRID,
@@ -160,6 +167,8 @@ describe('solveLogically', () => {
   });
 });
 
+const EMPTY = '.'.repeat(81);
+
 describe('countSolutions', () => {
   it('finds exactly one solution for a well-formed puzzle', () => {
     for (const p of PUZZLES) expect(countSolutions(Board.fromString(p.givens)), p.name).toBe(1);
@@ -199,15 +208,35 @@ describe('countSolutions', () => {
     expect(countSolutions(Board.fromString(UNSATISFIABLE))).toBe(0);
   });
 
-  it('counts a 17-clue puzzle in single-digit milliseconds', () => {
-    const board = Board.fromString(puzzle('seventeen clues').givens);
-    const runs = 50;
-    const started = performance.now();
-    for (let i = 0; i < runs; i++) countSolutions(board);
-    const perCall = (performance.now() - started) / runs;
+  it('searches a 17-clue puzzle without exploring the whole tree', () => {
     // The generator calls this thousands of times per puzzle, on the UI's
-    // worker thread. Ten milliseconds a call would make generation visible.
-    expect(perCall).toBeLessThan(10);
+    // worker thread, so the cost of a single call is load-bearing for R1's
+    // "p95 under 2s" target.
+    //
+    // The assertion is on branch nodes expanded, not on elapsed time. Wall
+    // clock measures the machine as much as the algorithm: this same board
+    // costs ~0.6ms on a developer laptop and ~13ms on a shared CI runner under
+    // v8 coverage instrumentation, so a millisecond ceiling is a flake
+    // generator. Node count is identical everywhere, and it is the thing an
+    // optimisation actually changes.
+    const board = Board.fromString(puzzle('seventeen clues').givens);
+    const { solutions, nodes } = countSolutionsWithStats(board);
+
+    expect(solutions).toBe(1);
+    // Measured at 11_547 with most-constrained-cell branching over a compact
+    // list of empty cells. The ceiling leaves room for incidental churn while
+    // still failing if either heuristic is lost.
+    expect(nodes).toBeLessThan(15_000);
+  });
+
+  it('stops the search the moment the limit is reached', () => {
+    // Early exit has to cut work, not just the returned count.
+    const board = Board.fromString(EMPTY);
+    const one = countSolutionsWithStats(board, 1);
+    const two = countSolutionsWithStats(board, 2);
+    expect(one.solutions).toBe(1);
+    expect(two.solutions).toBe(2);
+    expect(one.nodes).toBeLessThan(two.nodes);
   });
 });
 
