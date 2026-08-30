@@ -34,6 +34,8 @@ export const en = {
   'action.cancel': 'Cancel',
   'action.confirm': 'Confirm',
   'action.close': 'Close',
+  'action.restart': 'Start over',
+  'action.dismiss': 'Not now',
   'action.back': 'Back',
 
   'difficulty.easy': 'Easy',
@@ -50,8 +52,13 @@ export const en = {
   'games.filled': '{filled} of {total} cells filled',
   'games.newGamePrompt': 'Pick a difficulty.',
   'games.generating': 'Building a puzzle',
+  'games.generatingAttempt': 'Attempt {attempt} of {max}',
+  'games.generationFailed': 'That puzzle could not be built. Try again.',
+  'games.settledFor': 'No {requested} puzzle came out in time, so this one is {actual}.',
 
   'board.paused': 'Paused',
+  'board.pausedBody': 'The grid is covered and the clock has stopped.',
+  'board.solvedTitle': 'Solved',
   'board.solved': 'Solved in {time}',
   'board.conflict': 'That digit already appears in this row, column or box.',
   'board.givenLocked': 'That cell was given with the puzzle.',
@@ -70,6 +77,10 @@ export const en = {
   'coach.markMissing': '{digit} is still possible here and you have not noted it.',
   'coach.markInvalid': '{digit} is noted here, but a cell that sees this one already holds it.',
   'coach.marksChecked': '{count} cells checked',
+  'coach.nudge.contradiction': 'One of the digits you have entered cannot be right.',
+  'coach.nudge.staleMarks': 'A digit you placed leaves notes behind that can no longer hold.',
+  'coach.nudge.stuck': 'There is something on this board that a technique cracks.',
+  'coach.nudge.show': 'Show me where',
 
   'house.row': 'row {index}',
   'house.col': 'column {index}',

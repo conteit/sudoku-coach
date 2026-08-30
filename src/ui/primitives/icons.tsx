@@ -109,3 +109,31 @@ export const MoonIcon = (props: IconProps) => (
     <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
   </svg>
 );
+
+export const ChevronLeftIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="m15 5-7 7 7 7" />
+  </svg>
+);
+
+/** Settings: a slider bank, not a cog — this app has preferences, not machinery. */
+export const SettingsIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M4 8h10M18 8h2M4 16h4M12 16h8" />
+    <circle cx="16" cy="8" r="2" />
+    <circle cx="10" cy="16" r="2" />
+  </svg>
+);
+
+export const TrashIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" />
+  </svg>
+);
+
+/** Pause and play for the game clock, drawn to the same weight as the rest. */
+export const PauseIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M9 6v12M15 6v12" />
+  </svg>
+);

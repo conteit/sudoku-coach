@@ -2,8 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Digit } from '../../engine/types';
-import type { StoredCell } from '../../state/types';
-import { parseGrid } from '../../engine/board';
+import { formatGrid, parseGrid } from '../../engine/board';
 import { GameList, type GameSummary } from './GameList';
 
 const PUZZLE =
@@ -15,22 +14,18 @@ const NOW = Date.UTC(2026, 0, 15, 12, 0, 0);
 function savedGame(overrides: Partial<GameSummary> & { filled?: number } = {}): GameSummary {
   const { filled = 0, ...rest } = overrides;
   const values = parseGrid(PUZZLE);
-  const cells: StoredCell[] = values.map((value) => ({
-    value,
-    given: value !== null,
-    candidates: [],
-  }));
+  const board = [...values];
   let written = 0;
-  for (let i = 0; i < cells.length && written < filled; i++) {
-    if (cells[i].given) continue;
-    cells[i] = { ...cells[i], value: 1 as Digit };
+  for (let i = 0; i < board.length && written < filled; i++) {
+    if (values[i] !== null) continue;
+    board[i] = 1 as Digit;
     written += 1;
   }
   return {
     id: 'g1',
     difficulty: 'medium',
     givens: PUZZLE,
-    cells,
+    board: formatGrid(board),
     elapsedMs: 12 * 60_000 + 4_000,
     runningSince: null,
     updatedAt: NOW - 60_000,
