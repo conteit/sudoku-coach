@@ -51,3 +51,6 @@ yarn-error.log*
 
 # agent worktrees / local agent state
 .claude/
+
+# Lighthouse CI reports
+.lighthouseci/
