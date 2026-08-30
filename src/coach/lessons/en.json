@@ -1,0 +1,317 @@
+{
+  "naked_single": {
+    "id": "naked_single",
+    "name": "Naked single",
+    "oneLiner": "A cell with a single candidate left.",
+    "what": "A naked single is a cell whose row, column and box between them already contain eight different digits. One digit is left that does not clash with any peer, and that cell is settled.\n\nIt is the most basic move in sudoku, and it is also what every other technique is working towards: every elimination you make is an attempt to reduce some cell to a naked single.",
+    "why": "A cell has twenty peers: eight in its row, eight in its column, and four more in its box. A digit cannot repeat inside a house, so any digit already sitting in one of those twenty cells is impossible here.\n\nWhen eight distinct digits appear among the peers, eight of the nine candidates fall. Nothing is being guessed. The remaining digit is the only one that does not immediately break a house rule, and the puzzle has a solution, so it is the right one.",
+    "example": {
+      "grid": ".5769.821961528437.2.17.965.36..759..98..637.74293561.275469183.8..51.49.19..2.56",
+      "marks": { "r4c1": [1] },
+      "highlight": [27],
+      "caption": "Every digit except 1 already appears in row 4, column 1 or box 4, so r4c1 has a single candidate left."
+    },
+    "templates": {
+      "1": "One cell in {house} has a single candidate left. Its row, its column and its box have already used everything else.",
+      "2": "Naked single in {house}: one cell there has peers holding every digit except {digit}.",
+      "3": "The cell is {cells}. Read along its row, down its column and around its box: between them they already show eight different digits.",
+      "4": "Eight of the nine digits already appear in the row, the column and the box that meet at {cells}, so eight candidates are impossible there. The constraints leave {digit} standing alone."
+    }
+  },
+  "hidden_single": {
+    "id": "hidden_single",
+    "name": "Hidden single",
+    "oneLiner": "A digit with only one place left in a house.",
+    "what": "A hidden single is a digit that is still missing from a house and has exactly one cell left where it can go. That cell usually holds several candidates, which is what hides it: nothing about the cell on its own looks decided.\n\nNaked singles are found by looking at a cell and asking what it can hold. Hidden singles are found by looking at a house and asking where a digit can still go. Scanning that way finds far more moves.",
+    "why": "Every house has to contain all nine digits, once each. For a missing digit the question is not whether it will appear, but where.\n\nGo through the empty cells of the house and cross off each one that already sees that digit in its own row, column or box. If exactly one survives, the digit has nowhere else to be. The other candidates in that cell fall, because keeping one of them would leave the house with no room for the digit at all.",
+    "example": {
+      "grid": "7..65.1235.623.497.2.79.658..89.6245.5.84237...25.398..6.485712..7329564245167839",
+      "marks": { "r6c1": [1, 4, 6] },
+      "highlight": [45],
+      "caption": "Row 6 still needs a 4, and every empty cell there already sees one — except r6c1, which also carries 1 and 6."
+    },
+    "templates": {
+      "1": "In {house}, one of the missing digits has only one cell left that can take it. That cell has other candidates too, which is what makes it easy to walk past.",
+      "2": "Hidden single in {house}: {digit} is missing there, and every cell but one is blocked from taking it.",
+      "3": "Work through the empty cells of {house} and ask which of them could still take the missing digit. Every one is blocked by a peer that already holds it, except {cells}.",
+      "4": "{house} still has to contain {digit} somewhere. Every empty cell there already sees {digit} in its own row, column or box — every one except {cells}. A house holds each digit exactly once, so there is nowhere else left for it."
+    }
+  },
+  "naked_pair": {
+    "id": "naked_pair",
+    "name": "Naked pair",
+    "oneLiner": "Two cells in a house holding the same two candidates.",
+    "what": "Two cells in the same house, each down to the same two candidates and nothing else. Between them they will use both digits, so the rest of the house cannot have either.\n\nThe pair does not have to be resolved to be useful. You never need to know which cell takes which digit.",
+    "why": "Call the digits a and b, and the cells x and y. Each of x and y holds a or b. They share a house, so they cannot hold the same digit: one takes a, the other takes b.\n\nThat consumes both digits inside the house. A third cell in the house taking a would leave x and y to split b between them, which is impossible, and the same argument rules out b. So a and b come off every other cell in the house, whichever way round the pair falls.",
+    "example": {
+      "grid": "5691.324..879246...42..6..92.849716.4.62.19..791.654.2624..8791815749326973612..4",
+      "marks": { "r3c4": [5, 8], "r3c5": [5, 7, 8], "r3c7": [5, 8], "r3c8": [1, 3, 5, 7, 8] },
+      "highlight": [21, 22, 24, 25],
+      "caption": "r3c4 and r3c7 are both down to 5 and 8, so row 3 spends both there. 5 and 8 come off r3c5 and r3c8."
+    },
+    "templates": {
+      "1": "Two cells in {house} carry the same {count} candidates and nothing else.",
+      "2": "Naked pair in {house}: {digits} are the only candidates in two of its cells.",
+      "3": "The pair is {cells}. Each is limited to {digits}, so between them they take both digits inside {house}.",
+      "4": "{cells} hold nothing but {digits}. They share {house}, so they cannot take the same digit: one takes each. Both digits are then spent, and no other cell in {house} can use either. That removes {eliminations}."
+    }
+  },
+  "hidden_pair": {
+    "id": "hidden_pair",
+    "name": "Hidden pair",
+    "oneLiner": "Two digits in a house confined to the same two cells.",
+    "what": "Two digits that are still missing from a house and can only go in the same two cells. Those cells may be carrying other candidates as well, and that is exactly what hides the pair.\n\nOnce it is found, the extra candidates go: the two cells belong to the two digits.",
+    "why": "The house needs both digits, and both have only these two cells to choose from. Two digits and two cells means the cells are exactly used up, one digit each.\n\nSuppose one of the cells took some third digit instead. Then both of the pair digits would have to fit into the single remaining cell, and a cell holds one digit. So no third digit can survive in either cell, even though neither cell is resolved.",
+    "example": {
+      "grid": "781639...5364271899241856..24839.7...5927.....678549.267591..4.49356....812743596",
+      "marks": { "r5c7": [3, 4, 8], "r5c9": [1, 3, 4, 8] },
+      "highlight": [42, 44],
+      "caption": "In row 5, 4 and 8 appear only in r5c7 and r5c9. The pair claims both cells, so 3 leaves r5c7, and 1 and 3 leave r5c9."
+    },
+    "templates": {
+      "1": "Two digits still missing from {house} have only the same {count} cells to go in. Those cells carry other candidates too, which is what hides the pair.",
+      "2": "Hidden pair in {house}: {digits} have no home there except two cells, whatever else those cells are holding.",
+      "3": "Inside {house}, {digits} appear nowhere except {cells}. Everything else in those two cells is a passenger.",
+      "4": "{digits} both have to appear in {house}, and both are restricted to {cells}. Two digits and two cells means one digit each, so no other candidate can survive in either. That removes {eliminations}."
+    }
+  },
+  "pointing": {
+    "id": "pointing",
+    "name": "Pointing",
+    "oneLiner": "A digit trapped on one line inside a box points along that line.",
+    "what": "Inside a box, the remaining candidates for a digit sometimes all fall on the same row or the same column. The box will place that digit somewhere on that line, so the rest of the line closes to it. Depending on how many cells are left this is called a pointing pair or a pointing triple.\n\nIt is the first technique that reaches outside a single house, and it is usually the cheapest way out of an early stall.",
+    "why": "The box has to contain the digit exactly once, and all of its candidates lie on one line. So the digit's position in the box, wherever it turns out to be, is also a position on that line.\n\nThe line has to contain the digit exactly once too, and it is now certain to get its copy from inside the box. The cells of the line outside the box therefore cannot hold it. The argument never needs to know which cell of the box is the right one.",
+    "example": {
+      "grid": "...6927137..841956916...2486472351893..91867419876453226.4..89.5.9.8642.....2936.",
+      "marks": { "r7c5": [5, 7], "r7c6": [3, 7], "r7c9": [1, 5, 7] },
+      "highlight": [58, 59, 62],
+      "caption": "In box 8, 7 survives only at r7c5 and r7c6, both in row 7. Row 7 will get its 7 from box 8, so 7 comes off r7c9."
+    },
+    "templates": {
+      "1": "One digit missing from {house} has candidates only in cells that all lie in {house2}. The rest of {house2} inherits the restriction.",
+      "2": "Pointing in {house}: {digit} is confined to the cells that {house} and {house2} have in common.",
+      "3": "In {house}, {digit} survives only at {cells}, and every one of them lies in {house2}.",
+      "4": "{house} has to contain {digit}, and the only cells left for it are {cells} — all of them inside {house2}. Wherever it lands in the box, it lands in {house2}, so the rest of {house2} cannot take it. That removes {eliminations}."
+    }
+  },
+  "claiming": {
+    "id": "claiming",
+    "name": "Claiming",
+    "oneLiner": "A line that confines a digit to one box claims it, and the rest of the box loses it.",
+    "what": "The mirror image of pointing. Here a line — a row or a column — has all its remaining candidates for a digit inside a single box. The line claims that digit, and the box's other cells lose it.\n\nSome books call this box-line reduction. Pointing looks from the box outwards and claiming looks from the line inwards, but both live on the same overlap of nine cells.",
+    "why": "The line has to contain the digit, and every cell where it could still go lies inside one box. So the cell of the line that will take the digit is also a cell of that box.\n\nThe box needs the digit exactly once, and it is now committed to spending it on the overlap with the line. Every cell of the box outside the line therefore loses the digit as a candidate.",
+    "example": {
+      "grid": "84..2..67.79.68243362.47.1879...41.6.2468.73963..794.59.38.26742874963514.67..892",
+      "marks": { "r7c5": [1, 5], "r9c5": [1, 3, 5], "r9c6": [1, 3, 5] },
+      "highlight": [58, 76, 77],
+      "caption": "Column 5 can only take its 1 at r7c5 or r9c5, and both sit in box 8. Box 8 spends its 1 there, so 1 comes off r9c6."
+    },
+    "templates": {
+      "1": "One digit missing from {house} can only appear where {house} crosses {house2}, so the rest of {house2} is affected.",
+      "2": "Claiming in {house}: {digit} has candidates only inside {house2}.",
+      "3": "In {house}, {digit} is left only at {cells}, and all of them belong to {house2}.",
+      "4": "{house} needs {digit}, and its only remaining cells are {cells}, which all sit inside {house2}. {house2} will therefore spend its {digit} on that overlap, and its cells outside {house} cannot take it. That removes {eliminations}."
+    }
+  },
+  "naked_triple": {
+    "id": "naked_triple",
+    "name": "Naked triple",
+    "oneLiner": "Three cells in a house drawing on only three candidates.",
+    "what": "Three cells in one house whose candidates, taken together, are only three digits. No cell has to hold all three — two of the three is enough, as long as nothing from outside the three appears.\n\nThat is what makes triples harder to spot than pairs: you are looking for a union, not for three identical cells.",
+    "why": "Three cells that can only be filled from three digits will take all three, one each. There is no other way to fill them.\n\nSo those three digits are spent inside the house. Another cell in the house taking one of them would leave three cells to share two digits, and two digits cannot fill three cells. Each of the three digits therefore comes off every other cell in the house.",
+    "example": {
+      "grid": ".41...238.89..1475.35...691976183542823...169154269387568.1792..12...75..97.5281.",
+      "marks": {
+        "r1c4": [5, 6, 7, 9],
+        "r2c4": [3, 6],
+        "r3c4": [4, 7, 8],
+        "r5c4": [4, 5, 7],
+        "r7c4": [3, 4],
+        "r8c4": [3, 4, 6, 8, 9],
+        "r9c4": [3, 4, 6]
+      },
+      "highlight": [3, 12, 21, 39, 57, 66, 75],
+      "caption": "Down column 4, r2c4 holds 3 and 6, r7c4 holds 3 and 4, and r9c4 holds 3, 4 and 6 — three cells, and only 3, 4 and 6 between them. Those digits clear out of r1c4, r3c4, r5c4 and r8c4."
+    },
+    "templates": {
+      "1": "Three cells in {house} draw on only {count} different candidates between them. None of them has to hold all three.",
+      "2": "Naked triple in {house}: {digits} cover three of its cells completely.",
+      "3": "The triple is {cells}. Their candidates come only from {digits}, though no single cell needs all three.",
+      "4": "Between them, {cells} can only be filled from {digits}: three cells, three digits, one each. All three digits are then spent inside {house}, so no other cell there can use any of them. That removes {eliminations}."
+    }
+  },
+  "hidden_triple": {
+    "id": "hidden_triple",
+    "name": "Hidden triple",
+    "oneLiner": "Three digits in a house confined to the same three cells.",
+    "what": "Three digits still missing from a house, whose candidates between them cover only three cells. Each digit may appear in two or in three of those cells; what matters is that none of them appears anywhere else in the house.\n\nThose three cells usually carry a crowd of other candidates. Those are the ones that fall.",
+    "why": "Three digits that all have to appear in the house, and only three cells to hold them, means one digit per cell. The cells are fully committed.\n\nIf one of the three cells took an outside digit instead, the three hidden digits would be left with two cells and no way to fit. So every candidate in those cells that is not one of the three is impossible, even though the cells themselves stay unresolved.",
+    "example": {
+      "grid": "...6193..96.873.121372546987.953.2.16.3.27.89....9.73.3987651245..3829..276941853",
+      "marks": { "r5c2": [1, 4, 5], "r6c2": [1, 2, 4, 5, 8], "r6c3": [1, 2, 4, 5] },
+      "highlight": [37, 46, 47],
+      "caption": "In box 4, the digits 1, 2 and 5 appear only in r5c2, r6c2 and r6c3. The three cells belong to them, so 4 leaves all three and 8 leaves r6c2."
+    },
+    "templates": {
+      "1": "Three digits still missing from {house} have candidates in only {count} cells between them. The extra candidates in those cells are what hide it.",
+      "2": "Hidden triple in {house}: {digits} have nowhere to go except three of its cells.",
+      "3": "Within {house}, {digits} appear only in {cells}. Every other candidate in those three cells is surplus.",
+      "4": "{digits} each need a home in {house}, and between them they have only {cells}. Three digits into three cells uses the cells up completely, so nothing else can survive in them. That removes {eliminations}."
+    }
+  },
+  "naked_quad": {
+    "id": "naked_quad",
+    "name": "Naked quad",
+    "oneLiner": "Four cells in a house drawing on only four candidates.",
+    "what": "The same shape as a naked pair or triple, one size larger: four cells in a house whose candidates add up to only four digits.\n\nQuads are rare and easy to miss, and they often turn up as the other side of a hidden pair or triple in the same house. If you can see the hidden set instead, take it — the conclusion is the same.",
+    "why": "Four cells that can only be filled from four digits use all four, one each. No arrangement leaves a digit over, and none brings a digit in from outside.\n\nSo the four digits are consumed inside the house. Another cell in the house claiming one of them would leave four cells to share three digits, which cannot be done. All four digits come off the rest of the house.",
+    "example": {
+      "grid": "598634127123..94..476..23..845...632367..59182193865746325..84.984..375.751..82.3",
+      "marks": {
+        "r2c5": [5, 7],
+        "r3c5": [1, 5],
+        "r4c5": [1, 7, 9],
+        "r7c5": [1, 7, 9],
+        "r8c5": [1, 2, 6],
+        "r9c5": [4, 6, 9]
+      },
+      "highlight": [13, 22, 31, 58, 67, 76],
+      "caption": "Column 5 holds 5 and 7 at r2c5, 1 and 5 at r3c5, and 1, 7 and 9 at both r4c5 and r7c5 — four cells, and only 1, 5, 7 and 9 between them. That takes 1 off r8c5 and 9 off r9c5."
+    },
+    "templates": {
+      "1": "Four cells in {house} draw on a pool of only {count} candidates between them.",
+      "2": "Naked quad in {house}: {digits} fill four of its cells and nothing else gets in.",
+      "3": "The quad is {cells}. Every candidate in them comes from {digits}.",
+      "4": "{cells} can only be filled from {digits} — four cells, four digits, one each. All four are then spent inside {house}, so no other cell there can hold any of them. That removes {eliminations}."
+    }
+  },
+  "x_wing": {
+    "id": "x_wing",
+    "name": "X-Wing",
+    "oneLiner": "A digit locked to the same two lines in two parallel houses.",
+    "what": "Take a digit and two rows in which it has exactly two possible cells each. If the two pairs stand in the same two columns, they form the four corners of a rectangle: an X-Wing. The digit then owns both columns and comes off every other cell in them.\n\nIt works identically with rows and columns swapped: two columns confining the digit to the same two rows clear those rows instead.",
+    "why": "Each of the two rows has to take the digit in one of its two cells. Whichever corner the first row picks, the second is forced onto the opposite corner, because the two rows cannot use the same column.\n\nEither way, one copy of the digit lands in each of the two columns. Both columns have their quota, so no other cell in them can hold the digit. Notice that the argument never settles which diagonal of the rectangle is the true one. It does not need to.",
+    "example": {
+      "grid": "231985467479361258.8.4279...27.4389684..9617.9...7.5.4..4.5.3.9.58.3964.392614785",
+      "marks": {
+        "r5c4": [2, 5],
+        "r5c9": [2, 3],
+        "r6c4": [1, 2, 8],
+        "r7c4": [2, 7, 8],
+        "r8c4": [2, 7],
+        "r8c9": [1, 2]
+      },
+      "highlight": [39, 44, 48, 57, 66, 71],
+      "caption": "2 sits in exactly two cells of row 5 and two cells of row 8, and both pairs fall in columns 4 and 9. The four corners take both columns, so 2 comes off r6c4 and r7c4."
+    },
+    "templates": {
+      "1": "{house} and {house2} each have one digit down to just two cells, and the two pairs stand in the same pair of crossing lines.",
+      "2": "X-Wing on {digit}: in both {house} and {house2} it is confined to the same two crossing lines.",
+      "3": "{digit} sits at the four corners {cells}. {house} and {house2} contribute two each, in the same two crossing lines.",
+      "4": "{house} has {digit} in one of its two cells, and so does {house2}. They cannot both use the same crossing line, so between them the corners {cells} account for one {digit} in each of the two crossing lines. Both lines are then full, and nothing else on them can hold {digit}. That removes {eliminations}."
+    }
+  },
+  "xy_wing": {
+    "id": "xy_wing",
+    "name": "XY-Wing",
+    "oneLiner": "Two cells hinged on a third, sharing a digit that dies wherever both can see.",
+    "what": "Three cells with exactly two candidates each. The hinge holds X and Y, one arm holds X and Z, the other holds Y and Z, and the hinge shares a house with each arm. Z is the digit the two arms have in common.\n\nAny cell that can see both arms loses Z. The arms do not have to see each other, and none of the three cells gets resolved.",
+    "why": "The hinge holds either X or Y. If it holds X, the arm that shares X with it is pushed off X and has to be Z. If it holds Y, the other arm is pushed off Y and has to be Z.\n\nThere is no third case, so Z turns up in one arm or the other, always. A cell that sees both arms would clash with whichever arm ended up holding Z, so it cannot hold Z itself. This is the first technique whose conclusion comes from a case split rather than from counting.",
+    "example": {
+      "grid": ".4..81..5..8495.1.....37.48462813.5.1957628347835492618..3564....4928176926174583",
+      "marks": {
+        "r1c4": [2, 6],
+        "r1c7": [3, 6, 7, 9],
+        "r1c8": [2, 9],
+        "r3c4": [2, 6],
+        "r3c7": [6, 9]
+      },
+      "highlight": [3, 6, 7, 21, 24],
+      "caption": "r1c8 is the hinge, with 2 and 9. r1c4 holds 2 and 6, r3c7 holds 6 and 9. One of the two arms has to be 6, so 6 comes off r1c7 and r3c4, which see both."
+    },
+    "templates": {
+      "1": "{count} cells with exactly two candidates each hook together: one hinge and two arms. A digit the arms share cannot survive where both of them reach.",
+      "2": "XY-Wing on {digits}: whichever candidate the hinge takes, one of its two arms is forced onto the digit they have in common.",
+      "3": "The wing is {cells}. One of the three shares a house with each of the other two; those other two are the arms, and they have a digit from {digits} in common.",
+      "4": "In {cells}, the hinge holds two candidates and each arm shares one of them. If the hinge takes the digit its first arm shares, that arm is pushed onto the common digit; if it takes the other, the second arm is. Either way the common digit turns up in one arm or the other, so no cell seeing both arms can hold it. That removes {eliminations}."
+    }
+  },
+  "swordfish": {
+    "id": "swordfish",
+    "name": "Swordfish",
+    "oneLiner": "An X-Wing stretched across three lines instead of two.",
+    "what": "Three rows in which a digit has only two or three candidates each, and all of those candidates fall inside the same three columns. Three rows putting three copies of the digit into three columns fill every column, so the digit clears out of the rest of them.\n\nAs with the X-Wing, the roles of rows and columns can be swapped. Not every row needs all three columns; two of the three is enough.",
+    "why": "Each of the three base rows contributes exactly one copy of the digit, and each copy lands in one of the three columns. Three copies, three columns, and no column can take two, so every column gets exactly one.\n\nThat exhausts the columns. Any other cell in them holding the digit would force one of the three columns to take two copies. As with every fish, the deduction is a count of rows against columns; which cell is finally right never comes into it.",
+    "example": {
+      "grid": ".6..1..2727...6..1.8172956.91..8.2768.26.71.97.629138.127..3698..896271.69.1784.2",
+      "marks": {
+        "r1c1": [3, 4, 5],
+        "r3c1": [3, 4],
+        "r3c9": [3, 4],
+        "r5c2": [3, 4, 5],
+        "r6c2": [4, 5],
+        "r6c9": [4, 5],
+        "r8c1": [3, 4, 5],
+        "r8c2": [3, 4, 5]
+      },
+      "highlight": [0, 18, 26, 37, 46, 53, 63, 64],
+      "caption": "4 is confined to columns 1, 2 and 9 in each of rows 3, 6 and 8: r3c1 and r3c9, r6c2 and r6c9, r8c1 and r8c2. Those three columns are filled by those three rows, so 4 comes off r1c1 and r5c2."
+    },
+    "templates": {
+      "1": "Three parallel houses, {house} and {house2} among them, each keep one digit inside the same three crossing lines.",
+      "2": "Swordfish on {digit}: three houses confine it to three crossing lines, and those lines are then spoken for.",
+      "3": "{digit} survives only at {cells}. {house} and {house2} are two of the three base houses, and every one of those cells falls in the same three crossing lines.",
+      "4": "Each of the three base houses needs {digit} exactly once, and in each of them the candidates for it lie inside the same three crossing lines, at {cells}. Three copies into three lines fills every line, so no other cell on them can hold {digit}. That removes {eliminations}."
+    }
+  },
+  "simple_coloring": {
+    "id": "simple_coloring",
+    "name": "Simple colouring",
+    "oneLiner": "Colour a digit's forced pairs in two tints and read off what falls.",
+    "what": "Pick a digit and find the houses where it has exactly two candidates left. In such a house one of the two is true and the other is false, with no third option. Chain those pairs together and colour the chain in alternating tints.\n\nOne tint is the true set and the other is false, and you never need to know which is which. Any cell outside the chain that sees both tints is finished for that digit.",
+    "why": "A house with exactly two candidates for a digit is a strong link: exactly one end of it is true. Following such links, every step flips the truth value, so alternating tints along the chain is consistent — all the cells of one tint are true together, and all of the other tint are false together.\n\nNow take a cell that sees one cell of each tint. Whichever tint turns out to be the true one, this cell sees a placed copy of the digit and cannot hold it. The conclusion holds in both cases, which is what makes it safe without resolving the chain.",
+    "example": {
+      "grid": "...6..43..6.3.485...9815726...96.14.6.41.329..9..4.367..8..9613913486572256731984",
+      "marks": {
+        "r1c2": [2, 7, 8],
+        "r1c6": [2, 7],
+        "r4c6": [2, 7, 8],
+        "r5c2": [7, 8],
+        "r5c5": [5, 7]
+      },
+      "highlight": [1, 5, 32, 37, 40],
+      "caption": "For 7, the pairs r1c6-r4c6, r4c6-r5c5 and r5c5-r5c2 are each the only two places 7 can go in their house. Alternating tints puts r1c6 and r5c5 in one tint and r4c6 and r5c2 in the other; r1c2 sees one of each, so 7 comes off it."
+    },
+    "templates": {
+      "1": "One digit forms a chain of {count} cells, each link a house where it has exactly two candidates. Colour the chain in alternating tints and something falls out of it.",
+      "2": "Simple colouring on {digit}: its two-candidate houses chain up, so the chain alternates true and false, and one whole tint is the true one.",
+      "3": "The chain runs through {cells}. Colour it in alternating tints: the two cells of a link are always opposites, so the chain splits into two tints.",
+      "4": "Every link in the chain {cells} joins two cells of a house where {digit} has exactly two candidates, so exactly one end of each link is true. Alternating tints therefore gives one tint that is entirely true and one entirely false. A cell that sees both tints meets a true {digit} either way, so it cannot hold one. That removes {eliminations}."
+    }
+  },
+  "remote_pairs": {
+    "id": "remote_pairs",
+    "name": "Remote pairs",
+    "oneLiner": "A chain of identical pairs that flips at every step.",
+    "what": "Four or more cells, each holding exactly the same two candidates and nothing else, linked in a chain where consecutive cells share a house.\n\nBecause each link forces its two cells apart, the pair alternates down the chain. Cells an odd number of links apart are always opposites, and any cell seeing both of them loses both digits.",
+    "why": "Two cells of the chain that share a house cannot take the same digit, so each step swaps which digit is where. After an odd number of steps you are certain to be on the opposite digit from where you started.\n\nTake the two ends of an odd-length chain. One holds the first digit and the other holds the second. You do not know which way round, but both digits are certainly used. A cell that sees both ends therefore sees both digits placed, and can hold neither.",
+    "example": {
+      "grid": ".5217843.14723.5.83.845.127214385.7.836794215..5612843.8154...24.982..51523961784",
+      "marks": {
+        "r1c1": [6, 9],
+        "r1c9": [6, 9],
+        "r2c8": [6, 9],
+        "r7c1": [6, 7],
+        "r7c8": [6, 9]
+      },
+      "highlight": [0, 8, 16, 54, 61],
+      "caption": "r1c1, r1c9, r2c8 and r7c8 all hold exactly 6 and 9, linked through row 1, box 3 and column 8. The ends r1c1 and r7c8 are three links apart, so they take different digits; r7c1 sees both and loses 6."
+    },
+    "templates": {
+      "1": "A chain of {count} cells carries the same two candidates and nothing else, each cell sharing a house with the next. The two ends behave in opposite ways.",
+      "2": "Remote pairs on {digits}: identical pairs chained together alternate, so the two ends of a chain with an odd number of links are always opposites.",
+      "3": "The chain is {cells}. Every cell holds exactly {digits}, consecutive cells share a house, and the ends sit an odd number of links apart.",
+      "4": "Along {cells}, every cell holds only {digits} and each shares a house with the next, so the two digits alternate down the chain. An odd number of links leaves the two ends opposite: between them they use both digits. Anything that sees both ends can hold neither. That removes {eliminations}."
+    }
+  }
+}

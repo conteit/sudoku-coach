@@ -1,0 +1,317 @@
+{
+  "naked_single": {
+    "id": "naked_single",
+    "name": "Singolo nudo",
+    "oneLiner": "Una cella rimasta con un solo candidato.",
+    "what": "Un singolo nudo è una cella la cui riga, la cui colonna e il cui riquadro contengono già, fra tutti, otto cifre diverse. Resta una sola cifra che non entra in conflitto con nessuna cella collegata, e quella cella è decisa.\n\nÈ la mossa più elementare del sudoku ed è anche il traguardo di tutte le altre tecniche: ogni eliminazione che fai serve, prima o poi, a ridurre qualche cella a un singolo nudo.",
+    "why": "Ogni cella ne vede altre venti: otto nella riga, otto nella colonna e altre quattro nel riquadro. Una cifra non può ripetersi dentro un’unità, quindi qualunque cifra già presente in quelle venti celle qui è impossibile.\n\nQuando fra le celle collegate compaiono otto cifre distinte, otto candidati su nove cadono. Non si sta tirando a indovinare: la cifra rimasta è l’unica che non viola subito una regola, e il sudoku ha una soluzione, quindi è quella giusta.",
+    "example": {
+      "grid": ".5769.821961528437.2.17.965.36..759..98..637.74293561.275469183.8..51.49.19..2.56",
+      "marks": { "r4c1": [1] },
+      "highlight": [27],
+      "caption": "Tutte le cifre tranne l’1 compaiono già nella riga 4, nella colonna 1 o nel riquadro 4: a r4c1 resta un solo candidato."
+    },
+    "templates": {
+      "1": "In {house} c’è una cella rimasta con un solo candidato. La sua riga, la sua colonna e il suo riquadro hanno già usato tutto il resto.",
+      "2": "Singolo nudo in {house}: una delle sue celle vede già ogni cifra tranne {digit}.",
+      "3": "La cella è {cells}. Scorri la sua riga, la sua colonna e il suo riquadro: insieme mostrano già otto cifre diverse.",
+      "4": "Nella riga, nella colonna e nel riquadro che si incontrano in {cells} compaiono già otto delle nove cifre, quindi otto candidati sono impossibili. I vincoli lasciano in piedi solo {digit}."
+    }
+  },
+  "hidden_single": {
+    "id": "hidden_single",
+    "name": "Singolo nascosto",
+    "oneLiner": "Una cifra con un solo posto rimasto in un’unità.",
+    "what": "Un singolo nascosto è una cifra che manca ancora in un’unità e che ha una sola cella in cui può ancora finire. Di solito quella cella porta più candidati, ed è proprio questo a nasconderla: presa da sola non sembra affatto decisa.\n\nI singoli nudi si trovano guardando una cella e chiedendosi che cosa può contenere. I singoli nascosti si trovano guardando un’unità e chiedendosi dove può ancora stare una cifra. Scandire così fa emergere molte più mosse.",
+    "why": "Ogni unità deve contenere tutte e nove le cifre, una volta sola. Per una cifra che manca la domanda non è se comparirà, ma dove.\n\nScorri le celle vuote dell’unità e scarta quelle che vedono già quella cifra nella propria riga, colonna o riquadro. Se ne sopravvive una sola, la cifra non ha altro posto. Gli altri candidati di quella cella cadono, perché tenerne uno lascerebbe l’unità senza spazio per la cifra.",
+    "example": {
+      "grid": "7..65.1235.623.497.2.79.658..89.6245.5.84237...25.398..6.485712..7329564245167839",
+      "marks": { "r6c1": [1, 4, 6] },
+      "highlight": [45],
+      "caption": "Alla riga 6 manca ancora il 4 e ogni sua cella vuota ne vede già uno, tranne r6c1, che porta anche 1 e 6."
+    },
+    "templates": {
+      "1": "In {house} una delle cifre mancanti ha una sola cella che può ancora prenderla. Quella cella porta anche altri candidati, ed è per questo che è facile passarle davanti.",
+      "2": "Singolo nascosto in {house}: manca {digit}, e tutte le celle tranne una sono bloccate.",
+      "3": "Passa in rassegna le celle vuote di {house} e chiediti quale potrebbe ancora prendere la cifra che manca. Tutte vedono una cella collegata che la contiene già, tranne {cells}.",
+      "4": "{house} deve ancora contenere {digit}. Ogni sua cella vuota vede già un {digit} nella propria riga, colonna o riquadro, tranne {cells}. Un’unità contiene ogni cifra una volta sola, quindi non resta altro posto."
+    }
+  },
+  "naked_pair": {
+    "id": "naked_pair",
+    "name": "Coppia nuda",
+    "oneLiner": "Due celle della stessa unità con gli stessi due candidati.",
+    "what": "Due celle nella stessa unità, ridotte entrambe agli stessi due candidati e a nient’altro. Fra loro consumeranno tutte e due le cifre, quindi il resto dell’unità non può più usarle.\n\nNon serve sapere quale delle due celle prenda quale cifra: la coppia è utile anche senza essere risolta.",
+    "why": "Chiama a e b le due cifre, x e y le due celle. Sia x sia y contiene a oppure b, e siccome condividono un’unità non possono contenere la stessa cifra: una prende a, l’altra prende b.\n\nCosì entrambe le cifre sono spese dentro l’unità. Se una terza cella dell’unità prendesse a, x e y dovrebbero dividersi b in due, il che è impossibile; lo stesso ragionamento esclude b. Quindi a e b si cancellano da tutte le altre celle dell’unità, comunque vada la coppia.",
+    "example": {
+      "grid": "5691.324..879246...42..6..92.849716.4.62.19..791.654.2624..8791815749326973612..4",
+      "marks": { "r3c4": [5, 8], "r3c5": [5, 7, 8], "r3c7": [5, 8], "r3c8": [1, 3, 5, 7, 8] },
+      "highlight": [21, 22, 24, 25],
+      "caption": "r3c4 e r3c7 sono ridotte entrambe a 5 e 8, quindi la riga 3 spende lì tutte e due le cifre: il 5 e l’8 se ne vanno da r3c5 e r3c8."
+    },
+    "templates": {
+      "1": "Due celle di {house} portano gli stessi {count} candidati e nient’altro.",
+      "2": "Coppia nuda in {house}: {digits} sono gli unici candidati di due sue celle.",
+      "3": "La coppia è {cells}. Ciascuna è limitata a {digits}, quindi fra loro si prendono entrambe le cifre dentro {house}.",
+      "4": "{cells} non contengono altro che {digits}. Condividono {house}, quindi non possono prendere la stessa cifra: una per ciascuna. Le due cifre sono così esaurite e nessun’altra cella di {house} può usarle. Questo elimina {eliminations}."
+    }
+  },
+  "hidden_pair": {
+    "id": "hidden_pair",
+    "name": "Coppia nascosta",
+    "oneLiner": "Due cifre di un’unità confinate nelle stesse due celle.",
+    "what": "Due cifre che mancano ancora in un’unità e che possono andare solo nelle stesse due celle. Quelle celle possono portare anche altri candidati, ed è esattamente questo a nascondere la coppia.\n\nUna volta trovata, i candidati in più cadono: quelle due celle appartengono a quelle due cifre.",
+    "why": "L’unità ha bisogno di entrambe le cifre, ed entrambe hanno solo queste due celle a disposizione. Due cifre e due celle vuol dire che le celle sono esattamente occupate, una cifra ciascuna.\n\nSupponi che una delle due celle prendesse una terza cifra: le due cifre della coppia dovrebbero allora stare tutte e due nell’unica cella rimasta, e una cella contiene una cifra sola. Nessuna terza cifra può quindi sopravvivere in quelle due celle, che pure restano irrisolte.",
+    "example": {
+      "grid": "781639...5364271899241856..24839.7...5927.....678549.267591..4.49356....812743596",
+      "marks": { "r5c7": [3, 4, 8], "r5c9": [1, 3, 4, 8] },
+      "highlight": [42, 44],
+      "caption": "Nella riga 5 il 4 e l’8 compaiono solo in r5c7 e r5c9. La coppia si prende entrambe le celle: il 3 lascia r5c7, l’1 e il 3 lasciano r5c9."
+    },
+    "templates": {
+      "1": "Due cifre che mancano in {house} hanno solo le stesse {count} celle a disposizione. Quelle celle portano anche altri candidati, ed è questo a nascondere la coppia.",
+      "2": "Coppia nascosta in {house}: {digits} non hanno altro posto che due celle, qualunque altra cosa quelle celle portino.",
+      "3": "Dentro {house}, {digits} non compaiono da nessuna parte se non in {cells}. Tutto il resto in quelle due celle è di passaggio.",
+      "4": "{digits} devono comparire entrambe in {house} e sono entrambe confinate in {cells}. Due cifre e due celle vuol dire una cifra per cella, quindi nessun altro candidato può sopravvivere lì. Questo elimina {eliminations}."
+    }
+  },
+  "pointing": {
+    "id": "pointing",
+    "name": "Puntamento",
+    "oneLiner": "Una cifra chiusa su una sola linea dentro un riquadro punta lungo quella linea.",
+    "what": "Dentro un riquadro capita che i candidati rimasti per una cifra stiano tutti sulla stessa riga o sulla stessa colonna. Il riquadro metterà quella cifra da qualche parte su quella linea, e il resto della linea si chiude. A seconda di quante celle restano si parla di coppia o di tripla puntante.\n\nÈ la prima tecnica che esce da una singola unità, ed è quasi sempre il modo più rapido per sbloccare una griglia nelle prime fasi.",
+    "why": "Il riquadro deve contenere la cifra esattamente una volta, e tutti i suoi candidati stanno su una linea. Quindi la posizione della cifra dentro il riquadro, qualunque sia, è anche una posizione su quella linea.\n\nAnche la linea deve contenere la cifra una volta sola, e ormai è certo che la riceverà dall’interno del riquadro. Le celle della linea fuori dal riquadro non possono più prenderla. Il ragionamento non ha bisogno di sapere quale cella del riquadro sia quella giusta.",
+    "example": {
+      "grid": "...6927137..841956916...2486472351893..91867419876453226.4..89.5.9.8642.....2936.",
+      "marks": { "r7c5": [5, 7], "r7c6": [3, 7], "r7c9": [1, 5, 7] },
+      "highlight": [58, 59, 62],
+      "caption": "Nel riquadro 8 il 7 sopravvive solo in r7c5 e r7c6, entrambe nella riga 7. La riga 7 riceverà il suo 7 dal riquadro 8, quindi il 7 se ne va da r7c9."
+    },
+    "templates": {
+      "1": "Una cifra che manca in {house} ha candidati solo in celle che stanno tutte in {house2}, e il resto di {house2} ne risente.",
+      "2": "Puntamento in {house}: {digit} è confinato nelle celle che {house} e {house2} hanno in comune.",
+      "3": "In {house}, {digit} sopravvive solo in {cells}, e tutte queste celle stanno in {house2}.",
+      "4": "{house} deve contenere {digit}, e le uniche celle rimaste sono {cells}, tutte dentro {house2}. Dovunque cada nel riquadro, cade comunque in {house2}, quindi il resto di {house2} non può più prenderla. Questo elimina {eliminations}."
+    }
+  },
+  "claiming": {
+    "id": "claiming",
+    "name": "Rivendicazione",
+    "oneLiner": "Una linea che confina una cifra in un solo riquadro se la rivendica, e il resto del riquadro la perde.",
+    "what": "È l’immagine speculare del puntamento. Qui è una linea — una riga o una colonna — ad avere tutti i candidati rimasti per una cifra dentro un solo riquadro. La linea rivendica quella cifra e le altre celle del riquadro la perdono.\n\nIn molti testi si chiama riduzione riga-riquadro. Il puntamento guarda dal riquadro verso l’esterno, la rivendicazione guarda dalla linea verso l’interno: le nove celle in comune sono le stesse.",
+    "why": "La linea deve contenere la cifra, e ogni cella in cui potrebbe ancora finire sta dentro un solo riquadro. Quindi la cella della linea che prenderà la cifra è anche una cella di quel riquadro.\n\nIl riquadro ha bisogno di quella cifra una volta sola ed è ormai impegnato a spenderla sulla sovrapposizione con la linea. Tutte le celle del riquadro fuori dalla linea perdono quindi la cifra come candidato.",
+    "example": {
+      "grid": "84..2..67.79.68243362.47.1879...41.6.2468.73963..794.59.38.26742874963514.67..892",
+      "marks": { "r7c5": [1, 5], "r9c5": [1, 3, 5], "r9c6": [1, 3, 5] },
+      "highlight": [58, 76, 77],
+      "caption": "La colonna 5 può prendere il suo 1 solo in r7c5 o in r9c5, e stanno tutte e due nel riquadro 8. Il riquadro 8 spende lì il suo 1, quindi l’1 se ne va da r9c6."
+    },
+    "templates": {
+      "1": "Una cifra che manca in {house} può comparire solo dove {house} incrocia {house2}, quindi il resto di {house2} ne risente.",
+      "2": "Rivendicazione in {house}: {digit} ha candidati solo dentro {house2}.",
+      "3": "In {house}, {digit} resta solo in {cells}, e tutte appartengono a {house2}.",
+      "4": "{house} ha bisogno di {digit}, e le sue uniche celle rimaste sono {cells}, che stanno tutte dentro {house2}. {house2} spenderà quindi il suo {digit} sulla sovrapposizione, e le sue celle fuori da {house} non possono prenderla. Questo elimina {eliminations}."
+    }
+  },
+  "naked_triple": {
+    "id": "naked_triple",
+    "name": "Tripla nuda",
+    "oneLiner": "Tre celle di un’unità che pescano da soli tre candidati.",
+    "what": "Tre celle della stessa unità i cui candidati, messi insieme, sono solo tre cifre. Nessuna cella deve averle tutte e tre: due su tre bastano, purché non compaia nulla al di fuori delle tre.\n\nÈ questo a rendere le triple più sfuggenti delle coppie: si cerca un’unione, non tre celle identiche.",
+    "why": "Tre celle che si possono riempire solo con tre cifre le prenderanno tutte e tre, una per cella. Non c’è altro modo di riempirle.\n\nQuelle tre cifre sono quindi spese dentro l’unità. Se un’altra cella dell’unità ne prendesse una, le tre celle resterebbero a dividersi due cifre, e due cifre non riempiono tre celle. Ognuna delle tre cifre si cancella perciò da tutte le altre celle dell’unità.",
+    "example": {
+      "grid": ".41...238.89..1475.35...691976183542823...169154269387568.1792..12...75..97.5281.",
+      "marks": {
+        "r1c4": [5, 6, 7, 9],
+        "r2c4": [3, 6],
+        "r3c4": [4, 7, 8],
+        "r5c4": [4, 5, 7],
+        "r7c4": [3, 4],
+        "r8c4": [3, 4, 6, 8, 9],
+        "r9c4": [3, 4, 6]
+      },
+      "highlight": [3, 12, 21, 39, 57, 66, 75],
+      "caption": "Lungo la colonna 4, r2c4 porta 3 e 6, r7c4 porta 3 e 4, r9c4 porta 3, 4 e 6: tre celle e fra tutte solo 3, 4 e 6. Quelle cifre se ne vanno da r1c4, r3c4, r5c4 e r8c4."
+    },
+    "templates": {
+      "1": "Tre celle di {house} pescano fra loro da soli {count} candidati diversi. Nessuna deve averli tutti e tre.",
+      "2": "Tripla nuda in {house}: {digits} coprono per intero tre sue celle.",
+      "3": "La tripla è {cells}. I loro candidati vengono solo da {digits}, anche se nessuna delle tre celle li porta tutti.",
+      "4": "Fra tutte, {cells} si possono riempire solo con {digits}: tre celle, tre cifre, una per cella. Le tre cifre sono così spese dentro {house} e nessun’altra sua cella può usarle. Questo elimina {eliminations}."
+    }
+  },
+  "hidden_triple": {
+    "id": "hidden_triple",
+    "name": "Tripla nascosta",
+    "oneLiner": "Tre cifre di un’unità confinate nelle stesse tre celle.",
+    "what": "Tre cifre che mancano ancora in un’unità e i cui candidati, tutti insieme, coprono solo tre celle. Ogni cifra può comparire in due o in tre di quelle celle; quello che conta è che nessuna delle tre compaia altrove nell’unità.\n\nQuelle tre celle di solito portano una folla di altri candidati: sono quelli che cadono.",
+    "why": "Tre cifre che devono comparire tutte nell’unità e solo tre celle per ospitarle vogliono dire una cifra per cella. Le celle sono completamente impegnate.\n\nSe una delle tre celle prendesse una cifra esterna, le tre cifre nascoste resterebbero con due celle e nessun modo di starci. Ogni candidato di quelle celle che non sia una delle tre è quindi impossibile, anche se le celle restano irrisolte.",
+    "example": {
+      "grid": "...6193..96.873.121372546987.953.2.16.3.27.89....9.73.3987651245..3829..276941853",
+      "marks": { "r5c2": [1, 4, 5], "r6c2": [1, 2, 4, 5, 8], "r6c3": [1, 2, 4, 5] },
+      "highlight": [37, 46, 47],
+      "caption": "Nel riquadro 4 l’1, il 2 e il 5 compaiono solo in r5c2, r6c2 e r6c3. Le tre celle appartengono a loro: il 4 lascia tutte e tre, l’8 lascia r6c2."
+    },
+    "templates": {
+      "1": "Tre cifre che mancano in {house} hanno candidati in sole {count} celle. Sono i candidati in più di quelle celle a nasconderle.",
+      "2": "Tripla nascosta in {house}: {digits} non hanno altro posto che tre sue celle.",
+      "3": "Dentro {house}, {digits} compaiono solo in {cells}. Ogni altro candidato di quelle tre celle è in eccesso.",
+      "4": "{digits} devono trovare posto in {house} e fra tutte hanno solo {cells}. Tre cifre in tre celle le occupano per intero, quindi nient’altro può sopravvivere lì dentro. Questo elimina {eliminations}."
+    }
+  },
+  "naked_quad": {
+    "id": "naked_quad",
+    "name": "Quaterna nuda",
+    "oneLiner": "Quattro celle di un’unità che pescano da soli quattro candidati.",
+    "what": "La stessa forma della coppia e della tripla nuda, una taglia più grande: quattro celle di un’unità i cui candidati, tutti insieme, sono solo quattro cifre.\n\nLe quaterne sono rare e facili da mancare, e spesso sono il rovescio di una coppia o di una tripla nascosta nella stessa unità. Se vedi prima l’insieme nascosto, usa quello: la conclusione è identica.",
+    "why": "Quattro celle riempibili solo con quattro cifre le usano tutte e quattro, una per cella. Nessuna disposizione lascia fuori una cifra e nessuna ne fa entrare una da fuori.\n\nLe quattro cifre sono quindi consumate dentro l’unità. Un’altra cella dell’unità che ne rivendicasse una lascerebbe quattro celle a dividersi tre cifre, il che non si può fare. Tutte e quattro le cifre si cancellano dal resto dell’unità.",
+    "example": {
+      "grid": "598634127123..94..476..23..845...632367..59182193865746325..84.984..375.751..82.3",
+      "marks": {
+        "r2c5": [5, 7],
+        "r3c5": [1, 5],
+        "r4c5": [1, 7, 9],
+        "r7c5": [1, 7, 9],
+        "r8c5": [1, 2, 6],
+        "r9c5": [4, 6, 9]
+      },
+      "highlight": [13, 22, 31, 58, 67, 76],
+      "caption": "Nella colonna 5, r2c5 porta 5 e 7, r3c5 porta 1 e 5, r4c5 e r7c5 portano 1, 7 e 9: quattro celle e fra tutte solo 1, 5, 7 e 9. L’1 se ne va da r8c5 e il 9 da r9c5."
+    },
+    "templates": {
+      "1": "Quattro celle di {house} pescano fra loro da soli {count} candidati.",
+      "2": "Quaterna nuda in {house}: {digits} riempiono quattro sue celle e non lasciano entrare altro.",
+      "3": "La quaterna è {cells}. Ogni loro candidato viene da {digits}.",
+      "4": "{cells} si possono riempire solo con {digits}: quattro celle, quattro cifre, una per cella. Le quattro cifre sono così spese dentro {house} e nessun’altra sua cella può contenerle. Questo elimina {eliminations}."
+    }
+  },
+  "x_wing": {
+    "id": "x_wing",
+    "name": "X-Wing",
+    "oneLiner": "Una cifra bloccata sulle stesse due linee in due unità parallele.",
+    "what": "Prendi una cifra e due righe in cui ha esattamente due celle possibili ciascuna. Se le due coppie stanno nelle stesse due colonne formano i quattro vertici di un rettangolo: è l’X-Wing, alla lettera «ala a X», dalla forma incrociata del ragionamento. La cifra si prende entrambe le colonne e si cancella da tutte le loro altre celle.\n\nFunziona identico scambiando righe e colonne: due colonne che confinano la cifra sulle stesse due righe ripuliscono quelle righe.",
+    "why": "Ognuna delle due righe deve prendere la cifra in una delle sue due celle. Qualunque vertice scelga la prima riga, la seconda è costretta sul vertice opposto, perché le due righe non possono usare la stessa colonna.\n\nIn ogni caso una copia della cifra finisce in ciascuna delle due colonne. Le colonne hanno così la loro quota e nessun’altra loro cella può contenere la cifra. Nota che il ragionamento non stabilisce mai quale diagonale del rettangolo sia quella vera: non ne ha bisogno.",
+    "example": {
+      "grid": "231985467479361258.8.4279...27.4389684..9617.9...7.5.4..4.5.3.9.58.3964.392614785",
+      "marks": {
+        "r5c4": [2, 5],
+        "r5c9": [2, 3],
+        "r6c4": [1, 2, 8],
+        "r7c4": [2, 7, 8],
+        "r8c4": [2, 7],
+        "r8c9": [1, 2]
+      },
+      "highlight": [39, 44, 48, 57, 66, 71],
+      "caption": "Il 2 sta in esattamente due celle della riga 5 e in due della riga 8, e tutte e quattro cadono nelle colonne 4 e 9. I quattro vertici si prendono entrambe le colonne, quindi il 2 se ne va da r6c4 e r7c4."
+    },
+    "templates": {
+      "1": "{house} e {house2} hanno entrambe una cifra ridotta a due sole celle, e le due coppie stanno sulle stesse due linee incrociate.",
+      "2": "X-Wing su {digit}: sia in {house} sia in {house2} è confinato sulle stesse due linee incrociate.",
+      "3": "{digit} sta ai quattro vertici {cells}. {house} e {house2} ne portano due ciascuna, sulle stesse due linee incrociate.",
+      "4": "{house} ha {digit} in una delle sue due celle, e lo stesso vale per {house2}. Non possono usare la stessa linea incrociata, quindi fra loro i vertici {cells} portano un {digit} su ciascuna delle due linee. Le due linee sono così piene e nient’altro su di esse può contenere {digit}. Questo elimina {eliminations}."
+    }
+  },
+  "xy_wing": {
+    "id": "xy_wing",
+    "name": "XY-Wing",
+    "oneLiner": "Due celle incernierate su una terza, con una cifra comune che muore dove arrivano entrambe.",
+    "what": "Tre celle con esattamente due candidati ciascuna. La cerniera porta X e Y, un braccio porta X e Z, l’altro porta Y e Z, e la cerniera condivide un’unità con ciascun braccio. Z è la cifra che i due bracci hanno in comune.\n\nOgni cella che vede tutti e due i bracci perde Z. I bracci non devono vedersi fra loro, e nessuna delle tre celle viene risolta.",
+    "why": "La cerniera contiene X oppure Y. Se contiene X, il braccio che condivide X con lei viene spinto fuori da X e resta Z. Se contiene Y, è l’altro braccio a restare Z.\n\nNon c’è un terzo caso: Z compare sempre in uno dei due bracci. Una cella che li vede entrambi entrerebbe in conflitto con quello dei due che è finito su Z, quindi non può contenere Z. È la prima tecnica la cui conclusione nasce da una distinzione di casi e non da un conteggio.",
+    "example": {
+      "grid": ".4..81..5..8495.1.....37.48462813.5.1957628347835492618..3564....4928176926174583",
+      "marks": {
+        "r1c4": [2, 6],
+        "r1c7": [3, 6, 7, 9],
+        "r1c8": [2, 9],
+        "r3c4": [2, 6],
+        "r3c7": [6, 9]
+      },
+      "highlight": [3, 6, 7, 21, 24],
+      "caption": "r1c8 è la cerniera, con 2 e 9. r1c4 porta 2 e 6, r3c7 porta 6 e 9: uno dei due bracci deve valere 6, quindi il 6 se ne va da r1c7 e da r3c4, che li vedono entrambi."
+    },
+    "templates": {
+      "1": "{count} celle con esattamente due candidati ciascuna si agganciano fra loro: una cerniera e due bracci. Una cifra comune ai bracci non sopravvive dove arrivano tutti e due.",
+      "2": "XY-Wing su {digits}: qualunque candidato prenda la cerniera, uno dei due bracci viene spinto sulla cifra che hanno in comune.",
+      "3": "L’ala è {cells}. Una delle tre condivide un’unità con ciascuna delle altre due: quelle altre due sono i bracci e hanno in comune una cifra fra {digits}.",
+      "4": "In {cells} la cerniera porta due candidati e ogni braccio ne condivide uno. Se la cerniera prende la cifra del primo braccio, quel braccio viene spinto sulla cifra comune; se prende l’altra, tocca al secondo braccio. In un caso o nell’altro la cifra comune finisce in un braccio, quindi nessuna cella che li vede entrambi può contenerla. Questo elimina {eliminations}."
+    }
+  },
+  "swordfish": {
+    "id": "swordfish",
+    "name": "Swordfish",
+    "oneLiner": "Un X-Wing allungato su tre linee invece che su due.",
+    "what": "Tre righe in cui una cifra ha solo due o tre candidati ciascuna, e tutti quei candidati cadono nelle stesse tre colonne. Tre righe che collocano tre copie della cifra in tre colonne le riempiono tutte, quindi la cifra si cancella dal resto di quelle colonne. Il nome inglese, alla lettera «pesce spada», è quello con cui la tecnica circola anche in italiano.\n\nCome per l’X-Wing, righe e colonne si possono scambiare. Non serve che ogni riga usi tutte e tre le colonne: due su tre bastano.",
+    "why": "Ognuna delle tre righe di base contribuisce esattamente una copia della cifra, e ogni copia cade in una delle tre colonne. Tre copie, tre colonne, e nessuna colonna può prenderne due: ogni colonna ne riceve esattamente una.\n\nLe colonne sono così esaurite. Qualunque loro altra cella contenesse la cifra costringerebbe una delle tre colonne a prenderne due. Come in ogni pesce, la deduzione è un conteggio di righe contro colonne: quale cella sia poi quella giusta non entra mai nel discorso.",
+    "example": {
+      "grid": ".6..1..2727...6..1.8172956.91..8.2768.26.71.97.629138.127..3698..896271.69.1784.2",
+      "marks": {
+        "r1c1": [3, 4, 5],
+        "r3c1": [3, 4],
+        "r3c9": [3, 4],
+        "r5c2": [3, 4, 5],
+        "r6c2": [4, 5],
+        "r6c9": [4, 5],
+        "r8c1": [3, 4, 5],
+        "r8c2": [3, 4, 5]
+      },
+      "highlight": [0, 18, 26, 37, 46, 53, 63, 64],
+      "caption": "Il 4 è confinato nelle colonne 1, 2 e 9 in ciascuna delle righe 3, 6 e 8: r3c1 e r3c9, r6c2 e r6c9, r8c1 e r8c2. Quelle tre colonne sono riempite da quelle tre righe, quindi il 4 se ne va da r1c1 e r5c2."
+    },
+    "templates": {
+      "1": "Tre unità parallele, fra cui {house} e {house2}, tengono una cifra dentro le stesse tre linee incrociate.",
+      "2": "Swordfish su {digit}: tre unità lo confinano su tre linee incrociate, e quelle linee restano impegnate.",
+      "3": "{digit} sopravvive solo in {cells}. {house} e {house2} sono due delle tre unità di base, e tutte quelle celle cadono sulle stesse tre linee incrociate.",
+      "4": "Ognuna delle tre unità di base ha bisogno di {digit} esattamente una volta, e in ognuna i candidati stanno sulle stesse tre linee incrociate, in {cells}. Tre copie su tre linee le riempiono tutte, quindi nessun’altra cella su quelle linee può contenere {digit}. Questo elimina {eliminations}."
+    }
+  },
+  "simple_coloring": {
+    "id": "simple_coloring",
+    "name": "Colorazione semplice",
+    "oneLiner": "Colora a due tinte le coppie forzate di una cifra e leggi che cosa cade.",
+    "what": "Scegli una cifra e cerca le unità in cui le restano esattamente due candidati: lì una delle due è vera e l’altra è falsa, senza terza possibilità. Concatena queste coppie e colora la catena alternando due tinte.\n\nUna tinta è quella vera e l’altra è quella falsa, e non serve sapere quale sia quale. Qualsiasi cella fuori dalla catena che vede tutte e due le tinte, per quella cifra è finita.",
+    "why": "Un’unità con esattamente due candidati per una cifra è un legame forte: esattamente un capo è vero. Seguendo questi legami ogni passo ribalta il valore di verità, quindi colorare a tinte alternate è coerente: tutte le celle di una tinta sono vere insieme e quelle dell’altra sono false insieme.\n\nPrendi ora una cella che vede una cella per tinta. Qualunque sia la tinta vera, questa cella vede una copia della cifra già collocata e non può contenerla. La conclusione vale in entrambi i casi, ed è questo a renderla sicura senza risolvere la catena.",
+    "example": {
+      "grid": "...6..43..6.3.485...9815726...96.14.6.41.329..9..4.367..8..9613913486572256731984",
+      "marks": {
+        "r1c2": [2, 7, 8],
+        "r1c6": [2, 7],
+        "r4c6": [2, 7, 8],
+        "r5c2": [7, 8],
+        "r5c5": [5, 7]
+      },
+      "highlight": [1, 5, 32, 37, 40],
+      "caption": "Per il 7, le coppie r1c6-r4c6, r4c6-r5c5 e r5c5-r5c2 sono ciascuna l’unica alternativa nella propria unità. Colorando a tinte alternate, r1c6 e r5c5 finiscono in una tinta e r4c6 e r5c2 nell’altra: r1c2 ne vede una per tinta, quindi il 7 se ne va."
+    },
+    "templates": {
+      "1": "Una cifra forma una catena di {count} celle: ogni legame è un’unità in cui le restano esattamente due candidati. Colora la catena a tinte alternate e ne viene fuori qualcosa.",
+      "2": "Colorazione semplice su {digit}: le unità con due soli candidati si concatenano, la catena alterna vero e falso e una tinta intera è quella vera.",
+      "3": "La catena passa per {cells}. Colorala a tinte alternate: i due capi di un legame sono sempre opposti, quindi la catena si divide in due tinte.",
+      "4": "Ogni legame della catena {cells} unisce due celle di un’unità in cui {digit} ha esattamente due candidati, quindi un capo per legame è vero. Colorando a tinte alternate si ottiene una tinta interamente vera e una interamente falsa. Una cella che vede tutte e due le tinte incontra comunque un {digit} vero e non può contenerlo. Questo elimina {eliminations}."
+    }
+  },
+  "remote_pairs": {
+    "id": "remote_pairs",
+    "name": "Coppie remote",
+    "oneLiner": "Una catena di coppie identiche che si ribalta a ogni passo.",
+    "what": "Quattro o più celle, ciascuna con esattamente gli stessi due candidati e nient’altro, legate in catena in modo che due celle consecutive condividano un’unità.\n\nOgni legame costringe le sue due celle a valori opposti, quindi la coppia si alterna lungo la catena. Due celle a distanza dispari sono sempre opposte, e qualunque cella le veda entrambe perde tutte e due le cifre.",
+    "why": "Due celle della catena che condividono un’unità non possono avere la stessa cifra, quindi ogni passo scambia quale cifra sta dove. Dopo un numero dispari di passi si è certamente sulla cifra opposta a quella di partenza.\n\nPrendi i due capi di una catena con un numero dispari di legami: uno porta la prima cifra e l’altro la seconda. Non sai in che ordine, ma sai che entrambe le cifre sono usate. Una cella che vede tutti e due i capi vede quindi entrambe le cifre collocate, e non può contenere né l’una né l’altra.",
+    "example": {
+      "grid": ".5217843.14723.5.83.845.127214385.7.836794215..5612843.8154...24.982..51523961784",
+      "marks": {
+        "r1c1": [6, 9],
+        "r1c9": [6, 9],
+        "r2c8": [6, 9],
+        "r7c1": [6, 7],
+        "r7c8": [6, 9]
+      },
+      "highlight": [0, 8, 16, 54, 61],
+      "caption": "r1c1, r1c9, r2c8 e r7c8 portano tutte esattamente 6 e 9, legate attraverso la riga 1, il riquadro 3 e la colonna 8. I capi r1c1 e r7c8 distano tre legami, quindi prendono cifre diverse: r7c1 li vede entrambi e perde il 6."
+    },
+    "templates": {
+      "1": "Una catena di {count} celle porta gli stessi due candidati e nient’altro, e ogni cella condivide un’unità con la successiva. I due capi si comportano in modo opposto.",
+      "2": "Coppie remote su {digits}: coppie identiche concatenate si alternano, quindi i capi di una catena con un numero dispari di legami sono sempre opposti.",
+      "3": "La catena è {cells}. Ogni cella porta esattamente {digits}, celle consecutive condividono un’unità e i due capi distano un numero dispari di legami.",
+      "4": "Lungo {cells} ogni cella porta solo {digits} e condivide un’unità con la successiva, quindi le due cifre si alternano lungo la catena. Un numero dispari di legami lascia i due capi opposti: fra loro usano entrambe le cifre. Qualunque cella veda tutti e due i capi non può contenere né l’una né l’altra. Questo elimina {eliminations}."
+    }
+  }
+}
