@@ -2,6 +2,9 @@
 
 A sudoku PWA that teaches you to solve — it never solves for you.
 
+**Live:** https://sudoku-coach-steel.vercel.app
+<sub>Vercel appends a word because `sudoku-coach.vercel.app` was already taken by an unrelated project.</sub>
+
 Most sudoku apps answer "I'm stuck" by revealing a digit, which teaches nothing.
 Sudoku Coach answers with the *reasoning*: it names the technique that applies to
 your actual board, points at the region, and walks the logic — escalating only as
