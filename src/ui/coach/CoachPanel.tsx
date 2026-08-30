@@ -20,14 +20,19 @@ import { cellName } from '../../engine/board';
 import { Button } from '../primitives/Button';
 import { AlertIcon, CheckIcon, ChevronDownIcon } from '../primitives/icons';
 import { cx } from '../primitives/cx';
+import type { MessageKey } from '../../i18n/types';
+import { useT } from '../../i18n/locale';
 
-/** What each rung of the ladder costs the player, in their words. */
-const RUNGS: { level: DisclosureLevel; name: string; gives: string; ask: string }[] = [
-  { level: 1, name: 'Region', gives: 'Where to look', ask: 'Where should I look?' },
-  { level: 2, name: 'Technique', gives: 'What pattern it is', ask: 'Name the technique' },
-  { level: 3, name: 'Cells', gives: 'Exactly which cells', ask: 'Show me the cells' },
-  { level: 4, name: 'Proof', gives: 'The full argument', ask: 'Walk me through it' },
-];
+/**
+ * What each rung of the ladder costs the player, in their words. The copy is
+ * the dictionary's; only the shape of the ladder lives here.
+ */
+const RUNGS = [
+  { level: 1, name: 'coach.rung1.name', gives: 'coach.rung1.gives', ask: 'coach.rung1.ask' },
+  { level: 2, name: 'coach.rung2.name', gives: 'coach.rung2.gives', ask: 'coach.rung2.ask' },
+  { level: 3, name: 'coach.rung3.name', gives: 'coach.rung3.gives', ask: 'coach.rung3.ask' },
+  { level: 4, name: 'coach.rung4.name', gives: 'coach.rung4.gives', ask: 'coach.rung4.ask' },
+] as const satisfies readonly { level: DisclosureLevel; name: MessageKey; gives: MessageKey; ask: MessageKey }[];
 
 const titleCase = (id: string) =>
   id.replace(/_/g, ' ').replace(/^./, (ch) => ch.toUpperCase());
@@ -52,10 +57,11 @@ export interface CoachPanelProps {
 }
 
 function Ladder({ level }: { level: DisclosureLevel }) {
+  const t = useT();
   const reached = RUNGS.find((rung) => rung.level === level);
   return (
     <>
-      <ol className="flex gap-1.5" aria-label={`Disclosure level ${level} of 4`}>
+      <ol className="flex gap-1.5" aria-label={t('coach.ladderAria', { level })}>
         {RUNGS.map((rung) => {
           const taken = level >= rung.level;
           const here = level === rung.level;
@@ -74,18 +80,20 @@ function Ladder({ level }: { level: DisclosureLevel }) {
                   here ? 'text-coach' : taken ? 'text-ink-soft' : 'text-ink-faint',
                 )}
               >
-                {rung.name}
+                {t(rung.name)}
               </span>
               {/* Four captions do not fit a phone; the line below carries it there. */}
               <span className="mt-0.5 hidden text-[0.6875rem] leading-tight text-ink-faint sm:block">
-                {rung.gives}
+                {t(rung.gives)}
               </span>
             </li>
           );
         })}
       </ol>
       <p className="mt-2 text-[0.6875rem] text-ink-faint sm:hidden">
-        {reached ? `Level ${level} of 4 — ${reached.gives.toLowerCase()}` : 'Nothing taken yet'}
+        {reached
+          ? t('coach.ladderReached', { level, gives: t(reached.gives).toLocaleLowerCase() })
+          : t('coach.ladderNone')}
       </p>
     </>
   );
@@ -98,11 +106,12 @@ function IssueList({
   review: CandidateReview;
   onSpotlight?: (cells: CellIndex[]) => void;
 }) {
+  const t = useT();
   if (review.issues.length === 0) {
     return (
       <p className="flex items-center gap-2 py-3 text-sm text-match">
         <CheckIcon className="text-base" />
-        All {review.checkedCells} cells checked — your notes are exactly right.
+        {t('coach.marksAllClean', { count: review.checkedCells })}
       </p>
     );
   }
@@ -110,8 +119,11 @@ function IssueList({
   return (
     <>
       <p className="py-2.5 text-sm text-ink-soft">
-        {review.issues.length} of {review.checkedCells} checked cells need a second look.{' '}
-        <span className="text-ink-faint">Nothing has been changed for you.</span>
+        {t('coach.marksNeedLook', {
+          count: review.issues.length,
+          total: review.checkedCells,
+        })}{' '}
+        <span className="text-ink-faint">{t('coach.marksUnchanged')}</span>
       </p>
       <ul className="divide-y divide-rule border-t border-rule">
         {review.issues.map((issue) => (
@@ -136,7 +148,9 @@ function IssueList({
                     {cellName(issue.cell)}
                   </span>
                   <span className="text-[0.6875rem] font-semibold tracking-[0.1em] text-ink-soft uppercase">
-                    {issue.kind === 'invalid' ? `${issue.digit} can't be here` : `${issue.digit} is missing`}
+                    {issue.kind === 'invalid'
+                      ? t('coach.tagInvalid', { digit: issue.digit })
+                      : t('coach.tagMissing', { digit: issue.digit })}
                   </span>
                 </span>
                 <span className="mt-0.5 block text-sm text-ink-soft">{issue.reason}</span>
@@ -160,17 +174,18 @@ export function CoachPanel({
   exhausted = false,
   className,
 }: CoachPanelProps) {
+  const t = useT();
   const level = hint?.level ?? 0;
   const next = RUNGS.find((rung) => rung.level === level + 1);
 
   return (
     <section
-      aria-label="Coach"
+      aria-label={t('coach.title')}
       className={cx('w-full border-t-2 border-ink bg-paper-raised', className)}
     >
       <div className="flex items-baseline justify-between gap-4 px-4 pt-3.5">
         <h2 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-          Coach
+          {t('coach.title')}
         </h2>
         {/* The technique is a level-2 disclosure; the view honours that too. */}
         {hint && level >= 2 ? (
@@ -187,14 +202,9 @@ export function CoachPanel({
       <div aria-live="polite" className="px-4 pt-4">
         {hint ? (
           <p className="text-[0.9375rem] leading-relaxed text-ink">{hint.text}</p>
-        ) : exhausted ? (
-          <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
-            Nothing on this board yields to a technique yet. Fill in what you can and come back.
-          </p>
         ) : (
           <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
-            Stuck? Ask, and you get the smallest useful nudge first. You decide how far down the
-            ladder to go — the digit is never one of the rungs.
+            {exhausted ? t('coach.nothingFound') : t('coach.idlePrompt')}
           </p>
         )}
       </div>
@@ -202,7 +212,7 @@ export function CoachPanel({
       <div className="flex flex-wrap gap-2 px-4 pt-4 pb-4">
         {hint === null ? (
           <Button variant="coach" size="lg" onClick={onAsk}>
-            Where should I look?
+            {t('coach.rung1.ask')}
           </Button>
         ) : next && hint.canEscalate ? (
           <Button
@@ -210,18 +220,16 @@ export function CoachPanel({
             size="lg"
             icon={<ChevronDownIcon />}
             onClick={onEscalate}
-            aria-label={`${next.ask} — disclosure level ${next.level} of 4`}
+            aria-label={t('coach.escalateAria', { ask: t(next.ask), level: next.level })}
           >
-            {next.ask}
+            {t(next.ask)}
           </Button>
         ) : (
-          <p className="py-2 text-sm text-ink-soft">
-            That is the whole argument. The digit is yours to place.
-          </p>
+          <p className="py-2 text-sm text-ink-soft">{t('coach.done')}</p>
         )}
         {onReviewCandidates ? (
           <Button variant="ghost" size="lg" onClick={onReviewCandidates}>
-            Check my notes
+            {t('action.checkMarks')}
           </Button>
         ) : null}
       </div>
@@ -229,7 +237,7 @@ export function CoachPanel({
       {review ? (
         <div className="border-t border-rule px-4 pb-4">
           <h3 className="pt-3 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-            Note check
+            {t('coach.notesHeading')}
           </h3>
           <IssueList review={review} onSpotlight={onSpotlight} />
         </div>

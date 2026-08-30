@@ -7,6 +7,7 @@
 
 import { Button } from '../primitives/Button';
 import { Sheet } from '../primitives/Sheet';
+import { useT } from '../../i18n/locale';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -27,11 +28,13 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
-  cancelLabel = 'Keep playing',
+  cancelLabel,
   destructive = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const t = useT();
+  const cancel = cancelLabel ?? t('action.keepPlaying');
   return (
     <Sheet
       open={open}
@@ -41,7 +44,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" size="lg" block onClick={onCancel}>
-            {cancelLabel}
+            {cancel}
           </Button>
           <Button
             variant={destructive ? 'danger' : 'primary'}

@@ -149,7 +149,6 @@ export function GameView({
             spotlight={spotlight}
             tintedHouses={coach.hint?.houses ?? []}
             conflicts={conflicts}
-            label={t('app.name')}
             className={paused ? 'pointer-events-none blur-md select-none' : undefined}
           />
           {paused ? (

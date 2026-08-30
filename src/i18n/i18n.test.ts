@@ -42,8 +42,10 @@ describe('dictionaries', () => {
 
   it('is not a copy of English pretending to be Italian', () => {
     const identical = KEYS.filter((key) => en[key] === itDictionary[key]);
-    // A handful of proper nouns legitimately match; the rest must be written.
-    expect(identical).toEqual(['app.name', 'coach.title']);
+    // Proper nouns match, and so does a string made only of placeholders —
+    // `cell.value` is "{cell}, {digit}" in any language. Everything else must
+    // actually have been written.
+    expect(new Set(identical)).toEqual(new Set(['app.name', 'coach.title', 'cell.value']));
   });
 });
 

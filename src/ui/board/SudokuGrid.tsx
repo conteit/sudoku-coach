@@ -28,6 +28,7 @@ import {
   marksToMask,
 } from './cellFlags';
 import { cx } from '../primitives/cx';
+import { useT } from '../../i18n/locale';
 
 /** The shape the grid needs from a cell — a structural subset of engine `Cell`. */
 export interface GridCell {
@@ -61,7 +62,7 @@ export interface SudokuGridProps {
   highlightPeers?: boolean;
   /** Green same-number highlight across the board (R3). */
   highlightMatches?: boolean;
-  /** Accessible name for the grid. */
+  /** Accessible name for the grid. Defaults to the localized board name. */
   label?: string;
   className?: string;
 }
@@ -79,9 +80,10 @@ export function SudokuGrid({
   conflicts,
   highlightPeers = true,
   highlightMatches = true,
-  label = 'Sudoku board',
+  label,
   className,
 }: SudokuGridProps) {
+  const t = useT();
   const gridRef = useRef<HTMLDivElement>(null);
 
   const masks = useMemo(() => {
@@ -191,7 +193,7 @@ export function SudokuGrid({
     <div
       ref={gridRef}
       role="grid"
-      aria-label={label}
+      aria-label={label ?? t('board.label')}
       onKeyDown={onKeyDown}
       className={cx(
         '@container grid aspect-square w-full grid-cols-9 grid-rows-9',

@@ -12,6 +12,7 @@ import { useSyncExternalStore } from 'react';
 import { cx } from '../primitives/cx';
 import { noSubscription, secondsSnapshot, subscribeToSeconds, zeroSnapshot } from './clock';
 import { formatDuration, totalElapsed } from './duration';
+import { useT } from '../../i18n/locale';
 
 export interface TimerProps {
   /** Banked milliseconds, excluding the current run. */
@@ -24,6 +25,7 @@ export interface TimerProps {
 }
 
 export function Timer({ elapsedMs, runningSince, size = 'sm', className }: TimerProps) {
+  const t = useT();
   const running = runningSince !== null;
   const now = useSyncExternalStore(
     running ? subscribeToSeconds : noSubscription,
@@ -35,7 +37,7 @@ export function Timer({ elapsedMs, runningSince, size = 'sm', className }: Timer
   return (
     <span
       role="timer"
-      aria-label={`Elapsed time ${text}`}
+      aria-label={t('board.elapsedTime', { time: text })}
       className={cx(
         'inline-flex items-baseline tabular-nums',
         size === 'md' ? 'digit text-xl text-ink' : 'text-sm font-medium text-ink-soft',

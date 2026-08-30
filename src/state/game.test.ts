@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { Board, CELL_COUNT } from '../engine/board';
 import type { Digit } from '../engine/types';
-import type { LiveGame } from './types';
+import type { CoachExchange, LiveGame } from './types';
 import {
   elapsedAt, isComplete, MAX_HISTORY, newGame, progress, reduce, toLive, topBatch, toStored,
 } from './game';
@@ -412,6 +412,46 @@ describe('progress', () => {
 
   it('calls a puzzle with nothing to fill complete', () => {
     expect(progress(start({ givens: SOLVED }))).toBe(100);
+  });
+});
+
+describe('the coach log', () => {
+  const exchange = (level: 1 | 2, findingKey = 'naked_single:2'): CoachExchange => ({
+    at: 2000,
+    technique: 'naked_single',
+    level,
+    findingKey,
+    offered: false,
+  });
+
+  it('stores the log the coach handed back', () => {
+    const entry = exchange(1);
+    const game = run(start(), { type: 'setCoachLog', log: [entry], at: 2000 });
+
+    expect(game.coachLog).toEqual([entry]);
+    expect(game.updatedAt).toBe(2000);
+  });
+
+  it('leaves the game untouched when the log did not actually change', () => {
+    const entry = exchange(1);
+    const first = run(start(), { type: 'setCoachLog', log: [entry], at: 2000 });
+    // What `recordExchange` returns when it declines to append: same entries.
+    const again = reduce(first, { type: 'setCoachLog', log: [entry], at: 3000 });
+
+    expect(again).toBe(first);
+    expect(again.updatedAt).toBe(2000);
+  });
+
+  it('is outside undo — being told something cannot be un-told', () => {
+    const game = run(
+      start(),
+      { type: 'setValue', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'setCoachLog', log: [exchange(2)], at: 3000 },
+      { type: 'undo', at: 4000 },
+    );
+
+    expect(game.cells[OPEN].value).toBeNull();
+    expect(game.coachLog).toHaveLength(1);
   });
 });
 

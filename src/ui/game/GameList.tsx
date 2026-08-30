@@ -19,6 +19,8 @@ import { cx } from '../primitives/cx';
 import { DifficultyBadge } from './DifficultyBadge';
 import { PuzzleSigil } from './PuzzleSigil';
 import { formatDuration, totalElapsed } from './duration';
+import type { Locale } from '../../state/types';
+import { useLocale, useT, type Translate } from '../../i18n/locale';
 
 /** Everything the list needs, and nothing it must not see. */
 export type GameSummary = Pick<
@@ -42,6 +44,14 @@ export interface GameListProps {
   className?: string;
 }
 
+/** The difficulty label is part of the row's accessible name, so it is localized too. */
+const DIFFICULTY_KEYS = {
+  easy: 'difficulty.easy',
+  medium: 'difficulty.medium',
+  hard: 'difficulty.hard',
+  expert: 'difficulty.expert',
+} as const;
+
 /** Share of the cells the player has to fill that are filled. Givens are not progress. */
 function completion(game: GameSummary): number {
   let toFill = 0;
@@ -54,22 +64,35 @@ function completion(game: GameSummary): number {
   return toFill === 0 ? 100 : Math.round((filled / toFill) * 100);
 }
 
-const RELATIVE = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['day', 86_400_000],
   ['hour', 3_600_000],
   ['minute', 60_000],
 ];
 
-function lastPlayed(updatedAt: number, now: number): string {
+/** One formatter per locale; building one is not free. */
+const RELATIVE = new Map<Locale, Intl.RelativeTimeFormat>();
+
+function relative(locale: Locale): Intl.RelativeTimeFormat {
+  let formatter = RELATIVE.get(locale);
+  if (formatter === undefined) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+    RELATIVE.set(locale, formatter);
+  }
+  return formatter;
+}
+
+function lastPlayed(locale: Locale, t: Translate, updatedAt: number, now: number): string {
   const delta = updatedAt - now;
   for (const [unit, ms] of UNITS) {
-    if (Math.abs(delta) >= ms) return RELATIVE.format(Math.round(delta / ms), unit);
+    if (Math.abs(delta) >= ms) return relative(locale).format(Math.round(delta / ms), unit);
   }
-  return 'just now';
+  return t('games.justNow');
 }
 
 export function GameList({ games, onResume, onNewGame, now, className }: GameListProps) {
+  const locale = useLocale();
+  const t = useT();
   // The list is a resting screen, not a stopwatch: one reading of the clock at
   // mount is enough, and it keeps the rows out of a per-second re-render.
   const [mountedAt] = useState(() => Date.now());
@@ -80,21 +103,23 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
       <header className="flex items-end justify-between gap-4 border-b border-ink pb-3">
         <div>
           <p className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-            In progress
+            {t('games.inProgress')}
           </p>
           <h2 id="game-list-heading" className="digit mt-1 text-2xl leading-none text-ink">
-            {games.length === 0 ? 'Nothing on the desk' : `${games.length} puzzle${games.length === 1 ? '' : 's'}`}
+            {games.length === 0
+              ? t('games.deskEmpty')
+              : games.length === 1
+                ? t('games.puzzleCountOne', { count: games.length })
+                : t('games.puzzleCountOther', { count: games.length })}
           </h2>
         </div>
         <Button variant="primary" icon={<PlusIcon />} onClick={onNewGame}>
-          New puzzle
+          {t('games.newPuzzle')}
         </Button>
       </header>
 
       {games.length === 0 ? (
-        <p className="py-8 text-sm text-ink-soft">
-          Start a puzzle and it waits here, exactly where you left it.
-        </p>
+        <p className="py-8 text-sm text-ink-soft">{t('games.emptyBody')}</p>
       ) : (
         <ul className="divide-y divide-rule">
           {games.map((game) => {
@@ -107,7 +132,11 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
                 <button
                   type="button"
                   onClick={() => onResume(game.id)}
-                  aria-label={`Resume ${game.difficulty} puzzle, ${percent} percent complete, ${elapsed} played`}
+                  aria-label={t('games.resumeLabel', {
+                    difficulty: t(DIFFICULTY_KEYS[game.difficulty]).toLocaleLowerCase(locale),
+                    percent,
+                    elapsed,
+                  })}
                   className={cx(
                     'group flex w-full items-center gap-4 py-3.5 text-left',
                     'transition-colors duration-100 ease-snap hover:bg-paper-sunk',
@@ -127,7 +156,9 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
                       <span aria-hidden="true" className="text-ink-faint">
                         &middot;
                       </span>
-                      <span className="truncate">{lastPlayed(game.updatedAt, reference)}</span>
+                      <span className="truncate">
+                        {lastPlayed(locale, t, game.updatedAt, reference)}
+                      </span>
                     </span>
                   </span>
 
