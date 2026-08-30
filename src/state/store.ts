@@ -71,6 +71,12 @@ export interface GameStore {
   refreshSummaries: () => Promise<void>;
   startGame: (input: Omit<NewGameInput, 'at'>) => Promise<string>;
   openGame: (id: string) => Promise<void>;
+  /**
+   * Leaves the active game for the library: parks it (clock stopped, written
+   * out) and clears the selection. Summaries are refreshed on the way out so
+   * the row the player just left shows its real progress and time.
+   */
+  closeGame: () => Promise<void>;
   removeGame: (id: string) => Promise<void>;
   dispatch: (action: UiAction) => void;
   /** Backgrounded: stop the clock and get everything on disk. */
@@ -228,6 +234,13 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
         // Records are stored paused; opening one is what starts its clock (R5).
         apply(id, { type: 'resume', at: deps.now() });
         schedule(id, deps.clockAutosaveMs);
+      },
+
+      closeGame: async () => {
+        if (get().activeGameId === null) return;
+        await parkActive();
+        set({ activeGameId: null });
+        await get().refreshSummaries();
       },
 
       removeGame: async (id) => {

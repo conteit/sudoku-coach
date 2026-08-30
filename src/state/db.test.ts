@@ -1,6 +1,7 @@
 // Must come first: Dexie captures the global `indexedDB` when it is imported.
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
+import { formatGrid } from '../engine/board';
 import { Dexie } from 'dexie';
 import type { Digit } from '../engine/types';
 import {
@@ -151,8 +152,11 @@ describe('the game list', () => {
       updatedAt: game.updatedAt,
       completedAt: null,
       elapsedMs: 0,
+      runningSince: null,
       progress: 2,
       moves: game.undoStack.length,
+      givens: game.givens,
+      board: formatGrid(game.cells.map((cell) => cell.value)),
     });
     expect(Object.keys(summary)).not.toContain('undoStack');
   });

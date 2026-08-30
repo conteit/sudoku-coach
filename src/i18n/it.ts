@@ -34,6 +34,8 @@ export const it: Dictionary = {
   'action.cancel': 'Annulla',
   'action.confirm': 'Conferma',
   'action.close': 'Chiudi',
+  'action.restart': 'Ricomincia',
+  'action.dismiss': 'Non ora',
   'action.back': 'Indietro',
 
   'difficulty.easy': 'Facile',
@@ -50,8 +52,13 @@ export const it: Dictionary = {
   'games.filled': '{filled} celle su {total} compilate',
   'games.newGamePrompt': 'Scegli la difficoltà.',
   'games.generating': 'Sto preparando una griglia',
+  'games.generatingAttempt': 'Tentativo {attempt} di {max}',
+  'games.generationFailed': 'Non sono riuscito a creare la griglia. Riprova.',
+  'games.settledFor': 'Nessuna griglia {requested} è uscita in tempo, quindi questa è {actual}.',
 
   'board.paused': 'In pausa',
+  'board.pausedBody': 'La griglia è coperta e il cronometro è fermo.',
+  'board.solvedTitle': 'Risolto',
   'board.solved': 'Risolto in {time}',
   'board.conflict': 'Questa cifra compare già nella riga, nella colonna o nel riquadro.',
   'board.givenLocked': 'Questa cella fa parte degli indizi iniziali.',
@@ -71,6 +78,10 @@ export const it: Dictionary = {
   'coach.markMissing': 'Qui {digit} è ancora possibile e non lo hai annotato.',
   'coach.markInvalid': 'Qui hai annotato {digit}, ma una cella che vede questa lo contiene già.',
   'coach.marksChecked': '{count} celle controllate',
+  'coach.nudge.contradiction': 'Una delle cifre che hai inserito non può essere giusta.',
+  'coach.nudge.staleMarks': 'Una cifra che hai messo lascia annotazioni che non possono più valere.',
+  'coach.nudge.stuck': 'Su questa griglia c’è qualcosa che una tecnica riesce ad aprire.',
+  'coach.nudge.show': 'Mostrami dove',
 
   'house.row': 'riga {index}',
   'house.col': 'colonna {index}',

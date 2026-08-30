@@ -18,6 +18,7 @@
 
 import { Dexie } from 'dexie';
 import type { Table, Transaction } from 'dexie';
+import { formatGrid } from '../engine/board';
 import type { Difficulty } from '../engine/types';
 import { elapsedAt, progress } from './game';
 import { DEFAULT_PROFILE } from './mastery';
@@ -96,9 +97,23 @@ export interface GameSummary {
   completedAt: number | null;
   /** Frozen at read time; a running game's clock keeps moving in the store. */
   elapsedMs: number;
+  /**
+   * Always null: `elapsedMs` above already folded in the stretch that was
+   * running when the list was read. Kept in the shape so a row can be rendered
+   * with the same clock helpers as a live game without double-counting it.
+   */
+  runningSince: null;
   /** Percent of the open cells filled. */
   progress: number;
   moves: number;
+  /**
+   * The puzzle and the board as 81-char strings, for the row's sigil and its
+   * completion figure. Strings rather than cells on purpose: the list needs the
+   * digits, not the player's pencil marks, and two strings per game is a
+   * rounding error against the cell objects they replace.
+   */
+  givens: string;
+  board: string;
 }
 
 export const toSummary = (game: Game, now: number): GameSummary => ({
@@ -108,8 +123,11 @@ export const toSummary = (game: Game, now: number): GameSummary => ({
   updatedAt: game.updatedAt,
   completedAt: game.completedAt,
   elapsedMs: elapsedAt(game, now),
+  runningSince: null,
   progress: progress(game),
   moves: game.undoStack.length,
+  givens: game.givens,
+  board: formatGrid(game.cells.map((cell) => cell.value)),
 });
 
 export const saveGame = (game: Game, conn: SudokuCoachDB = db): Promise<string> =>

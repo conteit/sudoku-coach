@@ -28,7 +28,7 @@
 
 import { Board, CELL_COUNT, parseGrid } from '../engine/board';
 import type { Cell, CellIndex, Difficulty, Digit } from '../engine/types';
-import type { Game, LiveGame, Move, MoveBatch, MoveKind } from './types';
+import type { CoachExchange, Game, LiveGame, Move, MoveBatch, MoveKind } from './types';
 
 /**
  * Ceiling on a game's move log. A pencil-mark toggle is a move, so an unbounded
@@ -63,7 +63,18 @@ export type GameAction =
   | { type: 'redo'; at: number }
   | { type: 'tick'; at: number }
   | { type: 'pause'; at: number }
-  | { type: 'resume'; at: number };
+  | { type: 'resume'; at: number }
+  /**
+   * The coaching log, recomputed by the coach layer and handed back whole.
+   *
+   * The reducer stores it rather than deriving it: appending, de-duplicating a
+   * re-read and trimming the log are coaching rules, and `coach/` already owns
+   * them (`recordExchange`). Having the reducer reimplement them would either
+   * duplicate that logic or invert the dependency — state must not import the
+   * coach. It is not a `Move`, so it is outside undo: undoing a placement does
+   * not un-tell you what you were told.
+   */
+  | { type: 'setCoachLog'; log: readonly CoachExchange[]; at: number };
 
 const newId = (): string => globalThis.crypto?.randomUUID?.() ?? `game-${Date.now().toString(36)}`;
 
@@ -450,6 +461,18 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
       return game.runningSince === null
         ? game
         : { ...game, ...stopped(game, action.at), updatedAt: action.at };
+
+    case 'setCoachLog': {
+      // Re-reading a hint the player already took is not a new exchange, and
+      // `recordExchange` hands back the same entries when it declines to append.
+      // Identity is therefore enough to recognise it, and returning the game
+      // untouched keeps a re-read out of the autosave and out of the game
+      // list's ordering.
+      const same =
+        action.log.length === game.coachLog.length &&
+        action.log.every((entry, i) => entry === game.coachLog[i]);
+      return same ? game : { ...game, coachLog: [...action.log], updatedAt: action.at };
+    }
 
     case 'resume':
       // A finished game's clock stays stopped, and a running one is not

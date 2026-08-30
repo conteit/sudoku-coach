@@ -10,8 +10,7 @@
 import type { CellIndex, Digit } from '../../engine/types';
 import type { CandidateReview } from '../../coach/types';
 import type { Hint } from '../../coach/types';
-import type { StoredCell } from '../../state/types';
-import { parseGrid } from '../../engine/board';
+import { formatGrid, parseGrid } from '../../engine/board';
 import type { GridCell } from '../board/SudokuGrid';
 import type { GameSummary } from '../game/GameList';
 
@@ -145,14 +144,11 @@ export const DEMO_REVIEW: CandidateReview = {
 
 const HOUR = 3_600_000;
 
-function storedCells(values: readonly (Digit | null)[], filled: readonly [CellIndex, Digit][]) {
-  const cells: StoredCell[] = values.map((value) => ({
-    value,
-    given: value !== null,
-    candidates: [],
-  }));
-  for (const [cell, digit] of filled) cells[cell] = { ...cells[cell], value: digit };
-  return cells;
+/** The board as the game list sees it: an 81-char string, marks left out. */
+function boardString(values: readonly (Digit | null)[], filled: readonly [CellIndex, Digit][]) {
+  const board = [...values];
+  for (const [cell, digit] of filled) board[cell] = digit;
+  return formatGrid(board);
 }
 
 /** Fills the first `count` empty cells with a plausible digit, for the sigils. */
@@ -172,7 +168,7 @@ export function demoGames(now: number): GameSummary[] {
       id: 'g-expert',
       difficulty: 'expert',
       givens: PUZZLE,
-      cells: storedCells(values, progressed(6)),
+      board: boardString(values, progressed(6)),
       elapsedMs: 41 * 60_000 + 12_000,
       runningSince: null,
       updatedAt: now - 9 * 60_000,
@@ -181,7 +177,7 @@ export function demoGames(now: number): GameSummary[] {
       id: 'g-medium',
       difficulty: 'medium',
       givens: PUZZLE,
-      cells: storedCells(values, progressed(29)),
+      board: boardString(values, progressed(29)),
       elapsedMs: 8 * 60_000 + 4_000,
       runningSince: null,
       updatedAt: now - 5 * HOUR,
@@ -190,7 +186,7 @@ export function demoGames(now: number): GameSummary[] {
       id: 'g-easy',
       difficulty: 'easy',
       givens: PUZZLE,
-      cells: storedCells(values, progressed(47)),
+      board: boardString(values, progressed(47)),
       elapsedMs: 22 * 60_000 + 51_000,
       runningSince: null,
       updatedAt: now - 3 * 24 * HOUR,

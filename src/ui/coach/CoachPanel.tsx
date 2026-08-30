@@ -46,6 +46,8 @@ export interface CoachPanelProps {
   onReviewCandidates?: () => void;
   /** Hover/focus on an issue asks the board to spotlight its witnesses. */
   onSpotlight?: (cells: CellIndex[]) => void;
+  /** The player asked and the board yielded nothing a technique can crack. */
+  exhausted?: boolean;
   className?: string;
 }
 
@@ -155,6 +157,7 @@ export function CoachPanel({
   review,
   onReviewCandidates,
   onSpotlight,
+  exhausted = false,
   className,
 }: CoachPanelProps) {
   const level = hint?.level ?? 0;
@@ -184,6 +187,10 @@ export function CoachPanel({
       <div aria-live="polite" className="px-4 pt-4">
         {hint ? (
           <p className="text-[0.9375rem] leading-relaxed text-ink">{hint.text}</p>
+        ) : exhausted ? (
+          <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
+            Nothing on this board yields to a technique yet. Fill in what you can and come back.
+          </p>
         ) : (
           <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
             Stuck? Ask, and you get the smallest useful nudge first. You decide how far down the

@@ -1,9 +1,9 @@
 /**
  * Puzzles in progress (R5).
  *
- * Typed as a `Pick` of the frozen `Game` contract rather than a shape of our
- * own: the integration pass hands rows straight through, and the omission of
- * `solution` is load-bearing — the list literally cannot read the answer.
+ * Typed as a `Pick` of `state/db`'s summary rather than a shape of its own: the
+ * store hands rows straight through, and the omission of `solution` is
+ * load-bearing — the list literally cannot read the answer.
  *
  * Rows are hairline-ruled rather than carded. A card per row would put three
  * borders and a shadow around information that is already a list, and at four
@@ -11,8 +11,8 @@
  */
 
 import { useState } from 'react';
-import type { Digit } from '../../engine/types';
-import type { Game } from '../../state/types';
+import { parseGrid } from '../../engine/board';
+import type { GameSummary as StoredSummary } from '../../state/db';
 import { Button } from '../primitives/Button';
 import { PlayIcon, PlusIcon } from '../primitives/icons';
 import { cx } from '../primitives/cx';
@@ -22,9 +22,16 @@ import { formatDuration, totalElapsed } from './duration';
 
 /** Everything the list needs, and nothing it must not see. */
 export type GameSummary = Pick<
-  Game,
-  'id' | 'difficulty' | 'givens' | 'cells' | 'elapsedMs' | 'runningSince' | 'updatedAt'
->;
+  StoredSummary,
+  'id' | 'difficulty' | 'givens' | 'board' | 'elapsedMs' | 'updatedAt'
+> & {
+  /**
+   * Widened from the store's summary, which is always frozen: a row can still
+   * be handed a live clock and will count it up, which is what keeps the
+   * component usable outside the list — and testable without a store.
+   */
+  runningSince: number | null;
+};
 
 export interface GameListProps {
   games: readonly GameSummary[];
@@ -39,10 +46,10 @@ export interface GameListProps {
 function completion(game: GameSummary): number {
   let toFill = 0;
   let filled = 0;
-  for (const cell of game.cells) {
-    if (cell.given) continue;
+  for (let cell = 0; cell < game.givens.length; cell++) {
+    if (game.givens[cell] !== '.' && game.givens[cell] !== '0') continue;
     toFill += 1;
-    if (cell.value !== null) filled += 1;
+    if (game.board[cell] !== '.' && game.board[cell] !== '0') filled += 1;
   }
   return toFill === 0 ? 100 : Math.round((filled / toFill) * 100);
 }
@@ -92,7 +99,6 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
         <ul className="divide-y divide-rule">
           {games.map((game) => {
             const percent = completion(game);
-            const values = game.cells.map((cell) => cell.value as Digit | null);
             const elapsed = formatDuration(
               totalElapsed(game.elapsedMs, game.runningSince, reference),
             );
@@ -107,7 +113,12 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
                     'transition-colors duration-100 ease-snap hover:bg-paper-sunk',
                   )}
                 >
-                  <PuzzleSigil givens={game.givens} values={values} size={44} className="ml-0.5" />
+                  <PuzzleSigil
+                    givens={game.givens}
+                    values={parseGrid(game.board)}
+                    size={44}
+                    className="ml-0.5"
+                  />
 
                   <span className="min-w-0 flex-1">
                     <DifficultyBadge difficulty={game.difficulty} />
