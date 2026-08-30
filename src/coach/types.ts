@@ -93,3 +93,48 @@ export interface Coach {
   /** Diff player marks against true candidates. */
   reviewCandidates(): CandidateReview;
 }
+
+/**
+ * The template placeholder vocabulary. Lesson authoring and hint rendering are
+ * built in parallel, so this list is the contract between them: a template may
+ * only use tokens named here, and the renderer must supply every one it uses.
+ */
+export const HINT_TOKENS = [
+  /** Localized house label, e.g. "box 1" / "riquadro 1". */
+  'house',
+  /** Second house, for techniques spanning two (pointing, claiming, X-wing). */
+  'house2',
+  /** The pattern's digit, e.g. "4". Permitted from level 2 — see the rule below. */
+  'digit',
+  /** The pattern's digits joined for reading, e.g. "3 and 7". */
+  'digits',
+  /** Cell names joined for reading, e.g. "r3c1 and r3c3". Level 3+. */
+  'cells',
+  /** Rendered elimination list, e.g. "4 from r3c4, r3c7". Level 4 only. */
+  'eliminations',
+  /** A count used by the copy, e.g. how many cells the digit is confined to. */
+  'count',
+] as const;
+
+export type HintToken = (typeof HINT_TOKENS)[number];
+
+/**
+ * DISCLOSURE RULE (R7). What is forbidden is revealing *which digit belongs in
+ * which cell*, not naming the digit a pattern is about:
+ *
+ *  - level 1  region only. No digit, no cell names.
+ *  - level 2  technique name + one-liner. May name the pattern digit; no cells.
+ *  - level 3  exact cells and houses. Still states no cell-to-digit assignment.
+ *  - level 4  full walk-through: the eliminations and the logic that proves
+ *             them. Never phrased as "put N in rXcY".
+ *
+ * `{cells}` and `{eliminations}` are therefore rejected in level 1-2 templates,
+ * and `{eliminations}` in level 3. A unit test enforces this over the shipped
+ * lesson library.
+ */
+export const TOKENS_ALLOWED_BY_LEVEL: Record<'1' | '2' | '3' | '4', readonly HintToken[]> = {
+  '1': ['house', 'house2', 'count'],
+  '2': ['house', 'house2', 'digit', 'digits', 'count'],
+  '3': ['house', 'house2', 'digit', 'digits', 'cells', 'count'],
+  '4': [...HINT_TOKENS],
+};
