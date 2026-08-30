@@ -34,7 +34,12 @@ export function LibraryView({
           <h1 className="font-display text-3xl leading-none text-ink">{t('app.name')}</h1>
           <p className="mt-1.5 text-sm text-ink-soft">{t('app.tagline')}</p>
         </div>
-        <IconButton label={t('settings.title')} icon={<SettingsIcon />} onClick={onOpenSettings} />
+        <IconButton
+          label={t('settings.title')}
+          icon={<SettingsIcon />}
+          className="flex-none"
+          onClick={onOpenSettings}
+        />
       </header>
 
       <GameList games={summaries} onResume={onResume} onNewGame={onNewGame} />

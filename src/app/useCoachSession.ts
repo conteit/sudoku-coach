@@ -115,6 +115,7 @@ export function useCoachSession({
     null,
   );
   const [shownGame, setShownGame] = useState(game.id);
+  const [shownLocale, setShownLocale] = useState(locale);
 
   // Switching games throws the panel away: a hint about another board is worse
   // than no hint at all.
@@ -125,6 +126,20 @@ export function useCoachSession({
     setExhausted(false);
     setNudge(null);
     setDismissedNudge(null);
+  }
+
+  // A hint already on screen is re-rendered when the language changes: same
+  // rung of the same finding, nothing new disclosed — but a panel left in the
+  // language the player just switched away from would be the one piece of the
+  // app that ignored them.
+  if (shownLocale !== locale) {
+    setShownLocale(locale);
+    setReview(null);
+    if (hint !== null) {
+      const coach = createCoach({ cells: coachCells(game), locale });
+      const finding = coach.nextFinding();
+      setHint(finding === null ? null : coach.hint(finding, hint.level));
+    }
   }
 
   /**

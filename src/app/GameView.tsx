@@ -29,7 +29,14 @@ import { Keypad, type HapticPattern } from '../ui/keypad/Keypad';
 import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
 import { Sheet } from '../ui/primitives/Sheet';
-import { ChevronLeftIcon, SettingsIcon, TrashIcon, UndoIcon } from '../ui/primitives/icons';
+import {
+  ChevronLeftIcon,
+  PauseIcon,
+  PlayIcon,
+  SettingsIcon,
+  TrashIcon,
+  UndoIcon,
+} from '../ui/primitives/icons';
 import { useCoachSession } from './useCoachSession';
 
 /** How long a vibration says each thing. Absent hardware simply ignores it. */
@@ -124,18 +131,29 @@ export function GameView({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col">
       <header className="flex items-center gap-3 px-4 pt-4 pb-3">
-        <IconButton label={t('action.back')} icon={<ChevronLeftIcon />} onClick={onExit} />
+        <IconButton
+          label={t('action.back')}
+          icon={<ChevronLeftIcon />}
+          className="flex-none"
+          onClick={onExit}
+        />
         <div className="min-w-0 flex-1">
           <DifficultyBadge difficulty={game.difficulty} />
         </div>
         <Timer elapsedMs={game.elapsedMs} runningSince={game.runningSince} size="md" />
         <IconButton
           label={paused ? t('action.resume') : t('action.pause')}
-          icon={<span aria-hidden="true">{paused ? '▶' : '⏸'}</span>}
+          icon={paused ? <PlayIcon /> : <PauseIcon />}
+          className="flex-none"
           disabled={solved}
           onClick={() => dispatch({ type: paused ? 'resume' : 'pause' })}
         />
-        <IconButton label={t('settings.title')} icon={<SettingsIcon />} onClick={onOpenSettings} />
+        <IconButton
+          label={t('settings.title')}
+          icon={<SettingsIcon />}
+          className="flex-none"
+          onClick={onOpenSettings}
+        />
       </header>
 
       <main className="flex flex-1 flex-col gap-4 px-4 pb-4">
@@ -167,6 +185,7 @@ export function GameView({
           <IconButton
             label={t('action.delete')}
             icon={<TrashIcon />}
+            className="flex-none"
             onClick={() => setConfirming('delete')}
           />
         </div>
