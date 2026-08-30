@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
+    "audit": "npx --yes @lhci/cli@0.15.x autorun",
     "verify": "npm run lint && tsc -b && npm run test && npm run build"
   },
   "dependencies": {
