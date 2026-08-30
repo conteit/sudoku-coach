@@ -1,0 +1,50 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# build output
+dist/
+dist-ssr/
+build/
+dev-dist/
+*.tsbuildinfo
+
+# test + tooling artefacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+.vitest/
+
+# environment
+.env
+.env.*
+!.env.example
+.local
+
+# editors / IDE
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.AppleDouble
+.LSOverride
+
+# logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# deploy
+.vercel

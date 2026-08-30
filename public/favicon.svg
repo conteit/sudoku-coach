@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sudoku Coach">
+  <rect width="64" height="64" rx="14" fill="#1b1917"/>
+  <g stroke="#b9ab99" stroke-width="2" stroke-linecap="round" opacity=".55">
+    <path d="M12 28.7h40M12 41.3h40M28.7 12v40M41.3 12v40"/>
+  </g>
+  <rect x="13" y="13" width="14.7" height="14.7" rx="2" fill="#2f5fd8"/>
+  <circle cx="47" cy="47" r="6.2" fill="#e8a94a"/>
+</svg>

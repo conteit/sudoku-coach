@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/fraunces/opsz.css';
+
+/*
+ * Explicit theme wins over the OS preference, so the in-app toggle is real.
+ * Bare :root carries the light palette; both the media query and the data
+ * attribute redefine the same tokens, never introduce new ones.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+
+  /* Ink & Paper — a warm, printed-page ground rather than a blue-grey UI slab. */
+  --color-paper: #faf7f2;
+  --color-paper-raised: #fffdfa;
+  --color-paper-sunk: #f1ebe1;
+  --color-ink: #1b1917;
+  --color-ink-soft: #6b625a;
+  --color-ink-faint: #a1968a;
+  --color-rule: #e4ddd2;
+  --color-rule-strong: #b9ab99;
+
+  /* Semantic play colours. Fixed by spec: givens ink, entries blue, matches green. */
+  --color-entry: #2f5fd8;
+  --color-entry-wash: #e3ebfd;
+  --color-match: #14805a;
+  --color-match-wash: #d3efe1;
+  --color-coach: #a35a12;
+  --color-coach-wash: #fbeedb;
+  --color-danger: #b3261e;
+  --color-danger-wash: #fbe3e1;
+
+  --radius-cell: 3px;
+  --shadow-lift: 0 1px 2px rgb(27 25 23 / 0.05), 0 8px 24px -12px rgb(27 25 23 / 0.18);
+
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+@layer theme {
+  :root {
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+      --color-paper: #14120e;
+      --color-paper-raised: #1e1b15;
+      --color-paper-sunk: #0e0c09;
+      --color-ink: #f4eee3;
+      --color-ink-soft: #a2988a;
+      --color-ink-faint: #6d6458;
+      --color-rule: #302b23;
+      --color-rule-strong: #574f42;
+      --color-entry: #86a9ff;
+      --color-entry-wash: #1c2440;
+      --color-match: #4fd2a0;
+      --color-match-wash: #12312a;
+      --color-coach: #e8a94a;
+      --color-coach-wash: #33260f;
+      --color-danger: #ff8a80;
+      --color-danger-wash: #3a1a18;
+    }
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --color-paper: #14120e;
+    --color-paper-raised: #1e1b15;
+    --color-paper-sunk: #0e0c09;
+    --color-ink: #f4eee3;
+    --color-ink-soft: #a2988a;
+    --color-ink-faint: #6d6458;
+    --color-rule: #302b23;
+    --color-rule-strong: #574f42;
+    --color-entry: #86a9ff;
+    --color-entry-wash: #1c2440;
+    --color-match: #4fd2a0;
+    --color-match-wash: #12312a;
+    --color-coach: #e8a94a;
+    --color-coach-wash: #33260f;
+    --color-danger: #ff8a80;
+    --color-danger-wash: #3a1a18;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-variant-ligatures: contextual;
+    /* The board is a fixed board: never let a stray overflow rubber-band it. */
+    overscroll-behavior: none;
+  }
+
+  /* Grid digits carry the app's voice. Optical size keeps them sturdy at size. */
+  .digit {
+    font-family: var(--font-display);
+    /* Fraunces axes: sturdy optical size, a touch of softness, no wonk. */
+    font-variation-settings: 'opsz' 36;
+    font-weight: 550;
+    font-feature-settings: 'tnum' 1;
+    line-height: 1;
+  }
+
+  ::selection {
+    background: var(--color-coach-wash);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-entry);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
