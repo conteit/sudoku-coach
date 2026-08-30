@@ -119,6 +119,26 @@ export const HINT_TOKENS = [
 export type HintToken = (typeof HINT_TOKENS)[number];
 
 /**
+ * Token semantics, pinned because the lesson library and the hint renderer are
+ * built separately and each one guessing would produce hints that are wrong
+ * rather than merely awkward.
+ *
+ * - `{count}` is `finding.cells.length` — the size of the pattern. Never a
+ *   digit, never a count of eliminations.
+ * - `{house}` is `finding.houses[0]` and `{house2}` is `finding.houses[1]`.
+ *   Order is therefore part of each detector's contract, and the catalog fixes
+ *   it as: pointing `[box, line]`, claiming `[line, box]`, fish
+ *   `[...base lines, ...cover lines]`, subsets and hidden singles `[house]`.
+ * - **Chain techniques must not use `{house}`.** `xy_wing`, `simple_coloring`
+ *   and `remote_pairs` populate `houses` with every house carrying a chain
+ *   link, so `houses[0]` is one arbitrary member of a set that may span six
+ *   houses. "Look at box 4" would be actively misleading rather than merely
+ *   vague. Their level-1 copy uses `{count}` alone; a test over the shipped
+ *   library enforces this.
+ */
+export const CHAIN_TECHNIQUES: readonly TechniqueId[] = ['xy_wing', 'simple_coloring', 'remote_pairs'];
+
+/**
  * DISCLOSURE RULE (R7). What is forbidden is revealing *which digit belongs in
  * which cell*, not naming the digit a pattern is about:
  *

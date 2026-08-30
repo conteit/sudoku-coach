@@ -33,7 +33,7 @@ import type { CellIndex, Digit, House, HouseKind } from '../../engine/types';
 import { TECHNIQUE_IDS, type TechniqueId } from '../../engine/types';
 import type { Locale } from '../../state/types';
 import type { Lesson } from '../types';
-import { HINT_TOKENS, TOKENS_ALLOWED_BY_LEVEL } from '../types';
+import { CHAIN_TECHNIQUES, HINT_TOKENS, TOKENS_ALLOWED_BY_LEVEL } from '../types';
 import { exampleMarks, loadLessons, parseCellName } from './index';
 
 const LOCALES: readonly Locale[] = ['en', 'it'] as const;
@@ -834,5 +834,20 @@ describe('the disclosure guards themselves', () => {
     expect(TOKENS_ALLOWED_BY_LEVEL['2']).not.toContain('cells');
     expect(TOKENS_ALLOWED_BY_LEVEL['3']).not.toContain('eliminations');
     expect(TOKENS_ALLOWED_BY_LEVEL['4']).toEqual([...HINT_TOKENS]);
+  });
+});
+
+describe('chain techniques never anchor a hint to one arbitrary house', () => {
+  // `Finding.houses` for a chain carries every house the chain passes through,
+  // so `{house}` renders houses[0] — one arbitrary member of a set that may
+  // span six. "Look at box 4" would send the player to the wrong place with
+  // full confidence, which is worse than saying less.
+  it.each([...CHAIN_TECHNIQUES])('%s uses no house token at any level', (id) => {
+    for (const locale of LOCALES) {
+      const lesson = loadLessons(locale)[id];
+      for (const [level, template] of Object.entries(lesson.templates)) {
+        expect(template, `${locale} ${id} level ${level}`).not.toMatch(/\{house2?\}/);
+      }
+    }
   });
 });
