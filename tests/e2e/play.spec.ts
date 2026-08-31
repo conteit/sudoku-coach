@@ -192,3 +192,41 @@ test.describe('one puzzle, end to end', () => {
     await expect(page.getByText('Nothing on the desk')).toBeVisible();
   });
 });
+
+test.describe('drills', () => {
+  test('sets a challenge, and confirms it only when the board shows it', async ({ page }) => {
+    await startEasyGame(page);
+    const coach = page.getByRole('region', { name: 'Coach' });
+
+    await coach.getByRole('button', { name: 'Set me a challenge' }).click();
+    await expect(coach.getByText(/There is a .* on this board/)).toBeVisible();
+
+    // An easy board's first finding is a single, so applying it is placing the
+    // digit it proves — which the test works out the same way the engine does.
+    const cells = await readBoard(page);
+    const values = cells.map((cell) => (cell.value === null ? null : (cell.value as Digit)));
+    const solution = solveBruteForce(Board.fromValues(values));
+    expect(solution).not.toBeNull();
+
+    const spotlight = page.locator('[data-spotlight]');
+    // Nothing is spotlighted by a level-2 disclosure: the technique is named,
+    // the cells are not (R7).
+    await expect(spotlight).toHaveCount(0);
+
+    // A wrong move does not satisfy a drill.
+    const empty = cells.find((cell) => cell.value === null)!;
+    const wrong = ((solution!.values[empty.index]! % 9) + 1) as Digit;
+    await enter(page, empty.index, wrong);
+    await expect(coach.getByText(/applied by you/)).toHaveCount(0);
+    await page.locator(`[data-cell="${empty.index}"]`).click();
+    await page.keyboard.press('Backspace');
+
+    for (const cell of cells) {
+      if (cell.value !== null) continue;
+      await enter(page, cell.index, solution!.values[cell.index]!);
+      if (await coach.getByText(/applied by you/).isVisible()) break;
+    }
+
+    await expect(coach.getByText(/applied by you/)).toBeVisible();
+  });
+});
