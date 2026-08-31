@@ -96,10 +96,9 @@ export interface ConstraintBreach {
   cell: CellIndex;
   /**
    * The constraint the entry breaks, localized — or null when it breaks none
-   * *yet* and the damage is downstream. The dictionary has no key for "this
-   * leaves nothing for that cell" and i18n is outside this branch's scope, so
-   * that case ships as witnesses without prose rather than as hardcoded
-   * English; see the PR body.
+   * that can be pointed at: no peer holds the digit, and no cell has been left
+   * with nothing. That is a wrong entry the rules cannot yet see, and saying so
+   * would mean reading the solution.
    */
   reason: string | null;
   /** Cells that prove it, for spotlighting. */
@@ -125,10 +124,16 @@ export function constraintBreach(
   if (duplicates.length > 0) {
     return { cell, reason: t(locale, 'board.conflict'), witness: duplicates };
   }
+  // A step removed, but still a rule and not the answer: some empty cell this
+  // entry can see now has no digit left to take.
   const stranded = peersOf(cell).filter(
     (peer) => board.values[peer] === null && board.trueCandidates(peer).size === 0,
   );
-  return { cell, reason: null, witness: stranded };
+  return {
+    cell,
+    reason: stranded.length > 0 ? t(locale, 'board.strandedCell') : null,
+    witness: stranded,
+  };
 }
 
 /**

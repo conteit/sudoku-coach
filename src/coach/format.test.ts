@@ -104,7 +104,13 @@ describe('token strings', () => {
       { cell: 3, digit: 4 },
       { cell: 20, digit: 1 },
     ];
-    expect(formatEliminations('en', eliminations)).toBe('1 (r3c3) and 4 (r1c4 and r2c4)');
+    expect(formatEliminations('en', eliminations)).toBe('1 from r3c3 and 4 from r1c4 and r2c4');
+  });
+
+  it('takes its connective from the dictionary, not from English', () => {
+    const eliminations: Elimination[] = [{ cell: 3, digit: 4 }];
+
+    expect(formatEliminations('it', eliminations)).toBe('4 da r1c4');
   });
 
   it('renders an empty elimination list as nothing at all', () => {

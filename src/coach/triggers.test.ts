@@ -177,8 +177,9 @@ describe('the breach is reported, never the answer', () => {
   it('falls back to the cells the entry stranded when nothing collides yet', () => {
     const cells = withValue(BASE, EMPTY_CELL, quietlyWrongDigit());
     const breach = constraintBreach(cells, EMPTY_CELL, 'en');
-    // No peer holds the digit, so there is no constraint to quote — only the
-    // damage. Reporting `null` beats inventing English the dictionary lacks.
+    // No peer holds the digit and nothing has been stranded: the entry is
+    // wrong, but no rule can see it yet, and saying so would mean reading the
+    // solution.
     expect(breach.reason).toBeNull();
     expect(breach.cell).toBe(EMPTY_CELL);
   });
@@ -236,5 +237,55 @@ describe('stale marks after a placement', () => {
       moves: [setMove(EMPTY_CELL, SOLVED_DIGIT)],
     });
     expect(triggers.map((x) => x.kind)).toEqual(['stale_marks', 'stuck']);
+  });
+});
+
+describe('a breach the rules can only see downstream', () => {
+  /**
+   * The solution with two cells of one row emptied, and the second cell's digit
+   * written into the first. Nothing duplicates — so there is no constraint to
+   * quote — but the second cell now has no digit left it can take.
+   */
+  /**
+   * An entry that duplicates nothing and still breaks the rules: it takes the
+   * last digit some empty peer could have held. Searched for on the fixture
+   * rather than hand-written, so it stays a real board.
+   */
+  function stranding(): { cells: TriggerCell[]; cell: CellIndex; stranded: CellIndex } {
+    const board = Board.fromString(PUZZLE.givens);
+    for (let cell = 0; cell < 81; cell++) {
+      if (board.values[cell] !== null) continue;
+      for (const digit of board.trueCandidates(cell as CellIndex)) {
+        const cells = withValue(BASE, cell as CellIndex, digit);
+        const after = Board.fromValues(cells.map((c) => c.value));
+        const stranded = peersOf(cell as CellIndex).find(
+          (peer) => after.values[peer] === null && after.trueCandidates(peer).size === 0,
+        );
+        if (stranded !== undefined) return { cells, cell: cell as CellIndex, stranded };
+      }
+    }
+    throw new Error('no stranding entry on this puzzle');
+  }
+
+  it('names the damage rather than falling silent', () => {
+    const { cells, cell, stranded } = stranding();
+    const breach = constraintBreach(cells, cell, 'en');
+
+    expect(breach.reason).toBe(t('en', 'board.strandedCell'));
+    expect(breach.witness).toContain(stranded);
+  });
+
+  it('says it in the player’s language', () => {
+    const { cells, cell } = stranding();
+
+    expect(constraintBreach(cells, cell, 'it').reason).toBe(t('it', 'board.strandedCell'));
+  });
+
+  it('still names no digit', () => {
+    const { cells, cell } = stranding();
+
+    for (const locale of ['en', 'it'] as const) {
+      expect(constraintBreach(cells, cell, locale).reason).not.toMatch(/[1-9]/);
+    }
   });
 });

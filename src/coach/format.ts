@@ -29,7 +29,7 @@
 
 import type { CellIndex, Digit, Elimination, Finding, House } from '../engine/types';
 import { cellName } from '../engine/board';
-import { formatList, houseLabel } from '../i18n';
+import { formatList, houseLabel, t } from '../i18n';
 import type { Locale } from '../state/types';
 
 /**
@@ -103,13 +103,13 @@ export const formatHouse = (locale: Locale, house: House): string =>
   houseLabel(locale, house.kind, house.index);
 
 /**
- * `{eliminations}` — "4 (r3c4 and r3c7)", grouped by digit.
+ * `{eliminations}` — "4 from r3c4 and r3c7", grouped by digit.
  *
- * The dictionary has no connective for this ("4 *from* r3c4"), and the i18n
- * layer is outside this branch's scope, so the grouping leans on punctuation
- * rather than on an English word that would survive into the Italian build.
- * Both locales' level-4 copy reads it as an object — "That removes …" /
- * "Questo elimina …" — so a parenthesised list slots in cleanly.
+ * The connective is a dictionary key rather than punctuation, so the Italian
+ * build reads "4 da r3c4 e r3c7" instead of borrowing an English preposition
+ * or leaning on brackets. Both locales' level-4 copy reads the token as an
+ * object — "That removes …" / "Questo elimina …" — and a prepositional group
+ * slots into that as cleanly as the parenthesised one it replaces.
  */
 export function formatEliminations(
   locale: Locale,
@@ -123,7 +123,12 @@ export function formatEliminations(
   }
   const groups = [...byDigit.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([digit, cells]) => `${digit} (${formatCells(locale, [...cells].sort((a, b) => a - b))})`);
+    .map(([digit, cells]) =>
+      t(locale, 'coach.eliminationGroup', {
+        digit,
+        cells: formatCells(locale, [...cells].sort((a, b) => a - b)),
+      }),
+    );
   return formatList(locale, groups);
 }
 

@@ -75,6 +75,7 @@ export const it: Dictionary = {
   'board.solvedTitle': 'Risolto',
   'board.solved': 'Risolto in {time}',
   'board.conflict': 'Questa cifra compare già nella riga, nella colonna o nel riquadro.',
+  'board.strandedCell': 'Con questa cifra una cella qui vicino resta senza nessun valore possibile.',
   'board.givenLocked': 'Questa cella fa parte degli indizi iniziali.',
 
   'coach.title': 'Coach',
@@ -87,6 +88,7 @@ export const it: Dictionary = {
   'coach.enough': 'Mi basta così',
   'coach.technique': 'Tecnica',
   'coach.whatIsThis': 'Che tecnica è questa?',
+  'coach.eliminationGroup': '{digit} da {cells}',
   'coach.marksClean': 'Tutte le annotazioni che hai messo sono corrette.',
   'coach.marksSummary': 'Ci sono {count} annotazioni da rivedere.',
   'coach.markMissing': 'Qui {digit} è ancora possibile e non lo hai annotato.',
