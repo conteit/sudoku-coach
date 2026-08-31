@@ -52,20 +52,22 @@ async function readBoard(page: Page): Promise<DomCell[]> {
   );
 }
 
+/** True when two cells share a row, a column or a box. */
+function sees(a: number, b: number): boolean {
+  if (a === b) return false;
+  const [ra, ca] = [Math.floor(a / 9), a % 9];
+  const [rb, cb] = [Math.floor(b / 9), b % 9];
+  return (
+    ra === rb ||
+    ca === cb ||
+    (Math.floor(ra / 3) === Math.floor(rb / 3) && Math.floor(ca / 3) === Math.floor(cb / 3))
+  );
+}
+
 /** A digit not yet placed anywhere `cell` can see, so noting it is legal. */
 function pickAbsentDigit(cells: DomCell[], cell: number): number {
-  const row = Math.floor(cell / 9);
-  const col = cell % 9;
   const seen = new Set(
-    cells
-      .filter(
-        (other) =>
-          Math.floor(other.index / 9) === row ||
-          other.index % 9 === col ||
-          (Math.floor(Math.floor(other.index / 9) / 3) === Math.floor(row / 3) &&
-            Math.floor((other.index % 9) / 3) === Math.floor(col / 3)),
-      )
-      .map((other) => other.value),
+    cells.filter((other) => sees(cell, other.index)).map((other) => other.value),
   );
   for (let digit = 1; digit <= 9; digit++) if (!seen.has(digit)) return digit;
   throw new Error('no digit is free for that cell');
@@ -98,8 +100,10 @@ test.describe('one puzzle, end to end', () => {
     await startEasyGame(page);
     const coach = page.getByRole('region', { name: 'Coach' });
 
-    // Nothing is disclosed until the player asks (R7).
-    await expect(coach.getByLabel('Disclosure level 0 of 4')).toBeVisible();
+    // Nothing is disclosed until the player asks (R7). The ladder itself only
+    // appears once there is a rung to be on — on a phone it is board otherwise.
+    await expect(coach.getByRole('button', { name: 'Where should I look?' })).toBeVisible();
+    await expect(coach.getByText(/Hidden single|Naked single/)).toHaveCount(0);
 
     await coach.getByRole('button', { name: 'Where should I look?' }).click();
     await expect(coach.getByLabel('Disclosure level 1 of 4')).toBeVisible();
@@ -114,17 +118,19 @@ test.describe('one puzzle, end to end', () => {
   test('checks the notes the player made, and changes none of them', async ({ page }) => {
     await startEasyGame(page);
     const before = await readBoard(page);
-    const empty = before.find((cell) => !cell.given && cell.value === null)!;
 
-    // Notes mode, then a mark that is certainly wrong: a digit already placed
-    // in the same row.
-    const rowStart = Math.floor(empty.index / 9) * 9;
-    const placed = before
-      .slice(rowStart, rowStart + 9)
-      .find((cell) => cell.value !== null)!.value as Digit;
+    // A mark that is certainly wrong: a digit already placed in a peer. Any
+    // empty cell with a filled peer will do — which row that turns out to be is
+    // the generator's business, not the test's.
+    const pair = before
+      .filter((cell) => !cell.given && cell.value === null)
+      .flatMap((cell) => {
+        const peer = before.find((other) => sees(cell.index, other.index) && other.value !== null);
+        return peer === undefined ? [] : [{ cell: cell.index, digit: peer.value as Digit }];
+      })[0]!;
 
     await page.getByRole('button', { name: 'Notes off' }).click();
-    await enter(page, empty.index, placed);
+    await enter(page, pair.cell, pair.digit);
 
     const coach = page.getByRole('region', { name: 'Coach' });
     await coach.getByRole('button', { name: 'Check my notes' }).click();
@@ -132,7 +138,7 @@ test.describe('one puzzle, end to end', () => {
 
     // R8: the review reports, it never corrects.
     const after = await readBoard(page);
-    expect(after[empty.index].notes).toContain(placed);
+    expect(after[pair.cell].notes).toContain(pair.digit);
   });
 
   test('survives being killed mid-game, undo history included (R5)', async ({ page }) => {
@@ -169,11 +175,7 @@ test.describe('one puzzle, end to end', () => {
     // own move made it so.
     const empty = start.find((cell) => !cell.given && cell.value === null)!;
     const peer = start.find(
-      (cell) =>
-        cell.index !== empty.index &&
-        !cell.given &&
-        cell.value === null &&
-        Math.floor(cell.index / 9) === Math.floor(empty.index / 9),
+      (cell) => !cell.given && cell.value === null && sees(empty.index, cell.index),
     )!;
     const digit = pickAbsentDigit(start, empty.index);
 

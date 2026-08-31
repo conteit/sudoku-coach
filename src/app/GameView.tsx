@@ -28,12 +28,14 @@ import { DifficultyBadge } from '../ui/game/DifficultyBadge';
 import { Timer } from '../ui/game/Timer';
 import { formatDuration } from '../ui/game/duration';
 import { Keypad, type HapticPattern } from '../ui/keypad/Keypad';
+import { cx } from '../ui/primitives/cx';
 import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
 import { Sheet } from '../ui/primitives/Sheet';
 import {
   ChevronLeftIcon,
   EraserIcon,
+  MoreIcon,
   PauseIcon,
   PlayIcon,
   SettingsIcon,
@@ -78,6 +80,7 @@ export function GameView({
   const [selected, setSelected] = useState<CellIndex | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
   const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
@@ -128,6 +131,9 @@ export function GameView({
     [dispatch, pencilMode],
   );
 
+  // "Speaking" is the panel having something the player asked for on screen.
+  const speaking =
+    coach.hint !== null || coach.review !== null || coach.drill !== null || coach.exhausted;
   const paused = game.runningSince === null && game.completedAt === null;
   const solved = game.completedAt !== null;
 
@@ -154,8 +160,14 @@ export function GameView({
   });
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col">
-      <header className="flex items-center gap-3 px-4 pt-4 pb-3">
+    /*
+     * One screen, no page scroll. A phone has to show the board, the keypad
+     * and a way to reach the coach at once — scrolling between them turns
+     * every hint into a hunt — so the board is the thing that gives: it takes
+     * whatever height the chrome leaves and stays square.
+     */
+    <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden sm:h-auto sm:min-h-dvh sm:overflow-visible">
+      <header className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2">
         <IconButton
           label={t('action.back')}
           icon={<ChevronLeftIcon />}
@@ -174,16 +186,24 @@ export function GameView({
           onClick={() => dispatch({ type: paused ? 'resume' : 'pause' })}
         />
         <IconButton
-          label={t('settings.title')}
-          icon={<SettingsIcon />}
+          label={t('game.menu')}
+          icon={<MoreIcon />}
           className="flex-none"
-          onClick={onOpenSettings}
+          onClick={() => setMenuOpen(true)}
         />
       </header>
 
-      <main className="flex flex-1 flex-col gap-4 px-4 pb-4">
-        <div className="relative">
-          <SudokuGrid
+      <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-2">
+        {/*
+          * The board takes the height nobody else claimed and stays square, so
+          * it is the piece that gives when a screen is short. A fixed height
+          * budget was tried and is wrong: the coach panel is a different height
+          * on a phone than on a laptop, and the board has to answer to what is
+          * actually there.
+          */}
+        <div className="flex min-h-0 flex-1 items-center justify-center sm:block sm:flex-none">
+          <div className="relative aspect-square h-full max-w-full sm:h-auto sm:w-full">
+            <SudokuGrid
             cells={game.cells}
             selected={selected}
             onSelect={setSelected}
@@ -193,22 +213,23 @@ export function GameView({
             tintedHouses={coach.hint?.houses ?? []}
             conflicts={conflicts}
             staleMarks={stale}
-            className={paused ? 'pointer-events-none blur-md select-none' : undefined}
-          />
-          {paused ? (
-            <div className="absolute inset-0 grid place-items-center bg-paper/80">
-              <Button variant="primary" size="lg" onClick={() => dispatch({ type: 'resume' })}>
-                {t('action.resume')}
-              </Button>
-            </div>
-          ) : null}
+              className={paused ? 'pointer-events-none blur-md select-none' : undefined}
+            />
+            {paused ? (
+              <div className="absolute inset-0 grid place-items-center bg-paper/80">
+                <Button variant="primary" size="lg" onClick={() => dispatch({ type: 'resume' })}>
+                  {t('action.resume')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          {/* Only when there is something to clear. Bookkeeping the player
-              asked for — one press, one undo — never the engine tidying up on
-              its own (architecture invariant 1). */}
-          {staleCount > 0 ? (
+        {/* Only when there is something to clear, and nothing else lives on
+            this line: starting over and deleting are rare, and a row of
+            permanent buttons is a row of board on a phone. */}
+        {staleCount > 0 ? (
+          <div className="flex shrink-0 justify-center">
             <Button
               variant="secondary"
               icon={<EraserIcon />}
@@ -219,21 +240,11 @@ export function GameView({
                 ? t('action.clearStaleOne')
                 : t('action.clearStaleCount', { count: staleCount })}
             </Button>
-          ) : (
-            <span />
-          )}
-          <Button variant="ghost" icon={<UndoIcon />} onClick={() => setConfirming('restart')}>
-            {t('action.restart')}
-          </Button>
-          <IconButton
-            label={t('action.delete')}
-            icon={<TrashIcon />}
-            className="flex-none"
-            onClick={() => setConfirming('delete')}
-          />
-        </div>
+          </div>
+        ) : null}
 
         <Keypad
+          className="min-h-[11.5rem] shrink-0"
           values={values}
           pencilMode={pencilMode}
           onTogglePencil={() => setPencilMode((on) => !on)}
@@ -272,6 +283,19 @@ export function GameView({
         </aside>
       ) : null}
 
+      {/*
+        * Resting, the panel is a bar: a title and the two things you can ask
+        * for. Once it has something to say it overlays the keypad rather than
+        * pushing it off the screen, and scrolls inside itself if the argument
+        * is long. On a wide screen it is simply the panel it always was.
+        */}
+      <div
+        className={cx(
+          'shrink-0 bg-paper-raised',
+          speaking &&
+            'absolute inset-x-0 bottom-0 z-20 max-h-[72dvh] overflow-y-auto shadow-lift sm:static sm:max-h-none sm:overflow-visible sm:shadow-none',
+        )}
+      >
       <CoachPanel
         hint={coach.hint}
         techniqueLabel={
@@ -287,7 +311,64 @@ export function GameView({
         onDrill={coach.startDrill}
         onDismissDrill={coach.dismissDrill}
         onLearn={onLearn}
+        onCollapse={speaking ? coach.dismiss : undefined}
       />
+      </div>
+
+      {/* Everything about this puzzle that is not a move. Rare actions do not
+          earn permanent space on a phone, and a menu is where a player looks
+          for them anyway. */}
+      <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title={t('game.menu')}>
+        <div className="flex flex-col gap-2 pb-2">
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            icon={<UndoIcon />}
+            onClick={() => {
+              setMenuOpen(false);
+              setConfirming('restart');
+            }}
+          >
+            {t('action.restart')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            onClick={() => {
+              setMenuOpen(false);
+              onLearn();
+            }}
+          >
+            {t('learn.title')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            icon={<SettingsIcon />}
+            onClick={() => {
+              setMenuOpen(false);
+              onOpenSettings();
+            }}
+          >
+            {t('settings.title')}
+          </Button>
+          <Button
+            variant="danger"
+            size="lg"
+            block
+            icon={<TrashIcon />}
+            onClick={() => {
+              setMenuOpen(false);
+              setConfirming('delete');
+            }}
+          >
+            {t('action.delete')}
+          </Button>
+        </div>
+      </Sheet>
 
       <ConfirmDialog
         open={confirming === 'restart'}

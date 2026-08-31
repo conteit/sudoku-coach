@@ -46,6 +46,8 @@ export const it: Dictionary = {
   'difficulty.hard': 'Difficile',
   'difficulty.expert': 'Esperto',
 
+  'game.menu': 'Questa griglia',
+
   'games.title': 'Le tue partite',
   'games.empty': 'Ancora nessuna partita. Iniziane una e la ritrovi qui.',
   'games.inProgress': 'In corso',
@@ -153,13 +155,11 @@ export const it: Dictionary = {
 
   'keypad.label': 'Tastierino',
   'keypad.labelNotes': 'Tastierino, modalità annotazioni',
-  'keypad.place': 'Inserisci {digit}, ne restano {left}',
-  'keypad.note': 'Annota {digit}, ne restano {left}',
+  'keypad.place': 'Inserisci {digit}',
+  'keypad.note': 'Annota {digit}',
   'keypad.notesOn': 'Annotazioni attive',
   'keypad.notesOff': 'Annotazioni disattivate',
   'keypad.erase': 'Svuota la cella',
-  'keypad.left': 'ne restano {left}',
-  'keypad.done': 'fatto',
   'keypad.captionNotes': 'Note',
   'keypad.captionErase': 'Cancella',
   'keypad.captionUndo': 'Annulla',

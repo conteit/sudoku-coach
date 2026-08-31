@@ -46,6 +46,8 @@ export const en = {
   'difficulty.hard': 'Hard',
   'difficulty.expert': 'Expert',
 
+  'game.menu': 'This puzzle',
+
   'games.title': 'Your games',
   'games.empty': 'No games yet. Start one and it will be waiting here.',
   'games.inProgress': 'In progress',
@@ -152,13 +154,11 @@ export const en = {
 
   'keypad.label': 'Keypad',
   'keypad.labelNotes': 'Keypad, notes mode',
-  'keypad.place': 'Place {digit}, {left} left',
-  'keypad.note': 'Note {digit}, {left} left',
+  'keypad.place': 'Place {digit}',
+  'keypad.note': 'Note {digit}',
   'keypad.notesOn': 'Notes on',
   'keypad.notesOff': 'Notes off',
   'keypad.erase': 'Erase cell',
-  'keypad.left': '{left} left',
-  'keypad.done': 'done',
   'keypad.captionNotes': 'Notes',
   'keypad.captionErase': 'Erase',
   'keypad.captionUndo': 'Undo',
