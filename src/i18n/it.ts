@@ -37,6 +37,10 @@ export const it: Dictionary = {
   'action.restart': 'Ricomincia',
   'action.dismiss': 'Non ora',
   'action.back': 'Indietro',
+  'action.fillNotes': 'Compila tutte le annotazioni',
+  'action.fillNotesHint': 'Rotelle: fa al posto tuo la lettura che sei qui per imparare.',
+  'confirm.fillNotes.title': 'Sostituire le tue annotazioni?',
+  'confirm.fillNotes.body': 'Ogni cella vuota riceve le annotazioni che il motore sa dimostrare, e quelle che hai scritto tu spariscono. È un passo solo: basta un annulla per riaverle.',
 
   'difficulty.easy': 'Facile',
   'difficulty.medium': 'Medio',

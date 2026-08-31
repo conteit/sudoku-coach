@@ -31,6 +31,7 @@ import { IconButton } from '../ui/primitives/IconButton';
 import { Sheet } from '../ui/primitives/Sheet';
 import {
   ChevronLeftIcon,
+  PencilIcon,
   PauseIcon,
   PlayIcon,
   SettingsIcon,
@@ -80,7 +81,7 @@ export function GameView({
 
   const [selected, setSelected] = useState<CellIndex | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
-  const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
+  const [confirming, setConfirming] = useState<'restart' | 'delete' | 'fillNotes' | null>(null);
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
@@ -113,6 +114,9 @@ export function GameView({
     [dispatch, pencilMode],
   );
 
+  // Nothing of the player's is at stake on an unmarked board, so the fill only
+  // asks when there is something of theirs to replace.
+  const hasMarks = game.cells.some((cell) => cell.candidates.size > 0);
   const paused = game.runningSince === null && game.completedAt === null;
   const solved = game.completedAt !== null;
 
@@ -179,6 +183,18 @@ export function GameView({
         </div>
 
         <div className="flex items-center justify-between gap-2">
+          {/* Training wheels (#20), and labelled as such. The engine never
+              maintains marks on its own — this is the player asking, once, and
+              it costs exactly one undo. */}
+          <Button
+            variant="secondary"
+            icon={<PencilIcon />}
+            disabled={solved || paused}
+            title={t('action.fillNotesHint')}
+            onClick={() => (hasMarks ? setConfirming('fillNotes') : dispatch({ type: 'fillCandidates' }))}
+          >
+            {t('action.fillNotes')}
+          </Button>
           <Button variant="ghost" icon={<UndoIcon />} onClick={() => setConfirming('restart')}>
             {t('action.restart')}
           </Button>
@@ -251,6 +267,19 @@ export function GameView({
         onConfirm={() => {
           dispatch({ type: 'reset' });
           coach.dismiss();
+          setConfirming(null);
+        }}
+        onCancel={() => setConfirming(null)}
+      />
+
+      <ConfirmDialog
+        open={confirming === 'fillNotes'}
+        title={t('confirm.fillNotes.title')}
+        body={t('confirm.fillNotes.body')}
+        confirmLabel={t('action.fillNotes')}
+        cancelLabel={t('action.cancel')}
+        onConfirm={() => {
+          dispatch({ type: 'fillCandidates' });
           setConfirming(null);
         }}
         onCancel={() => setConfirming(null)}

@@ -141,6 +141,30 @@ test.describe('one puzzle, end to end', () => {
     expect(await readBoard(page)).toEqual(played);
   });
 
+  test('fills every note on request, and takes one undo to take it back', async ({ page }) => {
+    await startEasyGame(page);
+
+    // A mark of the player's own first, so the fill has something to replace
+    // and the confirmation has something to be about.
+    const start = await readBoard(page);
+    const empty = start.find((cell) => !cell.given && cell.value === null)!;
+    await page.getByRole('button', { name: 'Notes off' }).click();
+    await enter(page, empty.index, 5);
+
+    await page.getByRole('button', { name: 'Fill in every note' }).click();
+    await page.getByRole('button', { name: 'Fill in every note' }).last().click();
+
+    const filled = await readBoard(page);
+    const blanks = filled.filter((cell) => cell.value === null);
+    expect(blanks.every((cell) => cell.notes.length > 0)).toBe(true);
+
+    // One batch, one undo (R4): the whole fill comes back off in a single press.
+    await page.getByRole('button', { name: 'Undo' }).click();
+    const undone = await readBoard(page);
+    expect(undone.filter((cell) => cell.notes.length > 0)).toHaveLength(1);
+    expect(undone[empty.index].notes).toEqual([5]);
+  });
+
   test('plays a puzzle through to the end', async ({ page }) => {
     await startEasyGame(page);
     const cells = await readBoard(page);
