@@ -183,4 +183,18 @@ export class Board implements BoardView {
     if (v === null) return [];
     return PEERS[cell].filter((p) => this.values[p] === v);
   }
+
+  /**
+   * Every cell whose digit repeats in one of its houses, ascending.
+   *
+   * Whether these are shown is a player setting, which is why the board only
+   * answers the question and holds no opinion about the answer being drawn.
+   */
+  conflicts(): CellIndex[] {
+    const flagged: CellIndex[] = [];
+    for (let cell = 0; cell < CELL_COUNT; cell++) {
+      if (this.values[cell] !== null && this.conflictsAt(cell).length > 0) flagged.push(cell);
+    }
+    return flagged;
+  }
 }
