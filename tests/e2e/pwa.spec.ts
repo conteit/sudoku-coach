@@ -53,6 +53,16 @@ test('ships an installable manifest with the icons an install prompt needs', asy
   }
 });
 
+test('says when it is ready to play offline', async ({ page }) => {
+  await page.goto('/');
+
+  // The promise is only kept once the precache is in place, and a player who
+  // is never told finds out by losing signal.
+  await expect(page.getByRole('status')).toContainText('Ready to play offline', {
+    timeout: 20_000,
+  });
+});
+
 test('plays with the network off', async ({ page, context }) => {
   await page.goto('/');
 
