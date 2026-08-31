@@ -29,6 +29,10 @@ export function LibraryView({
   onLearn,
 }: LibraryViewProps) {
   const t = useT();
+  // A solved board and a board waiting for you are different objects, and the
+  // list said so about neither until now.
+  const inProgress = summaries.filter((game) => game.completedAt === null);
+  const finished = summaries.filter((game) => game.completedAt !== null);
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 pt-6 pb-10">
@@ -48,7 +52,17 @@ export function LibraryView({
         />
       </header>
 
-      <GameList games={summaries} onResume={onResume} onNewGame={onNewGame} />
+      <GameList games={inProgress} onResume={onResume} onNewGame={onNewGame} />
+
+      {finished.length > 0 ? (
+        <GameList
+          className="mt-10"
+          variant="finished"
+          games={finished}
+          onResume={onResume}
+          onNewGame={onNewGame}
+        />
+      ) : null}
     </div>
   );
 }

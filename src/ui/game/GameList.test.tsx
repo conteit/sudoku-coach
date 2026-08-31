@@ -110,6 +110,22 @@ describe('the list', () => {
     expect(screen.getByText('1:30')).toBeInTheDocument();
   });
 
+  it('reads a finished game as finished, with no invitation to start another', () => {
+    render(
+      <GameList
+        variant="finished"
+        games={[savedGame({ filled: BLANKS })]}
+        now={NOW}
+        onResume={() => undefined}
+        onNewGame={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText('Finished')).toBeInTheDocument();
+    expect(screen.getByText('Finished in 12:04')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New puzzle' })).not.toBeInTheDocument();
+  });
+
   it('resumes the game the player picked', async () => {
     const user = userEvent.setup();
     const onResume = vi.fn();

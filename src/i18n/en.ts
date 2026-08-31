@@ -60,6 +60,11 @@ export const en = {
   'games.generationFailed': 'That puzzle could not be built. Try again.',
   'games.settledFor': 'No {requested} puzzle came out in time, so this one is {actual}.',
 
+  'recap.noHints': 'You finished this one without asking the coach anything.',
+  'recap.asked': 'You asked the coach about {count} patterns, and went as deep as rung {level} of 4.',
+  'recap.named': 'Named this game: {list}.',
+  'games.finishedIn': 'Finished in {time}',
+
   'board.paused': 'Paused',
   'board.pausedBody': 'The grid is covered and the clock has stopped.',
   'board.solvedTitle': 'Solved',
