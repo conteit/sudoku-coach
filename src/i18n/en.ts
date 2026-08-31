@@ -75,6 +75,7 @@ export const en = {
   'board.solvedTitle': 'Solved',
   'board.solved': 'Solved in {time}',
   'board.conflict': 'That digit already appears in this row, column or box.',
+  'board.strandedCell': 'That entry leaves a cell nearby with nothing it can take.',
   'board.givenLocked': 'That cell was given with the puzzle.',
 
   'coach.title': 'Coach',
@@ -86,6 +87,7 @@ export const en = {
   'coach.enough': 'That is enough',
   'coach.technique': 'Technique',
   'coach.whatIsThis': 'What is this technique?',
+  'coach.eliminationGroup': '{digit} from {cells}',
   'coach.marksClean': 'Every note you have made is right.',
   'coach.marksSummary': '{count} notes need attention.',
   'coach.markMissing': '{digit} is still possible here and you have not noted it.',
