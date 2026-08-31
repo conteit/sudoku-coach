@@ -34,13 +34,12 @@ export const it: Dictionary = {
   'action.cancel': 'Annulla',
   'action.confirm': 'Conferma',
   'action.close': 'Chiudi',
+  'action.clearStale': 'Cancella le annotazioni morte',
+  'action.clearStaleOne': 'Cancella 1 annotazione morta',
+  'action.clearStaleCount': 'Cancella {count} annotazioni morte',
   'action.restart': 'Ricomincia',
   'action.dismiss': 'Non ora',
   'action.back': 'Indietro',
-  'action.fillNotes': 'Compila tutte le annotazioni',
-  'action.fillNotesHint': 'Rotelle: fa al posto tuo la lettura che sei qui per imparare.',
-  'confirm.fillNotes.title': 'Sostituire le tue annotazioni?',
-  'confirm.fillNotes.body': 'Ogni cella vuota riceve le annotazioni che il motore sa dimostrare, e quelle che hai scritto tu spariscono. È un passo solo: basta un annulla per riaverle.',
 
   'difficulty.easy': 'Facile',
   'difficulty.medium': 'Medio',
@@ -148,6 +147,7 @@ export const it: Dictionary = {
 
   'cell.empty': '{cell}, vuota',
   'cell.emptyNotes': '{cell}, vuota, annotazioni {notes}',
+  'cell.notesStale': 'Le annotazioni {notes} qui non possono più essere vere.',
   'cell.value': '{cell}, {digit}',
   'cell.valueGiven': '{cell}, {digit}, indizio iniziale',
 

@@ -185,6 +185,23 @@ export class Board implements BoardView {
   }
 
   /**
+   * Digits noted in `cell` that a peer already holds.
+   *
+   * These are dead by the rules alone — no technique, no deduction, just a
+   * digit that cannot go there any more because the player placed it next
+   * door. Kept separate from `trueCandidates` because that answers "what could
+   * go here", and this answers "what did the player's own move just kill".
+   */
+  staleAt(cell: CellIndex, noted: Iterable<Digit>): Digit[] {
+    if (this.values[cell] !== null) return [...noted].sort((a, b) => a - b);
+    const dead: Digit[] = [];
+    for (const digit of noted) {
+      if (PEERS[cell].some((peer) => this.values[peer] === digit)) dead.push(digit);
+    }
+    return dead.sort((a, b) => a - b);
+  }
+
+  /**
    * Every cell whose digit repeats in one of its houses, ascending.
    *
    * Whether these are shown is a player setting, which is why the board only

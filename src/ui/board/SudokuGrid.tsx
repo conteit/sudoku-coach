@@ -58,6 +58,8 @@ export interface SudokuGridProps {
   tintedHouses?: readonly HouseRef[];
   /** Cells to flag as duplicated. Opt-in: conflict flagging is a setting. */
   conflicts?: readonly CellIndex[];
+  /** Per cell, the noted digits a placed peer has already ruled out. */
+  staleMarks?: readonly (readonly Digit[])[];
   /** Shade the selection's row, column and box. */
   highlightPeers?: boolean;
   /** Green same-number highlight across the board (R3). */
@@ -78,6 +80,7 @@ export function SudokuGrid({
   spotlight,
   tintedHouses,
   conflicts,
+  staleMarks,
   highlightPeers = true,
   highlightMatches = true,
   label,
@@ -91,6 +94,13 @@ export function SudokuGrid({
     for (let i = 0; i < cells.length; i++) out[i] = marksToMask(cells[i].candidates);
     return out;
   }, [cells]);
+
+  const staleMasks = useMemo(() => {
+    const out = new Uint16Array(CELL_COUNT);
+    if (staleMarks === undefined) return out;
+    for (let i = 0; i < staleMarks.length; i++) out[i] = marksToMask(staleMarks[i]);
+    return out;
+  }, [staleMarks]);
 
   /** The digit the selection is about — null when the selected cell is empty. */
   const matchDigit = selected === null ? null : (cells[selected]?.value ?? null);
@@ -214,6 +224,7 @@ export function SudokuGrid({
                 value={cell?.value ?? null}
                 given={cell?.given ?? false}
                 marks={masks[index]}
+                stale={staleMasks[index]}
                 flags={flags[index]}
                 matchDigit={highlightMatches ? matchDigit : null}
                 tabIndex={index === rovingCell ? 0 : -1}

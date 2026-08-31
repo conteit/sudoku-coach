@@ -415,6 +415,58 @@ describe('progress', () => {
   });
 });
 
+describe('clearing dead marks', () => {
+  it('removes only the marks a placed peer killed', () => {
+    const game = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'addCandidate', cell: OPEN, digit: 6, at: 2001 },
+      // r1c4 shares row 1 with r1c3, so a 6 there kills the 6 noted in OPEN.
+      { type: 'setValue', cell: 3, digit: 6, at: 2002 },
+      { type: 'clearStaleCandidates', at: 2003 },
+    );
+
+    expect(marks(game, OPEN)).toEqual([4]);
+  });
+
+  it('is one press to clear and one to take back', () => {
+    const cleared = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'addCandidate', cell: OPEN, digit: 6, at: 2001 },
+      { type: 'addCandidate', cell: 5, digit: 6, at: 2002 },
+      { type: 'setValue', cell: 3, digit: 6, at: 2003 },
+      { type: 'clearStaleCandidates', at: 2004 },
+    );
+
+    expect(marks(cleared, OPEN)).toEqual([4]);
+    expect(marks(cleared, 5)).toEqual([]);
+
+    const undone = reduce(cleared, { type: 'undo', at: 2005 });
+    expect(marks(undone, OPEN)).toEqual([4, 6]);
+    expect(marks(undone, 5)).toEqual([6]);
+    expect(undone.cells[3].value).toBe(6);
+  });
+
+  it('leaves a board with nothing dead exactly as it was', () => {
+    const game = run(start(), { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 });
+
+    expect(reduce(game, { type: 'clearStaleCandidates', at: 2001 })).toBe(game);
+  });
+
+  it('never touches a mark that is merely wrong', () => {
+    // Nothing r1c3 can see holds a 1, so the mark is not dead — it may still be
+    // a bad guess, and that is the note check's business, not this action's.
+    const game = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 1, at: 2000 },
+      { type: 'clearStaleCandidates', at: 2001 },
+    );
+
+    expect(marks(game, OPEN)).toEqual([1]);
+  });
+});
+
 describe('the coach log', () => {
   const exchange = (level: 1 | 2, findingKey = 'naked_single:2'): CoachExchange => ({
     at: 2000,

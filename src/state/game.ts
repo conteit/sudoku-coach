@@ -58,6 +58,14 @@ export type GameAction =
   | { type: 'removeCandidate'; cell: CellIndex; digit: Digit; at: number }
   | { type: 'clearCandidates'; cell: CellIndex; at: number }
   | { type: 'fillCandidates'; at: number }
+  /**
+   * Removes every pencil mark that a placed peer has already ruled out, in one
+   * undoable step. The player asks for it; the engine never does it on its own
+   * (architecture invariant 1). It is bookkeeping rather than deduction — these
+   * marks are dead by the rules alone, not by any technique — which is why it
+   * can be offered without taking a deduction away from the player.
+   */
+  | { type: 'clearStaleCandidates'; at: number }
   | { type: 'reset'; at: number }
   | { type: 'undo'; at: number }
   | { type: 'redo'; at: number }
@@ -424,9 +432,15 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
       );
 
     case 'fillCandidates': {
-      // "Training wheels": the player asks the engine to write the true
-      // candidates into every empty cell, replacing what is there. It is a
-      // request, not the engine reaching in on its own — and it is one undo.
+      // The player asks the engine to write the true candidates into every
+      // empty cell, replacing what is there. One request, one undo.
+      //
+      // No screen offers this any more: filling every mark hands over the
+      // reading the app exists to teach, and the note check plus
+      // `clearStaleCandidates` cover what players actually wanted from it —
+      // "are my notes right" and "tidy the dead ones". The action stays
+      // because `fillCandidates` is a `MoveKind` in the frozen contract, and a
+      // stored game may still hold one in its undo log.
       const board = Board.fromValues(valuesOf(game));
       return batch(game, 'fillCandidates', action.at, (cell, i) => {
         if (cell.value !== null) return false;
@@ -435,6 +449,23 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
           truth.size !== cell.candidates.size || [...truth].some((d) => !cell.candidates.has(d))
         );
       });
+    }
+
+    case 'clearStaleCandidates': {
+      const board = Board.fromValues(valuesOf(game));
+      const stamp = nextAt(game, action.at);
+      const moves: Move[] = [];
+      for (let i = 0; i < CELL_COUNT; i++) {
+        const cell = game.cells[i];
+        if (cell.given || cell.value !== null || cell.candidates.size === 0) continue;
+        // One move per dead digit, all sharing the stamp: redo replays each
+        // removal exactly, and undo restores the cell from the snapshot they
+        // all took before the batch began.
+        for (const digit of board.staleAt(i, cell.candidates)) {
+          moves.push({ kind: 'removeCandidate', cell: i, digit, prev: snapshot(cell), at: stamp });
+        }
+      }
+      return commit(game, applyAll(game.cells, moves), moves, stamp);
     }
 
     case 'reset':
