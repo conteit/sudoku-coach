@@ -37,6 +37,10 @@ export const en = {
   'action.restart': 'Start over',
   'action.dismiss': 'Not now',
   'action.back': 'Back',
+  'action.fillNotes': 'Fill in every note',
+  'action.fillNotesHint': 'Training wheels: it does the reading you are here to learn.',
+  'confirm.fillNotes.title': 'Replace your notes?',
+  'confirm.fillNotes.body': 'Every empty cell gets the notes the engine can prove, and the ones you wrote go. It is a single step, so one undo brings them back.',
 
   'difficulty.easy': 'Easy',
   'difficulty.medium': 'Medium',
