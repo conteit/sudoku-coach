@@ -19,10 +19,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Finding } from '../engine/types';
+import type { Finding, TechniqueId } from '../engine/types';
 import {
   createCoach,
   escalatedLevel,
+  findingIsApplied,
   findingKey,
   masteryAfterHint,
   masteryAfterMove,
@@ -47,8 +48,29 @@ export const NUDGE_POLL_MS = 15_000;
 
 type LevelPicker = (log: readonly CoachExchange[], key: string) => HintLevel;
 
+/**
+ * A challenge the player accepted: the coach named a technique that is on the
+ * board and is now waiting to see it applied.
+ *
+ * Naming it *is* a level-2 disclosure, so a drill records the exchange like any
+ * other hint. That is what keeps the mastery accounting honest: applying a
+ * pattern you were told to look for is a recognition, not an unaided find, and
+ * the log is what tells `masteryAfterMove` which one happened.
+ */
+export interface Drill {
+  technique: TechniqueId;
+  findingKey: string;
+  solved: boolean;
+  /** The pattern left the board without being applied — undo, or a wrong turn. */
+  gone: boolean;
+}
+
 export interface CoachSession {
   hint: Hint | null;
+  drill: Drill | null;
+  /** Null when the board has nothing left for a challenge to be about. */
+  startDrill: () => void;
+  dismissDrill: () => void;
   review: CandidateReview | null;
   /** True once a hint was asked for and the board yielded nothing. */
   exhausted: boolean;
@@ -103,6 +125,12 @@ export function useCoachSession({
   const [exhausted, setExhausted] = useState(false);
   const [nudge, setNudge] = useState<TeachableTrigger | null>(null);
   const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
+  const [drill, setDrill] = useState<Drill | null>(null);
+  /**
+   * The finding the live drill is about, tagged with its game and kept out of
+   * state because it never renders — only its verdict does.
+   */
+  const drillFinding = useRef<{ game: string; finding: Finding } | null>(null);
 
   const updateProfile = useProfile((state) => state.update);
 
@@ -126,6 +154,7 @@ export function useCoachSession({
     setExhausted(false);
     setNudge(null);
     setDismissedNudge(null);
+    setDrill(null);
   }
 
   // A hint already on screen is re-rendered when the language changes: same
@@ -170,6 +199,21 @@ export function useCoachSession({
         );
       }
       settled.current = { game: game.id, cells: after, finding };
+
+      // A live drill is judged on the board, not on the player's word for it.
+      const target =
+        drillFinding.current?.game === game.id ? drillFinding.current.finding : null;
+      if (target !== null) {
+        if (findingIsApplied(target, after)) {
+          drillFinding.current = null;
+          setDrill((current) => (current === null ? null : { ...current, solved: true }));
+        } else if (finding !== null && findingKey(finding) !== findingKey(target)) {
+          // The engine has moved on to another pattern, so the one the player
+          // was sent after is no longer there to be found.
+          drillFinding.current = null;
+          setDrill((current) => (current === null ? null : { ...current, gone: true }));
+        }
+      }
 
       const cells = triggerCells(game);
       const evaluate = (): void => {
@@ -219,6 +263,38 @@ export function useCoachSession({
     [game, locale, now, onCoachLog, updateProfile],
   );
 
+  /**
+   * Sets a challenge: name the technique that is on the board, then wait. The
+   * naming is recorded as the level-2 exchange it is, so the mastery ledger
+   * knows the player was pointed at it.
+   */
+  const startDrill = useCallback(() => {
+    const coach = createCoach({ cells: coachCells(game), locale });
+    const finding = coach.nextFinding();
+    if (finding === null) {
+      setExhausted(true);
+      return;
+    }
+    const named = coach.hint(finding, 2);
+    const at = now();
+    updateProfile((profile) => masteryAfterHint(profile, game.coachLog, named, at));
+    onCoachLog(recordExchange(game.coachLog, named, at, true));
+    drillFinding.current = { game: game.id, finding };
+    setHint(null);
+    setExhausted(false);
+    setDrill({
+      technique: finding.technique,
+      findingKey: findingKey(finding),
+      solved: false,
+      gone: false,
+    });
+  }, [game, locale, now, onCoachLog, updateProfile]);
+
+  const dismissDrill = useCallback(() => {
+    drillFinding.current = null;
+    setDrill(null);
+  }, []);
+
   const ask = useCallback(() => show(resumeLevel), [show]);
   const escalate = useCallback(() => show(escalatedLevel), [show]);
 
@@ -239,5 +315,18 @@ export function useCoachSession({
     });
   }, []);
 
-  return { hint, review, exhausted, nudge, ask, escalate, checkMarks, dismiss, dismissNudge };
+  return {
+    hint,
+    drill,
+    review,
+    exhausted,
+    nudge,
+    ask,
+    escalate,
+    startDrill,
+    dismissDrill,
+    checkMarks,
+    dismiss,
+    dismissNudge,
+  };
 }

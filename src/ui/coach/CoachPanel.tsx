@@ -53,6 +53,11 @@ export interface CoachPanelProps {
   onSpotlight?: (cells: CellIndex[]) => void;
   /** The player asked and the board yielded nothing a technique can crack. */
   exhausted?: boolean;
+  /** A challenge in flight: the technique named, and whether it has been found. */
+  drill?: { technique: TechniqueId; solved: boolean; gone: boolean } | null;
+  /** Offered while there is something on the board to be challenged about. */
+  onDrill?: () => void;
+  onDismissDrill?: () => void;
   /**
    * Opens the full lesson for the technique on screen. Offered only from level
    * 2, where the technique has been named — below that, the link itself would
@@ -178,6 +183,9 @@ export function CoachPanel({
   onReviewCandidates,
   onSpotlight,
   exhausted = false,
+  drill = null,
+  onDrill,
+  onDismissDrill,
   onLearn,
   className,
 }: CoachPanelProps) {
@@ -206,6 +214,27 @@ export function CoachPanel({
         <Ladder level={level} />
       </div>
 
+      {/* A challenge outranks the resting copy: it is the thing the player is
+          currently doing, and its result is what they are waiting for. */}
+      {drill ? (
+        <div aria-live="polite" className="px-4 pt-4">
+          <p
+            className={cx(
+              'text-[0.9375rem] leading-relaxed',
+              drill.solved ? 'text-match' : drill.gone ? 'text-ink-soft' : 'text-coach',
+            )}
+          >
+            {drill.solved
+              ? t('coach.drillSolved', { technique: techniqueLabel ?? titleCase(drill.technique) })
+              : drill.gone
+                ? t('coach.drillGone')
+                : t('coach.drillActive', {
+                    technique: techniqueLabel ?? titleCase(drill.technique),
+                  })}
+          </p>
+        </div>
+      ) : null}
+
       <div aria-live="polite" className="px-4 pt-4">
         {hint ? (
           <p className="text-[0.9375rem] leading-relaxed text-ink">{hint.text}</p>
@@ -217,6 +246,11 @@ export function CoachPanel({
       </div>
 
       <div className="flex flex-wrap gap-2 px-4 pt-4 pb-4">
+        {drill && !drill.solved && !drill.gone ? (
+          <Button variant="ghost" size="lg" onClick={onDismissDrill}>
+            {t('action.dismiss')}
+          </Button>
+        ) : null}
         {hint === null ? (
           <Button variant="coach" size="lg" onClick={onAsk}>
             {t('coach.rung1.ask')}
@@ -234,6 +268,11 @@ export function CoachPanel({
         ) : (
           <p className="py-2 text-sm text-ink-soft">{t('coach.done')}</p>
         )}
+        {onDrill && drill === null && hint === null ? (
+          <Button variant="ghost" size="lg" onClick={onDrill}>
+            {t('coach.drill')}
+          </Button>
+        ) : null}
         {onReviewCandidates ? (
           <Button variant="ghost" size="lg" onClick={onReviewCandidates}>
             {t('action.checkMarks')}

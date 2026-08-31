@@ -292,6 +292,9 @@ export function GameView({
         onReviewCandidates={coach.checkMarks}
         onSpotlight={setReviewSpotlight}
         exhausted={coach.exhausted}
+        drill={coach.drill}
+        onDrill={coach.startDrill}
+        onDismissDrill={coach.dismissDrill}
         onLearn={onLearn}
       />
 
