@@ -14,7 +14,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { Board } from '../engine/board';
-import type { CellIndex, Digit } from '../engine/types';
+import type { CellIndex, Digit, TechniqueId } from '../engine/types';
 import { getLesson } from '../coach/lessons';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useGameStore } from '../state/store';
@@ -55,6 +55,8 @@ export interface GameViewProps {
   onExit: () => void;
   onOpenSettings: () => void;
   onNewGame: () => void;
+  /** Opens the Learn section, optionally straight onto one technique. */
+  onLearn: (technique?: TechniqueId) => void;
 }
 
 /** Cells holding a digit that repeats in one of their houses. */
@@ -74,6 +76,7 @@ export function GameView({
   onExit,
   onOpenSettings,
   onNewGame,
+  onLearn,
 }: GameViewProps) {
   const t = useT();
   const dispatch = useGameStore((state) => state.dispatch);
@@ -256,6 +259,7 @@ export function GameView({
         onReviewCandidates={coach.checkMarks}
         onSpotlight={setReviewSpotlight}
         exhausted={coach.exhausted}
+        onLearn={onLearn}
       />
 
       <ConfirmDialog

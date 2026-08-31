@@ -16,8 +16,9 @@ import { preferredLocale } from './i18n/locale';
 import { LocaleProvider } from './i18n/react';
 import { useProfile } from './state/profile';
 import { useGameStore } from './state/store';
-import type { Difficulty } from './engine/types';
+import type { Difficulty, TechniqueId } from './engine/types';
 import { GameView } from './app/GameView';
+import { LearnView } from './app/LearnView';
 import { LibraryView } from './app/LibraryView';
 import { NewGameSheet } from './app/NewGameSheet';
 import { SettingsSheet } from './app/SettingsSheet';
@@ -36,6 +37,8 @@ export default function App() {
 
   const [showNewGame, setShowNewGame] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  /** null = Learn is closed; a technique = opened straight onto that lesson. */
+  const [learning, setLearning] = useState<{ technique: TechniqueId | null } | null>(null);
 
   useEffect(() => {
     void useProfile.getState().hydrate(preferredLocale());
@@ -73,6 +76,12 @@ export default function App() {
           language or the wrong theme is worse than one frame of nothing. */}
       {!profileReady || !gamesReady ? (
         <div className="min-h-dvh" aria-busy="true" />
+      ) : learning !== null ? (
+        <LearnView
+          profile={profile}
+          technique={learning.technique}
+          onClose={() => setLearning(null)}
+        />
       ) : activeGame !== null ? (
         <GameView
           game={activeGame}
@@ -84,6 +93,7 @@ export default function App() {
             exitGame();
             setShowNewGame(true);
           }}
+          onLearn={(technique) => setLearning({ technique: technique ?? null })}
         />
       ) : (
         <LibraryView
@@ -91,6 +101,7 @@ export default function App() {
           onResume={(id) => void useGameStore.getState().openGame(id)}
           onNewGame={() => setShowNewGame(true)}
           onOpenSettings={() => setShowSettings(true)}
+          onLearn={() => setLearning({ technique: null })}
         />
       )}
 
