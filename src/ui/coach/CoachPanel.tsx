@@ -13,7 +13,7 @@
  * rule, honoured by the view as well as by the renderer.
  */
 
-import type { CellIndex } from '../../engine/types';
+import type { CellIndex, TechniqueId } from '../../engine/types';
 import type { CandidateReview, Hint } from '../../coach/types';
 import type { DisclosureLevel } from '../../state/types';
 import { cellName } from '../../engine/board';
@@ -53,6 +53,12 @@ export interface CoachPanelProps {
   onSpotlight?: (cells: CellIndex[]) => void;
   /** The player asked and the board yielded nothing a technique can crack. */
   exhausted?: boolean;
+  /**
+   * Opens the full lesson for the technique on screen. Offered only from level
+   * 2, where the technique has been named — below that, the link itself would
+   * disclose what the rung is holding back.
+   */
+  onLearn?: (technique: TechniqueId) => void;
   className?: string;
 }
 
@@ -172,6 +178,7 @@ export function CoachPanel({
   onReviewCandidates,
   onSpotlight,
   exhausted = false,
+  onLearn,
   className,
 }: CoachPanelProps) {
   const t = useT();
@@ -230,6 +237,11 @@ export function CoachPanel({
         {onReviewCandidates ? (
           <Button variant="ghost" size="lg" onClick={onReviewCandidates}>
             {t('action.checkMarks')}
+          </Button>
+        ) : null}
+        {onLearn && hint && level >= 2 ? (
+          <Button variant="ghost" size="lg" onClick={() => onLearn(hint.technique)}>
+            {t('coach.whatIsThis')}
           </Button>
         ) : null}
       </div>

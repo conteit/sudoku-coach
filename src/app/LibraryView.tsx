@@ -9,6 +9,7 @@
 import { useT } from '../i18n/locale';
 import type { GameSummary } from '../state/db';
 import { GameList } from '../ui/game/GameList';
+import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
 import { SettingsIcon } from '../ui/primitives/icons';
 
@@ -17,6 +18,7 @@ export interface LibraryViewProps {
   onResume: (id: string) => void;
   onNewGame: () => void;
   onOpenSettings: () => void;
+  onLearn: () => void;
 }
 
 export function LibraryView({
@@ -24,16 +26,20 @@ export function LibraryView({
   onResume,
   onNewGame,
   onOpenSettings,
+  onLearn,
 }: LibraryViewProps) {
   const t = useT();
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 pt-6 pb-10">
-      <header className="mb-6 flex items-start justify-between gap-4">
+      <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl leading-none text-ink">{t('app.name')}</h1>
           <p className="mt-1.5 text-sm text-ink-soft">{t('app.tagline')}</p>
         </div>
+        <Button variant="ghost" className="flex-none" onClick={onLearn}>
+          {t('learn.title')}
+        </Button>
         <IconButton
           label={t('settings.title')}
           icon={<SettingsIcon />}
