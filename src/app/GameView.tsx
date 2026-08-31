@@ -45,6 +45,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
+import { useBoardShortcuts } from './useBoardShortcuts';
 import { useCoachSession } from './useCoachSession';
 
 /** How long a vibration says each thing. Absent hardware simply ignores it. */
@@ -167,6 +168,16 @@ export function GameView({
         : coach.nudge.kind === 'stale_marks'
           ? coach.nudge.cells
           : [];
+
+  useBoardShortcuts({
+    onToggleNotes: () => setPencilMode((on) => !on),
+    onUndo: () => dispatch({ type: 'undo' }),
+    onRedo: () => dispatch({ type: 'redo' }),
+    onHint: coach.ask,
+    // A dialog is a question; answering it with "u" should not rewind the board
+    // behind it. A paused or finished board takes no moves either.
+    enabled: confirming === null && !paused && !solved,
+  });
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col">

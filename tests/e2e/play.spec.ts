@@ -230,3 +230,36 @@ test.describe('drills', () => {
     await expect(coach.getByText(/applied by you/)).toBeVisible();
   });
 });
+
+test.describe('the keyboard', () => {
+  test('plays the game without the mouse', async ({ page }) => {
+    await startEasyGame(page);
+    const cells = await readBoard(page);
+    const empty = cells.find((cell) => !cell.given && cell.value === null)!;
+
+    // N is notes mode, so the same keystroke writes a mark rather than a digit.
+    await page.keyboard.press('n');
+    await expect(page.getByRole('group', { name: 'Keypad, notes mode' })).toBeVisible();
+    await enter(page, empty.index, 4);
+    expect((await readBoard(page))[empty.index].notes).toEqual([4]);
+
+    await page.keyboard.press('n');
+    await enter(page, empty.index, 4);
+    expect((await readBoard(page))[empty.index].value).toBe(4);
+
+    // U and R walk the same history the buttons do.
+    await page.keyboard.press('u');
+    expect((await readBoard(page))[empty.index].value).toBeNull();
+    await page.keyboard.press('r');
+    expect((await readBoard(page))[empty.index].value).toBe(4);
+
+    // And the shortcut every player tries first.
+    await page.keyboard.press('ControlOrMeta+z');
+    expect((await readBoard(page))[empty.index].value).toBeNull();
+
+    await page.keyboard.press('h');
+    await expect(
+      page.getByRole('region', { name: 'Coach' }).getByLabel('Disclosure level 1 of 4'),
+    ).toBeVisible();
+  });
+});
