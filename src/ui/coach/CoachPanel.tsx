@@ -238,7 +238,10 @@ export function CoachPanel({
       <div aria-live="polite" className="px-4 pt-4">
         {hint ? (
           <p className="text-[0.9375rem] leading-relaxed text-ink">{hint.text}</p>
-        ) : (
+        ) : /* A live challenge has already said what the panel is for; repeating
+               the invitation to ask for a hint under it reads like two coaches
+               talking over each other. */
+        drill && !drill.solved && !drill.gone ? null : (
           <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
             {exhausted ? t('coach.nothingFound') : t('coach.idlePrompt')}
           </p>
