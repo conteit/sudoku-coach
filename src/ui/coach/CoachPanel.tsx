@@ -118,6 +118,12 @@ function IssueList({
   onSpotlight?: (cells: CellIndex[]) => void;
 }) {
   const t = useT();
+  // "All 0 cells checked — your notes are exactly right" is true and useless:
+  // a player with no notes was told they had done something perfectly.
+  if (review.checkedCells === 0) {
+    return <p className="py-3 text-sm text-ink-soft">{t('coach.marksNone')}</p>;
+  }
+
   if (review.issues.length === 0) {
     return (
       <p className="flex items-center gap-2 py-3 text-sm text-match">

@@ -192,6 +192,7 @@ export const it: Dictionary = {
   'coach.idlePrompt': 'Bloccato? Chiedi pure: parti dalla spinta più piccola che serve. Sei tu a decidere quanto scendere lungo la scala — la cifra non è mai uno dei gradini.',
   'coach.done': 'Il ragionamento è tutto qui. La cifra tocca a te.',
   'coach.notesHeading': 'Controllo delle annotazioni',
+  'coach.marksNone': 'Non hai ancora messo annotazioni, quindi non c\u2019è niente da controllare.',
   'coach.marksAllClean': 'Celle controllate: {count}. Le tue annotazioni sono esatte.',
   'coach.marksNeedLook': '{count} celle su {total} controllate meritano una seconda occhiata.',
   'coach.marksUnchanged': 'Non è stato cambiato nulla al posto tuo.',
