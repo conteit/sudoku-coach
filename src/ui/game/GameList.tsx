@@ -39,6 +39,12 @@ export interface GameListProps {
   games: readonly GameSummary[];
   onResume: (id: string) => void;
   onNewGame: () => void;
+  /**
+   * `finished` drops the "new puzzle" control and reads the clock as a final
+   * time. A solved board is not something you continue, and listing it under
+   * "in progress" made the list lie about what a tap would open.
+   */
+  variant?: 'active' | 'finished';
   /** Reference instant for the "updated" line; injectable so tests are stable. */
   now?: number;
   className?: string;
@@ -90,7 +96,14 @@ function lastPlayed(locale: Locale, t: Translate, updatedAt: number, now: number
   return t('games.justNow');
 }
 
-export function GameList({ games, onResume, onNewGame, now, className }: GameListProps) {
+export function GameList({
+  games,
+  onResume,
+  onNewGame,
+  variant = 'active',
+  now,
+  className,
+}: GameListProps) {
   const locale = useLocale();
   const t = useT();
   // The list is a resting screen, not a stopwatch: one reading of the clock at
@@ -103,7 +116,7 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
       <header className="flex items-end justify-between gap-4 border-b border-ink pb-3">
         <div>
           <p className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-            {t('games.inProgress')}
+            {variant === 'finished' ? t('games.completed') : t('games.inProgress')}
           </p>
           <h2 id="game-list-heading" className="digit mt-1 text-2xl leading-none text-ink">
             {games.length === 0
@@ -113,9 +126,11 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
                 : t('games.puzzleCountOther', { count: games.length })}
           </h2>
         </div>
-        <Button variant="primary" icon={<PlusIcon />} onClick={onNewGame}>
-          {t('games.newPuzzle')}
-        </Button>
+        {variant === 'active' ? (
+          <Button variant="primary" icon={<PlusIcon />} onClick={onNewGame}>
+            {t('games.newPuzzle')}
+          </Button>
+        ) : null}
       </header>
 
       {games.length === 0 ? (
@@ -152,7 +167,7 @@ export function GameList({ games, onResume, onNewGame, now, className }: GameLis
                   <span className="min-w-0 flex-1">
                     <DifficultyBadge difficulty={game.difficulty} />
                     <span className="mt-1.5 flex items-center gap-2 text-sm text-ink-soft tabular-nums">
-                      {elapsed}
+                      {variant === 'finished' ? t('games.finishedIn', { time: elapsed }) : elapsed}
                       <span aria-hidden="true" className="text-ink-faint">
                         &middot;
                       </span>

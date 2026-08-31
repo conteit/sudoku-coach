@@ -180,5 +180,15 @@ test.describe('one puzzle, end to end', () => {
 
     await expect(page.getByText('Solved', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
+
+    // The recap reports what the coach was asked for. This puzzle was solved
+    // from the solution, so the honest answer is "nothing".
+    await expect(page.getByText(/without asking the coach anything/)).toBeVisible();
+
+    // And a solved board belongs under Finished, not under In progress.
+    await page.getByRole('button', { name: 'Your games' }).click();
+    await expect(page.getByText('Finished')).toBeVisible();
+    await expect(page.getByText(/Finished in \d/)).toBeVisible();
+    await expect(page.getByText('Nothing on the desk')).toBeVisible();
   });
 });

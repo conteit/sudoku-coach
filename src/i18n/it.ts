@@ -60,6 +60,11 @@ export const it: Dictionary = {
   'games.generationFailed': 'Non sono riuscito a creare la griglia. Riprova.',
   'games.settledFor': 'Nessuna griglia {requested} è uscita in tempo, quindi questa è {actual}.',
 
+  'recap.noHints': 'Hai chiuso questa griglia senza chiedere niente al coach.',
+  'recap.asked': 'Hai chiesto al coach di {count} schemi, arrivando fino al gradino {level} su 4.',
+  'recap.named': 'Tecniche nominate in questa partita: {list}.',
+  'games.finishedIn': 'Completata in {time}',
+
   'board.paused': 'In pausa',
   'board.pausedBody': 'La griglia è coperta e il cronometro è fermo.',
   'board.solvedTitle': 'Risolto',
