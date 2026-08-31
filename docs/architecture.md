@@ -15,6 +15,14 @@ dependency.
 
 - **No backend computation.** Generation, rating, detection and coaching all run
   in the browser. Generation runs in a Web Worker so the UI thread never blocks.
+
+  **Detection does not, and does not need to.** A full sweep of the detector
+  catalog — every technique, in order, until one fires — was measured across
+  whole solve paths at each difficulty: median 0.02ms, worst case 0.87ms, on an
+  expert board whose hardest step is simple colouring. Generation is three
+  orders of magnitude more expensive (7ms easy, 188ms expert) and is the only
+  thing that earns a worker. The coach's 400ms idle debounce exists to avoid
+  running a sweep between two keystrokes, not because a sweep is slow.
 - **Local-first.** IndexedDB is the source of truth. No account is required for
   any P0 feature.
 - **Static hosting, free tier.** The build is a static bundle deployed to Vercel.
