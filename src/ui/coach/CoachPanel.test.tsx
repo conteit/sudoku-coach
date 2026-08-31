@@ -190,3 +190,17 @@ describe('the note check', () => {
     expect(onSpotlight).toHaveBeenLastCalledWith([]);
   });
 });
+
+it('says there is nothing to check when the player has made no notes', () => {
+  render(
+    <CoachPanel
+      hint={null}
+      onAsk={() => undefined}
+      onEscalate={() => undefined}
+      review={{ issues: [], cleanCells: [], checkedCells: 0 }}
+    />,
+  );
+
+  expect(screen.getByText(/nothing to check/)).toBeInTheDocument();
+  expect(screen.queryByText(/exactly right/)).not.toBeInTheDocument();
+});

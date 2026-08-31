@@ -191,6 +191,7 @@ export const en = {
   'coach.idlePrompt': 'Stuck? Ask, and you get the smallest useful nudge first. You decide how far down the ladder to go — the digit is never one of the rungs.',
   'coach.done': 'That is the whole argument. The digit is yours to place.',
   'coach.notesHeading': 'Note check',
+  'coach.marksNone': 'You have not made any notes yet, so there is nothing to check.',
   'coach.marksAllClean': 'All {count} cells checked — your notes are exactly right.',
   'coach.marksNeedLook': '{count} of {total} checked cells need a second look.',
   'coach.marksUnchanged': 'Nothing has been changed for you.',
