@@ -21,6 +21,7 @@ import { GameView } from './app/GameView';
 import { LearnView } from './app/LearnView';
 import { LibraryView } from './app/LibraryView';
 import { NewGameSheet } from './app/NewGameSheet';
+import { OfflineNotice } from './app/OfflineNotice';
 import { SettingsSheet } from './app/SettingsSheet';
 
 export default function App() {
@@ -110,6 +111,8 @@ export default function App() {
         onClose={() => setShowNewGame(false)}
         onStart={startGame}
       />
+
+      <OfflineNotice />
 
       <SettingsSheet
         open={showSettings}
