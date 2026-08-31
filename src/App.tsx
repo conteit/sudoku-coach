@@ -110,6 +110,7 @@ export default function App() {
         open={showNewGame}
         onClose={() => setShowNewGame(false)}
         onStart={startGame}
+        profile={profile}
       />
 
       <OfflineNotice />

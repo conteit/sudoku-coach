@@ -22,7 +22,8 @@
  * React tree.
  */
 
-import type { TechniqueId } from '../engine/types';
+import { DIFFICULTIES, DIFFICULTY_TECHNIQUES, TECHNIQUE_IDS } from '../engine/types';
+import type { Difficulty, TechniqueId } from '../engine/types';
 import type { MasteryEntry, MasteryStage, PlayerProfile } from './types';
 
 /** Rank of each stage; the machine may only move to a strictly higher one. */
@@ -107,3 +108,52 @@ export const onUnaidedApplication = (
  */
 export const onMiss = (profile: PlayerProfile, technique: TechniqueId, at: number): PlayerProfile =>
   transition(profile, technique, at, 'unseen', { misses: 1 });
+
+/* -------------------------------------------------------------------------- */
+/* Choosing what to practise                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The technique at the edge of this player's mastery — what a puzzle chosen
+ * *for* them should require (spec §5.5, the learning metric in §7).
+ *
+ * Two cases, in this order:
+ *
+ * 1. Something has been taught but not yet applied unaided. That is the edge:
+ *    they have met it, they have not owned it, and another encounter is worth
+ *    more than meeting something new. The **hardest** such technique wins,
+ *    because the catalog is ordered by difficulty and the easier ones will keep
+ *    turning up on their own in any puzzle that needs the hard one.
+ * 2. Nothing is half-learned, so the edge is the next technique they have never
+ *    met — the **first** unseen one, for the same reason in reverse.
+ *
+ * Null when there is nothing left to practise: every technique applied unaided
+ * is a player who does not need to be handed a puzzle.
+ */
+export function edgeOfMastery(profile: PlayerProfile): TechniqueId | null {
+  let halfLearned: TechniqueId | null = null;
+  let unseen: TechniqueId | null = null;
+
+  for (const technique of TECHNIQUE_IDS) {
+    const { stage } = masteryOf(profile, technique);
+    if (stage === 'taught' || stage === 'recognized_with_hint') halfLearned = technique;
+    else if (stage === 'unseen' && unseen === null) unseen = technique;
+  }
+
+  return halfLearned ?? unseen;
+}
+
+/**
+ * The gentlest difficulty whose solve paths are allowed to need `technique`.
+ *
+ * Practising a hidden pair on an expert grid means finding it among four other
+ * patterns you cannot read yet; the point is to meet the technique, not to
+ * survive everything above it.
+ */
+export function easiestLevelFor(technique: TechniqueId): Difficulty {
+  const level = DIFFICULTIES.find((difficulty) =>
+    DIFFICULTY_TECHNIQUES[difficulty].includes(technique),
+  );
+  // Every technique appears in `expert` by construction, so this is total.
+  return level ?? 'expert';
+}
