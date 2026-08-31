@@ -38,13 +38,18 @@ export function OfflineNotice() {
   if (!ready) return null;
 
   return (
+    // Top of the screen, and transparent to the pointer except for its own
+    // close button. At the bottom it sat over the keypad and the coach's
+    // controls, and for the seconds it was up it swallowed their taps — a
+    // notice about a promise being kept is not worth breaking the app for.
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-sm items-center gap-3 rounded-cell border border-rule-strong bg-paper-raised px-4 py-3 shadow-lg"
+      className="pointer-events-none fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center gap-3 rounded-cell border border-rule-strong bg-paper-raised px-4 py-3 shadow-lg"
     >
       <p className="min-w-0 flex-1 text-sm text-ink">{t('offline.ready')}</p>
       <IconButton
         size="sm"
+        className="pointer-events-auto"
         label={t('action.close')}
         icon={<CloseIcon />}
         onClick={() => setReady(false)}
