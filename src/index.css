@@ -19,8 +19,16 @@
   --color-paper-raised: #fffdfa;
   --color-paper-sunk: #f1ebe1;
   --color-ink: #1b1917;
-  --color-ink-soft: #6b625a;
-  --color-ink-faint: #a1968a;
+  /*
+   * Three text tones, and every one of them clears 4.5:1 on paper, raised and
+   * sunk. The quietest tone used to be #a1968a, which reads beautifully at 11px
+   * and fails WCAG AA at 2.7:1 — the ladder's captions, the keypad's counts and
+   * the mastery chips are all small, quiet and load-bearing, so quiet had to be
+   * redefined as "darker than the copy next to it" rather than "lighter than
+   * legible". Checked by axe over the real screens in tests/e2e/a11y.spec.ts.
+   */
+  --color-ink-soft: #5c534a;
+  --color-ink-faint: #6f6659;
   --color-rule: #e4ddd2;
   --color-rule-strong: #b9ab99;
 
@@ -53,7 +61,7 @@
       --color-paper-sunk: #0e0c09;
       --color-ink: #f4eee3;
       --color-ink-soft: #a2988a;
-      --color-ink-faint: #6d6458;
+      --color-ink-faint: #918676;
       --color-rule: #302b23;
       --color-rule-strong: #574f42;
       --color-entry: #86a9ff;
@@ -74,7 +82,7 @@
     --color-paper-sunk: #0e0c09;
     --color-ink: #f4eee3;
     --color-ink-soft: #a2988a;
-    --color-ink-faint: #6d6458;
+    --color-ink-faint: #918676;
     --color-rule: #302b23;
     --color-rule-strong: #574f42;
     --color-entry: #86a9ff;
