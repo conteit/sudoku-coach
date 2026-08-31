@@ -16,7 +16,7 @@ import {
   type GeneratorClient,
 } from '../engine/generatorClient';
 import type { GenerationProgress, GenerationResult } from '../engine/generator';
-import type { Difficulty } from '../engine/types';
+import type { Difficulty, TechniqueId } from '../engine/types';
 
 export interface GeneratorState {
   running: boolean;
@@ -28,8 +28,26 @@ export interface GeneratorState {
 export interface UseGenerator extends GeneratorState {
   /** Resolves to null when the run was cancelled or the worker failed. */
   generate: (difficulty: Difficulty) => Promise<GenerationResult | null>;
+  /**
+   * A puzzle whose solve path actually needs `technique`. Falls back to the
+   * last puzzle generated — `matched` on the result says which happened, so a
+   * caller can tell the player rather than quietly handing them a drill that
+   * drills nothing.
+   */
+  generateNeeding: (
+    technique: TechniqueId,
+    difficulty: Difficulty,
+  ) => Promise<{ result: GenerationResult; needed: boolean } | null>;
   cancel: () => void;
 }
+
+/**
+ * How many puzzles to look at before settling. Each one is a full generate +
+ * rate cycle in the worker, so this is a few seconds of phone, not a search:
+ * the techniques worth practising turn up often, and the ones that do not are
+ * exactly the ones worth settling on a near miss for.
+ */
+export const TECHNIQUE_ATTEMPTS = 5;
 
 export function useGenerator(): UseGenerator {
   const clientRef = useRef<GeneratorClient | null>(null);
@@ -84,5 +102,21 @@ export function useGenerator(): UseGenerator {
     }
   }, []);
 
-  return { ...state, generate, cancel };
+  const generateNeeding = useCallback(
+    async (technique: TechniqueId, difficulty: Difficulty) => {
+      let last: GenerationResult | null = null;
+      for (let attempt = 0; attempt < TECHNIQUE_ATTEMPTS; attempt++) {
+        const result = await generate(difficulty);
+        if (result === null) return null;
+        last = result;
+        if (result.puzzle.techniquesUsed.includes(technique)) {
+          return { result, needed: true };
+        }
+      }
+      return last === null ? null : { result: last, needed: false };
+    },
+    [generate],
+  );
+
+  return { ...state, generate, generateNeeding, cancel };
 }

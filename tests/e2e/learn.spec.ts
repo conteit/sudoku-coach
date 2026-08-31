@@ -46,3 +46,16 @@ test('a named technique links from the coach panel to its lesson', async ({ page
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByText('Why it works')).toBeVisible();
 });
+
+test('offers a puzzle chosen for the technique at the edge of mastery', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New puzzle' }).click();
+
+  // A fresh player has met nothing, so the edge is the first technique in the
+  // catalog, practised on the gentlest grid that can need it.
+  await expect(page.getByText(/Naked single, at easy level/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Let the coach choose' }).click();
+  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Easy')).toBeVisible();
+});

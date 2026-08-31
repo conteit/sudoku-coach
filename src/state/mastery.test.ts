@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { TECHNIQUE_IDS } from '../engine/types';
+import { DIFFICULTY_TECHNIQUES, TECHNIQUE_IDS } from '../engine/types';
 import type { TechniqueId } from '../engine/types';
 import type { MasteryStage, PlayerProfile } from './types';
 import {
-  DEFAULT_PROFILE, hasReached, masteryOf, onHintedApplication, onMiss, onTaught,
-  onUnaidedApplication,
+  DEFAULT_PROFILE, easiestLevelFor, edgeOfMastery, hasReached, masteryOf,
+  onHintedApplication, onMiss, onTaught, onUnaidedApplication,
 } from './mastery';
 
 const T: TechniqueId = 'hidden_single';
@@ -145,5 +145,65 @@ describe('stages never regress', () => {
       ),
       { numRuns: 200 },
     );
+  });
+});
+
+describe('the edge of mastery', () => {
+  const withStages = (stages: Partial<Record<TechniqueId, MasteryStage>>): PlayerProfile => ({
+    ...DEFAULT_PROFILE,
+    mastery: Object.fromEntries(
+      Object.entries(stages).map(([id, stage]) => [
+        id,
+        { stage, applications: 0, misses: 0, lastSeenAt: 0 },
+      ]),
+    ),
+  });
+
+  it('is the first technique never met, on a fresh profile', () => {
+    expect(edgeOfMastery(DEFAULT_PROFILE)).toBe(TECHNIQUE_IDS[0]);
+  });
+
+  it('prefers something half-learned over something new', () => {
+    const profile = withStages({ hidden_pair: 'taught' });
+    expect(edgeOfMastery(profile)).toBe('hidden_pair');
+  });
+
+  it('takes the hardest half-learned one — the easy ones come along for free', () => {
+    const profile = withStages({
+      naked_pair: 'taught',
+      x_wing: 'recognized_with_hint',
+      swordfish: 'applied_unaided',
+    });
+    expect(edgeOfMastery(profile)).toBe('x_wing');
+  });
+
+  it('moves on to the next unmet technique once nothing is half-learned', () => {
+    const profile = withStages({
+      naked_single: 'applied_unaided',
+      hidden_single: 'applied_unaided',
+    });
+    expect(edgeOfMastery(profile)).toBe(TECHNIQUE_IDS[2]);
+  });
+
+  it('has nothing to suggest to a player who has applied everything unaided', () => {
+    const profile = withStages(
+      Object.fromEntries(TECHNIQUE_IDS.map((id) => [id, 'applied_unaided' as MasteryStage])),
+    );
+    expect(edgeOfMastery(profile)).toBeNull();
+  });
+});
+
+describe('easiestLevelFor', () => {
+  it('practises a technique on the gentlest grid that can need it', () => {
+    expect(easiestLevelFor('naked_single')).toBe('easy');
+    expect(easiestLevelFor('hidden_pair')).toBe('medium');
+    expect(easiestLevelFor('x_wing')).toBe('hard');
+    expect(easiestLevelFor('swordfish')).toBe('expert');
+  });
+
+  it('names a level for every technique in the catalog', () => {
+    for (const technique of TECHNIQUE_IDS) {
+      expect(DIFFICULTY_TECHNIQUES[easiestLevelFor(technique)]).toContain(technique);
+    }
   });
 });
