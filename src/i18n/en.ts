@@ -34,13 +34,12 @@ export const en = {
   'action.cancel': 'Cancel',
   'action.confirm': 'Confirm',
   'action.close': 'Close',
+  'action.clearStale': 'Clear dead notes',
+  'action.clearStaleOne': 'Clear 1 dead note',
+  'action.clearStaleCount': 'Clear {count} dead notes',
   'action.restart': 'Start over',
   'action.dismiss': 'Not now',
   'action.back': 'Back',
-  'action.fillNotes': 'Fill in every note',
-  'action.fillNotesHint': 'Training wheels: it does the reading you are here to learn.',
-  'confirm.fillNotes.title': 'Replace your notes?',
-  'confirm.fillNotes.body': 'Every empty cell gets the notes the engine can prove, and the ones you wrote go. It is a single step, so one undo brings them back.',
 
   'difficulty.easy': 'Easy',
   'difficulty.medium': 'Medium',
@@ -147,6 +146,7 @@ export const en = {
 
   'cell.empty': '{cell}, empty',
   'cell.emptyNotes': '{cell}, empty, notes {notes}',
+  'cell.notesStale': 'Notes {notes} can no longer be true here.',
   'cell.value': '{cell}, {digit}',
   'cell.valueGiven': '{cell}, {digit}, given',
 

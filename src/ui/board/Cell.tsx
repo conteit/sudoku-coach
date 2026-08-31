@@ -43,6 +43,12 @@ export interface CellProps {
   given: boolean;
   /** 9-bit candidate mask — see `marksToMask`. */
   marks: number;
+  /**
+   * Subset of `marks` that a placed peer has already ruled out. Struck through
+   * rather than hidden: the player wrote them, and they disappear when the
+   * player says so.
+   */
+  stale: number;
   flags: number;
   /** Digit the selection is about, so pencil marks for it can echo the match. */
   matchDigit: Digit | null;
@@ -97,15 +103,19 @@ function describe(
   value: Digit | null,
   given: boolean,
   marks: number,
+  stale: number,
 ): string {
   const cell = cellName(index);
   if (value !== null) {
     return given ? t('cell.valueGiven', { cell, digit: value }) : t('cell.value', { cell, digit: value });
   }
   const noted = DIGITS.filter((d) => maskHas(marks, d));
-  return noted.length > 0
-    ? t('cell.emptyNotes', { cell, notes: noted.join(', ') })
-    : t('cell.empty', { cell });
+  if (noted.length === 0) return t('cell.empty', { cell });
+  const dead = DIGITS.filter((d) => maskHas(stale, d));
+  const label = t('cell.emptyNotes', { cell, notes: noted.join(', ') });
+  // Colour and a strike-through are not available to a screen reader, so the
+  // same fact is said in words.
+  return dead.length > 0 ? `${label} ${t('cell.notesStale', { notes: dead.join(', ') })}` : label;
 }
 
 function CellImpl({
@@ -113,6 +123,7 @@ function CellImpl({
   value,
   given,
   marks,
+  stale,
   flags,
   matchDigit,
   tabIndex,
@@ -130,7 +141,7 @@ function CellImpl({
       data-spotlight={has(flags, CELL_SPOTLIGHT) || undefined}
       data-conflict={has(flags, CELL_CONFLICT) || undefined}
       aria-selected={selected}
-      aria-label={describe(t, index, value, given, marks)}
+      aria-label={describe(t, index, value, given, marks, stale)}
       tabIndex={tabIndex}
       onPointerDown={() => onSelect(index)}
       className={cx(
@@ -156,11 +167,14 @@ function CellImpl({
               key={digit}
               data-slot={digit}
               data-marked={maskHas(marks, digit) || undefined}
+              data-stale={maskHas(stale, digit) || undefined}
               className={cx(
                 'grid place-items-center text-[2.5cqw] leading-none tabular-nums',
-                matchDigit === digit && maskHas(marks, digit)
-                  ? 'font-semibold text-match'
-                  : 'text-ink-faint',
+                maskHas(stale, digit)
+                  ? 'text-danger line-through decoration-[0.4cqw]'
+                  : matchDigit === digit && maskHas(marks, digit)
+                    ? 'font-semibold text-match'
+                    : 'text-ink-faint',
               )}
             >
               {maskHas(marks, digit) ? digit : ''}

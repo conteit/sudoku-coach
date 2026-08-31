@@ -34,13 +34,13 @@ async function readBoard(page: Page): Promise<DomCell[]> {
         const element = node as HTMLElement;
         const digit = element.querySelector('span.digit')?.textContent?.trim() ?? '';
         const label = element.getAttribute('aria-label') ?? '';
-        const notes = label.includes('notes')
-          ? label
-              .slice(label.indexOf('notes') + 5)
-              .split(',')
-              .map((part) => Number(part.trim()))
-              .filter((n) => n >= 1 && n <= 9)
-          : [];
+        // "r3c4, empty, notes 1, 4, 9" — and possibly a sentence after it about
+        // the ones a placement has killed, which is not part of the list.
+        const listed = /notes ([\d,\s]+)/.exec(label)?.[1] ?? '';
+        const notes = listed
+          .split(',')
+          .map((part) => Number(part.trim()))
+          .filter((n) => n >= 1 && n <= 9);
         return {
           index: Number(element.dataset.cell),
           given: element.hasAttribute('data-given'),
@@ -50,6 +50,25 @@ async function readBoard(page: Page): Promise<DomCell[]> {
       })
       .sort((a, b) => a.index - b.index),
   );
+}
+
+/** A digit not yet placed anywhere `cell` can see, so noting it is legal. */
+function pickAbsentDigit(cells: DomCell[], cell: number): number {
+  const row = Math.floor(cell / 9);
+  const col = cell % 9;
+  const seen = new Set(
+    cells
+      .filter(
+        (other) =>
+          Math.floor(other.index / 9) === row ||
+          other.index % 9 === col ||
+          (Math.floor(Math.floor(other.index / 9) / 3) === Math.floor(row / 3) &&
+            Math.floor((other.index % 9) / 3) === Math.floor(col / 3)),
+      )
+      .map((other) => other.value),
+  );
+  for (let digit = 1; digit <= 9; digit++) if (!seen.has(digit)) return digit;
+  throw new Error('no digit is free for that cell');
 }
 
 async function enter(page: Page, cell: number, digit: number): Promise<void> {
@@ -141,28 +160,42 @@ test.describe('one puzzle, end to end', () => {
     expect(await readBoard(page)).toEqual(played);
   });
 
-  test('fills every note on request, and takes one undo to take it back', async ({ page }) => {
+  test('flags the notes a placement killed, and clears them on request', async ({ page }) => {
     await startEasyGame(page);
-
-    // A mark of the player's own first, so the fill has something to replace
-    // and the confirmation has something to be about.
     const start = await readBoard(page);
+
+    // Note a digit in an empty cell, then place that same digit in one of its
+    // peers: the note is now dead by the rules, and nothing but the player's
+    // own move made it so.
     const empty = start.find((cell) => !cell.given && cell.value === null)!;
+    const peer = start.find(
+      (cell) =>
+        cell.index !== empty.index &&
+        !cell.given &&
+        cell.value === null &&
+        Math.floor(cell.index / 9) === Math.floor(empty.index / 9),
+    )!;
+    const digit = pickAbsentDigit(start, empty.index);
+
     await page.getByRole('button', { name: 'Notes off' }).click();
-    await enter(page, empty.index, 5);
+    await enter(page, empty.index, digit);
+    await page.getByRole('button', { name: 'Notes on' }).click();
+    await enter(page, peer.index, digit);
 
-    await page.getByRole('button', { name: 'Fill in every note' }).click();
-    await page.getByRole('button', { name: 'Fill in every note' }).last().click();
+    // Flagged on the board, and said in words for anyone not reading colour.
+    await expect(page.locator(`[data-cell="${empty.index}"] [data-stale]`)).toHaveCount(1);
+    await expect(page.locator(`[data-cell="${empty.index}"]`)).toHaveAttribute(
+      'aria-label',
+      new RegExp(`Notes ${digit} can no longer be true here`),
+    );
 
-    const filled = await readBoard(page);
-    const blanks = filled.filter((cell) => cell.value === null);
-    expect(blanks.every((cell) => cell.notes.length > 0)).toBe(true);
+    // One press to clear, one undo to get them back: the marks stay the
+    // player's either way.
+    await page.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
+    expect((await readBoard(page))[empty.index].notes).toEqual([]);
 
-    // One batch, one undo (R4): the whole fill comes back off in a single press.
     await page.getByRole('button', { name: 'Undo' }).click();
-    const undone = await readBoard(page);
-    expect(undone.filter((cell) => cell.notes.length > 0)).toHaveLength(1);
-    expect(undone[empty.index].notes).toEqual([5]);
+    expect((await readBoard(page))[empty.index].notes).toEqual([digit]);
   });
 
   test('plays a puzzle through to the end', async ({ page }) => {

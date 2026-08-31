@@ -33,7 +33,7 @@ import { IconButton } from '../ui/primitives/IconButton';
 import { Sheet } from '../ui/primitives/Sheet';
 import {
   ChevronLeftIcon,
-  PencilIcon,
+  EraserIcon,
   PauseIcon,
   PlayIcon,
   SettingsIcon,
@@ -77,10 +77,27 @@ export function GameView({
 
   const [selected, setSelected] = useState<CellIndex | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
-  const [confirming, setConfirming] = useState<'restart' | 'delete' | 'fillNotes' | null>(null);
+  const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
+
+  /**
+   * Marks a placed digit has already killed, per cell.
+   *
+   * Shown always rather than only after the move that caused them: they are
+   * dead by the rules, not by a technique, so leaving some of them unmarked
+   * because they died a few moves ago would be arbitrary. What it does *not*
+   * touch is the other half of the note check — a mark that is missing is a
+   * deduction the player still owes, and nothing here hints at it.
+   */
+  const stale = useMemo(() => {
+    const board = Board.fromValues(values);
+    return game.cells.map((cell, index) =>
+      cell.value === null && cell.candidates.size > 0 ? board.staleAt(index, cell.candidates) : [],
+    );
+  }, [game.cells, values]);
+  const staleCount = useMemo(() => stale.reduce((n, digits) => n + digits.length, 0), [stale]);
   const summary = useMemo(() => recap(game.coachLog), [game.coachLog]);
   const conflicts = useMemo(
     () => (settings.highlightConflicts ? Board.fromValues(values).conflicts() : []),
@@ -111,9 +128,6 @@ export function GameView({
     [dispatch, pencilMode],
   );
 
-  // Nothing of the player's is at stake on an unmarked board, so the fill only
-  // asks when there is something of theirs to replace.
-  const hasMarks = game.cells.some((cell) => cell.candidates.size > 0);
   const paused = game.runningSince === null && game.completedAt === null;
   const solved = game.completedAt !== null;
 
@@ -178,6 +192,7 @@ export function GameView({
             spotlight={spotlight}
             tintedHouses={coach.hint?.houses ?? []}
             conflicts={conflicts}
+            staleMarks={stale}
             className={paused ? 'pointer-events-none blur-md select-none' : undefined}
           />
           {paused ? (
@@ -190,18 +205,23 @@ export function GameView({
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          {/* Training wheels (#20), and labelled as such. The engine never
-              maintains marks on its own — this is the player asking, once, and
-              it costs exactly one undo. */}
-          <Button
-            variant="secondary"
-            icon={<PencilIcon />}
-            disabled={solved || paused}
-            title={t('action.fillNotesHint')}
-            onClick={() => (hasMarks ? setConfirming('fillNotes') : dispatch({ type: 'fillCandidates' }))}
-          >
-            {t('action.fillNotes')}
-          </Button>
+          {/* Only when there is something to clear. Bookkeeping the player
+              asked for — one press, one undo — never the engine tidying up on
+              its own (architecture invariant 1). */}
+          {staleCount > 0 ? (
+            <Button
+              variant="secondary"
+              icon={<EraserIcon />}
+              disabled={solved || paused}
+              onClick={() => dispatch({ type: 'clearStaleCandidates' })}
+            >
+              {staleCount === 1
+                ? t('action.clearStaleOne')
+                : t('action.clearStaleCount', { count: staleCount })}
+            </Button>
+          ) : (
+            <span />
+          )}
           <Button variant="ghost" icon={<UndoIcon />} onClick={() => setConfirming('restart')}>
             {t('action.restart')}
           </Button>
@@ -278,19 +298,6 @@ export function GameView({
         onConfirm={() => {
           dispatch({ type: 'reset' });
           coach.dismiss();
-          setConfirming(null);
-        }}
-        onCancel={() => setConfirming(null)}
-      />
-
-      <ConfirmDialog
-        open={confirming === 'fillNotes'}
-        title={t('confirm.fillNotes.title')}
-        body={t('confirm.fillNotes.body')}
-        confirmLabel={t('action.fillNotes')}
-        cancelLabel={t('action.cancel')}
-        onConfirm={() => {
-          dispatch({ type: 'fillCandidates' });
           setConfirming(null);
         }}
         onCancel={() => setConfirming(null)}
