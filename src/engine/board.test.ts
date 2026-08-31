@@ -141,3 +141,30 @@ describe('Board', () => {
     );
   });
 });
+
+describe('conflicts', () => {
+  it('is empty on a board with no repeats', () => {
+    expect(Board.fromValues(parseGrid(PUZZLE)).conflicts()).toEqual([]);
+  });
+
+  it('flags both cells of a repeat, and only them', () => {
+    const values = parseGrid(PUZZLE);
+    // r1c1 is a given 5; putting a second 5 in its row makes a pair.
+    const target = values.findIndex((value, i) => i < 9 && value === null);
+    values[target] = 5;
+
+    expect(Board.fromValues(values).conflicts()).toEqual([0, target].sort((a, b) => a - b));
+  });
+
+  it('flags a cell that conflicts in more than one house exactly once', () => {
+    const values = parseGrid(PUZZLE);
+    const row = values.slice(0, 9);
+    const digit = row.find((value) => value !== null)!;
+    const at = row.findIndex((value) => value === null);
+    values[at] = digit;
+
+    const flagged = Board.fromValues(values).conflicts();
+    expect(new Set(flagged).size).toBe(flagged.length);
+    expect(flagged).toContain(at);
+  });
+});

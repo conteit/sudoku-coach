@@ -16,13 +16,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { Board } from '../engine/board';
 import type { CellIndex, Digit, TechniqueId } from '../engine/types';
 import { getLesson } from '../coach/lessons';
-import type {
-  CoachExchange,
-  DisclosureLevel,
-  LiveGame,
-  Locale,
-  PlayerProfile,
-} from '../state/types';
+import { recap } from '../coach/recap';
+import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useGameStore } from '../state/store';
 import { formatList } from '../i18n';
 import { useT } from '../i18n/locale';
@@ -67,41 +62,6 @@ export interface GameViewProps {
   onLearn: (technique?: TechniqueId) => void;
 }
 
-/**
- * What the coach was asked for over this game, read back out of its own log.
- *
- * Distinct findings rather than exchanges: climbing one finding from rung 1 to
- * rung 4 is one thing the player got stuck on, and counting it as four would
- * tell them they leaned on the coach four times when they leaned once.
- */
-function coachRecap(log: readonly CoachExchange[]): {
-  findings: number;
-  deepest: DisclosureLevel;
-  named: TechniqueId[];
-} {
-  const findings = new Set<string>();
-  const named = new Set<TechniqueId>();
-  let deepest: DisclosureLevel = 0;
-  for (const exchange of log) {
-    findings.add(exchange.findingKey);
-    if (exchange.level > deepest) deepest = exchange.level;
-    // Level 2 is where a technique is named; below it nothing was disclosed
-    // that could be listed here without disclosing more than the rung did.
-    if (exchange.level >= 2) named.add(exchange.technique);
-  }
-  return { findings: findings.size, deepest, named: [...named] };
-}
-
-/** Cells holding a digit that repeats in one of their houses. */
-function conflictsOf(values: readonly (Digit | null)[]): CellIndex[] {
-  const board = Board.fromValues(values);
-  const flagged: CellIndex[] = [];
-  for (let cell = 0; cell < values.length; cell++) {
-    if (values[cell] !== null && board.conflictsAt(cell).length > 0) flagged.push(cell);
-  }
-  return flagged;
-}
-
 export function GameView({
   game,
   settings,
@@ -121,9 +81,9 @@ export function GameView({
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
-  const recap = useMemo(() => coachRecap(game.coachLog), [game.coachLog]);
+  const summary = useMemo(() => recap(game.coachLog), [game.coachLog]);
   const conflicts = useMemo(
-    () => (settings.highlightConflicts ? conflictsOf(values) : []),
+    () => (settings.highlightConflicts ? Board.fromValues(values).conflicts() : []),
     [settings.highlightConflicts, values],
   );
 
@@ -373,17 +333,17 @@ export function GameView({
             coach log already knows what the player leaned on, and saying it
             back is the only part of a finished game worth reading. */}
         <div className="pb-2 text-sm leading-relaxed text-ink-soft">
-          {recap.findings === 0 ? (
+          {summary.findings === 0 ? (
             <p className="text-match">{t('recap.noHints')}</p>
           ) : (
             <>
-              <p>{t('recap.asked', { count: recap.findings, level: recap.deepest })}</p>
-              {recap.named.length > 0 ? (
+              <p>{t('recap.asked', { count: summary.findings, level: summary.deepest })}</p>
+              {summary.named.length > 0 ? (
                 <p className="mt-1.5">
                   {t('recap.named', {
                     list: formatList(
                       locale,
-                      recap.named.map((id) => getLesson(locale, id).name),
+                      summary.named.map((id) => getLesson(locale, id).name),
                     ),
                   })}
                 </p>
