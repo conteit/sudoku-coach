@@ -18,7 +18,14 @@ import type { CandidateReview, Hint } from '../../coach/types';
 import type { DisclosureLevel } from '../../state/types';
 import { cellName } from '../../engine/board';
 import { Button } from '../primitives/Button';
-import { AlertIcon, CheckIcon, ChevronDownIcon } from '../primitives/icons';
+import {
+  AlertIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  TargetIcon,
+} from '../primitives/icons';
+import { IconButton } from '../primitives/IconButton';
 import { cx } from '../primitives/cx';
 import type { MessageKey } from '../../i18n/types';
 import { useT } from '../../i18n/locale';
@@ -64,6 +71,11 @@ export interface CoachPanelProps {
    * disclose what the rung is holding back.
    */
   onLearn?: (technique: TechniqueId) => void;
+  /**
+   * Puts the panel back to its resting bar. Offered only while it is showing
+   * something, and only where it overlays the board's controls.
+   */
+  onCollapse?: () => void;
   className?: string;
 }
 
@@ -193,6 +205,7 @@ export function CoachPanel({
   onDrill,
   onDismissDrill,
   onLearn,
+  onCollapse,
   className,
 }: CoachPanelProps) {
   const t = useT();
@@ -204,26 +217,38 @@ export function CoachPanel({
       aria-label={t('coach.title')}
       className={cx('w-full border-t-2 border-ink bg-paper-raised', className)}
     >
-      <div className="flex items-baseline justify-between gap-4 px-4 pt-3.5">
+      <div className="flex items-center justify-between gap-3 px-4 pt-2.5">
         <h2 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
           {t('coach.title')}
         </h2>
         {/* The technique is a level-2 disclosure; the view honours that too. */}
         {hint && level >= 2 ? (
-          <p className="font-display truncate text-base text-ink">
+          <p className="font-display min-w-0 flex-1 truncate text-right text-base text-ink">
             {techniqueLabel ?? titleCase(hint.technique)}
           </p>
         ) : null}
+        {onCollapse ? (
+          <IconButton
+            size="sm"
+            label={t('action.close')}
+            icon={<CloseIcon />}
+            className="-my-1 shrink-0"
+            onClick={onCollapse}
+          />
+        ) : null}
       </div>
 
-      <div className="px-4 pt-3">
+      {/* The ladder is the product in one control, so it stays wherever there is
+          room for it. Before the player has taken a rung it is a diagram of
+          nothing, and on a phone that diagram costs a sixth of the board. */}
+      <div className={cx('px-4 pt-3', level === 0 && 'hidden sm:block')}>
         <Ladder level={level} />
       </div>
 
       {/* A challenge outranks the resting copy: it is the thing the player is
           currently doing, and its result is what they are waiting for. */}
       {drill ? (
-        <div aria-live="polite" className="px-4 pt-4">
+        <div aria-live="polite" className="px-4 pt-3 empty:pt-0">
           <p
             className={cx(
               'text-[0.9375rem] leading-relaxed',
@@ -241,20 +266,26 @@ export function CoachPanel({
         </div>
       ) : null}
 
-      <div aria-live="polite" className="px-4 pt-4">
+      <div aria-live="polite" className="px-4 pt-3 empty:pt-0">
         {hint ? (
           <p className="text-[0.9375rem] leading-relaxed text-ink">{hint.text}</p>
         ) : /* A live challenge has already said what the panel is for; repeating
                the invitation to ask for a hint under it reads like two coaches
                talking over each other. */
-        drill && !drill.solved && !drill.gone ? null : (
+        drill && !drill.solved && !drill.gone ? null : exhausted ? (
           <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
-            {exhausted ? t('coach.nothingFound') : t('coach.idlePrompt')}
+            {t('coach.nothingFound')}
+          </p>
+        ) : (
+          // Three lines of prose the player reads once. On a phone the same
+          // space is board, and the same words are in Learn.
+          <p className="hidden text-[0.9375rem] leading-relaxed text-ink-soft sm:block">
+            {t('coach.idlePrompt')}
           </p>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 px-4 pt-4 pb-4">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3">
         {drill && !drill.solved && !drill.gone ? (
           <Button variant="ghost" size="lg" onClick={onDismissDrill}>
             {t('action.dismiss')}
@@ -277,15 +308,37 @@ export function CoachPanel({
         ) : (
           <p className="py-2 text-sm text-ink-soft">{t('coach.done')}</p>
         )}
+        {/* Resting, the coach's other two offers are glyphs: three sentences
+            side by side wrap to three lines on a phone, and every line is a
+            line of board. On a wide screen they are spelled out. */}
         {onDrill && drill === null && hint === null ? (
-          <Button variant="ghost" size="lg" onClick={onDrill}>
-            {t('coach.drill')}
-          </Button>
+          <>
+            <span className="sm:hidden">
+              <IconButton size="sm" label={t('coach.drill')} icon={<TargetIcon />} onClick={onDrill} />
+            </span>
+            <span className="hidden sm:block">
+              <Button variant="ghost" size="lg" onClick={onDrill}>
+                {t('coach.drill')}
+              </Button>
+            </span>
+          </>
         ) : null}
         {onReviewCandidates ? (
-          <Button variant="ghost" size="lg" onClick={onReviewCandidates}>
-            {t('action.checkMarks')}
-          </Button>
+          <>
+            <span className="sm:hidden">
+              <IconButton
+                size="sm"
+                label={t('action.checkMarks')}
+                icon={<CheckIcon />}
+                onClick={onReviewCandidates}
+              />
+            </span>
+            <span className="hidden sm:block">
+              <Button variant="ghost" size="lg" onClick={onReviewCandidates}>
+                {t('action.checkMarks')}
+              </Button>
+            </span>
+          </>
         ) : null}
         {onLearn && hint && level >= 2 ? (
           <Button variant="ghost" size="lg" onClick={() => onLearn(hint.technique)}>

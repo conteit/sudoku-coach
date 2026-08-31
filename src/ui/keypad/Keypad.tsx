@@ -76,30 +76,31 @@ export function Keypad({
 
   return (
     <div
-      className={cx('w-full', className)}
+      className={cx('flex w-full flex-col', className)}
       data-pencil={pencilMode || undefined}
       aria-label={pencilMode ? t('keypad.labelNotes') : t('keypad.label')}
       role="group"
     >
-      <div className="grid grid-cols-3 gap-1.5">
+      {/* The keys take whatever height the board did not, rather than leaving a
+          gap between the two: a bigger target is the only thing that space can
+          usefully become. */}
+      <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-3 gap-1.5">
         {DIGITS.map((digit) => {
-          const left = remaining[digit];
-          const done = left === 0;
+          // The count is still what decides a digit is finished; it is just no
+          // longer printed under every key. Nine little numbers cost a line of
+          // height each on a phone, and none of them is a move.
+          const done = remaining[digit] === 0;
           return (
             <button
               key={digit}
               type="button"
               disabled={disabled || done}
               onClick={() => fire('tap', () => onDigit(digit))}
-              aria-label={
-                pencilMode
-                  ? t('keypad.note', { digit, left })
-                  : t('keypad.place', { digit, left })
-              }
+              aria-label={pencilMode ? t('keypad.note', { digit }) : t('keypad.place', { digit })}
               data-digit={digit}
               data-complete={done || undefined}
               className={cx(
-                'group flex min-h-14 flex-col items-stretch rounded-cell border',
+                'group flex min-h-12 flex-col items-stretch rounded-cell border',
                 'transition-[background-color,border-color,transform] duration-100 ease-snap',
                 'active:translate-y-px disabled:pointer-events-none',
                 done
@@ -125,12 +126,6 @@ export function Keypad({
                     {digit}
                   </span>
                 )}
-              </span>
-              <span
-                aria-hidden="true"
-                className="border-t border-rule py-0.5 text-center text-[0.625rem] font-medium tracking-[0.08em] text-ink-faint tabular-nums"
-              >
-                {done ? t('keypad.done') : t('keypad.left', { left })}
               </span>
             </button>
           );

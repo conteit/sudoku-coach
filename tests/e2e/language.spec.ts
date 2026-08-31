@@ -27,7 +27,7 @@ test('switches language, and keeps it across a restart', async ({ page }) => {
   await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
 
   // Chrome, keypad and coach all speak it, not just the parts with a lesson.
-  await expect(page.getByRole('button', { name: 'Ricomincia' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Questa griglia' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Annulla mossa' })).toBeVisible();
 
   const coach = page.getByRole('region', { name: 'Coach' });
@@ -37,6 +37,6 @@ test('switches language, and keeps it across a restart', async ({ page }) => {
   // A choice is a choice: it survives the app being killed and reopened.
   await page.waitForTimeout(1200);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Ricomincia' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Questa griglia' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'it');
 });

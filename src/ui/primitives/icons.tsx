@@ -137,3 +137,20 @@ export const PauseIcon = (props: IconProps) => (
     <path d="M9 6v12M15 6v12" />
   </svg>
 );
+
+/** The game menu: three dots, because the actions behind it are unrelated. */
+export const MoreIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <circle cx="5" cy="12" r="1.4" />
+    <circle cx="12" cy="12" r="1.4" />
+    <circle cx="19" cy="12" r="1.4" />
+  </svg>
+);
+
+/** A drill: a target, because the coach is asking you to find something. */
+export const TargetIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <circle cx="12" cy="12" r="7.5" />
+    <circle cx="12" cy="12" r="2.5" />
+  </svg>
+);
