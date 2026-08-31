@@ -40,11 +40,32 @@ dependency.
 | `src/coach/lessons/{en,it}.json` | Authored lesson library — reviewed like code | — |
 | `src/coach/coach.ts` | Disclosure ladder, hint rendering, teachable triggers | techniques, lessons |
 | `src/coach/candidates.ts` | Pencil-mark diff against true candidates | board |
-| `src/ui/` | Grid, keypad, game list, coach panel | everything |
+| `src/state/profile.ts` | Profile store: locale, settings, mastery. Write-through | db, mastery |
+| `src/i18n/` | Flat dotted dictionary, `t()`, and the locale React context | state/types |
+| `src/ui/` | Presentational components: grid, keypad, game list, coach panel | engine, state, i18n |
+| `src/app/` | The assembled app: screens, and the hooks that bind them to the layers below | everything |
+| `src/App.tsx` | Shell: hydration order, theme, locale, which screen is showing | app, state |
 
 **The three `types.ts` files are frozen interfaces.** Parallel work streams build
 against them. Changing one is a coordinated change: raise it rather than editing
-locally.
+locally. Open gaps are collected in issue #25.
+
+### Inside `src/app/`
+
+| Path | Responsibility |
+| --- | --- |
+| `LibraryView.tsx` | The resting screen: games in progress, finished games, the way in to Learn |
+| `GameView.tsx` | The board, keypad, coach panel, and every dialog that belongs to a game |
+| `LearnView.tsx` | The rules, the coach's contract, and a page per technique rendered from the lesson library |
+| `NewGameSheet.tsx` | Difficulty choice, "let the coach choose", generation progress |
+| `SettingsSheet.tsx` | Language, theme, conflict flagging, haptics |
+| `OfflineNotice.tsx` | Says once when the precache makes offline play real |
+| `useCoachSession.ts` | The ladder, the note check, teachable nudges, and mastery credit |
+| `useGenerator.ts` | One worker per mounted app, aborted when nobody is waiting |
+
+There is no router. Which screen shows is derived from the store's
+`activeGameId` plus two pieces of shell state, because a URL for a board would
+only mean something on the device holding that game.
 
 ## Key invariants
 
@@ -60,6 +81,14 @@ locally.
    level 4, and level 4 states eliminations and logic — not "put N here" (R7).
 5. **`Game` is self-contained and serializable.** No class instances, no
    functions, no cycles — so a P2 sync layer is additive.
+6. **The reducer is the only writer of a game.** Every board change goes through
+   `state/game.ts`, so undo, autosave and the clock cannot be bypassed by a
+   screen. The coach hands its log back through `setCoachLog` rather than
+   mutating; `coach/` owns the rules for what that log may contain, and `state/`
+   never imports `coach/`.
+7. **Chrome is never hardcoded English.** Every user-visible string comes from
+   `src/i18n`, read through the locale context. A component that spells its own
+   copy will ship English into the Italian build.
 
 ## Difficulty rating
 
@@ -72,7 +101,14 @@ attempt cap and a fallback to the nearest achieved level.
 ## Verify contract
 
 `npm run verify` = `lint` → `tsc -b` → `test` → `build`. CI runs exactly this,
-plus `npm run e2e`. A branch merges when both are green.
+plus `npm run e2e` and `npm run audit` (Lighthouse, thresholds in
+`lighthouserc.json`). A branch merges when all three jobs are green.
+
+The e2e suite plays a generated puzzle to completion with no test-only seam in
+the bundle: it reads the board out of the DOM and solves it with the engine the
+app ships. Installability and offline play are asserted there too — Lighthouse
+12 removed the PWA category, so the remaining Lighthouse gate covers
+performance, accessibility, best practices and SEO.
 
 ## Milestones
 
@@ -87,3 +123,7 @@ plus `npm run e2e`. A branch merges when both are green.
 | M6 | Coach: ladder, candidate check, triggers | `feat/coach` |
 | M7 | Lesson library IT + EN, mastery model, recap | `feat/lessons` |
 | M8 | Integration, e2e, PWA audit, deploy | `main` |
+
+M8 landed in #36. Work since then is P1 from the issue tracker rather than
+milestones: Learn (#31), the training-wheels candidate fill (#20), the post-solve
+recap and mastery-biased puzzle choice (#19).
