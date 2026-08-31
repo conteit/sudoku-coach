@@ -113,7 +113,10 @@ export default function App() {
         profile={profile}
       />
 
-      <OfflineNotice />
+      {/* Only at rest. It is a fixed overlay, and on a phone anywhere it can
+          sit covers either the board or the controls; the library is where the
+          player is when the precache finishes anyway. */}
+      {activeGame === null ? <OfflineNotice /> : null}
 
       <SettingsSheet
         open={showSettings}
