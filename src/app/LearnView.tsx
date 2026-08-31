@@ -211,6 +211,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
       <Section title={t('learn.rules.title')} body={t('learn.rules.body')} />
       <Section title={t('learn.notes.title')} body={t('learn.notes.body')} />
       <Section title={t('learn.coach.title')} body={t('learn.coach.body')} />
+      <Section title={t('learn.keys.title')} body={t('learn.keys.body')} />
 
       <section className="border-t border-rule pt-6">
         <h2 className="font-display text-xl leading-tight text-ink">
