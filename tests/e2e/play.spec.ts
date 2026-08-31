@@ -93,7 +93,7 @@ test.describe('one puzzle, end to end', () => {
     const cells = await readBoard(page);
     expect(cells).toHaveLength(81);
     expect(cells.filter((cell) => cell.given).length).toBeGreaterThan(16);
-    expect(page.getByRole('timer')).toBeVisible();
+    await expect(page.getByRole('timer')).toBeVisible();
   });
 
   test('climbs the disclosure ladder one rung at a time', async ({ page }) => {

@@ -217,8 +217,10 @@ export function CoachPanel({
       aria-label={t('coach.title')}
       className={cx('w-full border-t-2 border-ink bg-paper-raised', className)}
     >
-      <div className="flex items-center justify-between gap-3 px-4 pt-2.5">
-        <h2 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
+      <div className="flex items-center justify-between gap-3 px-4 pt-2.5 empty:hidden sm:pt-3">
+        {/* The panel is unmistakable without a caption, and on a phone the
+            caption is a line of board. The region keeps its accessible name. */}
+        <h2 className="hidden text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase sm:block">
           {t('coach.title')}
         </h2>
         {/* The technique is a level-2 disclosure; the view honours that too. */}
@@ -323,22 +325,13 @@ export function CoachPanel({
             </span>
           </>
         ) : null}
+        {/* Spelled out at every width. Asking whether your notes are right is
+            one of the two things the coach is for, and a player who cannot find
+            it does not have it — which is exactly how it read as a glyph. */}
         {onReviewCandidates ? (
-          <>
-            <span className="sm:hidden">
-              <IconButton
-                size="sm"
-                label={t('action.checkMarks')}
-                icon={<CheckIcon />}
-                onClick={onReviewCandidates}
-              />
-            </span>
-            <span className="hidden sm:block">
-              <Button variant="ghost" size="lg" onClick={onReviewCandidates}>
-                {t('action.checkMarks')}
-              </Button>
-            </span>
-          </>
+          <Button variant="ghost" size="lg" icon={<CheckIcon />} onClick={onReviewCandidates}>
+            {t('action.checkMarks')}
+          </Button>
         ) : null}
         {onLearn && hint && level >= 2 ? (
           <Button variant="ghost" size="lg" onClick={() => onLearn(hint.technique)}>
