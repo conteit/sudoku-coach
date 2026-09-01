@@ -60,6 +60,18 @@ export interface SudokuGridProps {
   conflicts?: readonly CellIndex[];
   /** Per cell, the noted digits a placed peer has already ruled out. */
   staleMarks?: readonly (readonly Digit[])[];
+  /**
+   * Whether the grid takes part in the tab order at all.
+   *
+   * A playable board does: one cell holds `tabIndex={0}` (the roving tabindex
+   * a `role="grid"` is expected to have) and the arrow keys move from there.
+   * An illustration does not — `Example` renders a grid whose `onSelect` is a
+   * no-op, so a keyboard user who lands in it can neither move nor leave by
+   * any means except tabbing straight back out. That is a dead stop, not an
+   * affordance, and beside a live board it is a dead stop *inside* the
+   * player's path off the keypad.
+   */
+  focusable?: boolean;
   /** Shade the selection's row, column and box. */
   highlightPeers?: boolean;
   /** Green same-number highlight across the board (R3). */
@@ -98,6 +110,7 @@ export function SudokuGrid({
   tintedHouses,
   conflicts,
   staleMarks,
+  focusable = true,
   highlightPeers = true,
   highlightMatches = true,
   highlightDigit = null,
@@ -213,7 +226,10 @@ export function SudokuGrid({
     root.querySelector<HTMLElement>(`[data-cell="${selected}"]`)?.focus();
   }, [selected]);
 
-  const rovingCell = selected ?? 0;
+  // Which single cell carries `tabIndex={0}` — the roving tabindex a grid
+  // widget owes the tab order. An unfocusable grid has no such cell at all,
+  // so `-1` (no index) leaves every one of the 81 at `tabIndex={-1}`.
+  const rovingCell = focusable ? (selected ?? 0) : -1;
 
   return (
     <div

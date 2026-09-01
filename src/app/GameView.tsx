@@ -546,10 +546,26 @@ export function GameView({
 
   const lessonRegion =
     namedTechnique !== null ? (
-      <LessonBody id={namedTechnique} locale={locale} profile={profile} />
+      // `h2`, not the `h1` this renders on Learn: here the document is a game
+      // in progress, and the sidebar is not its root. The worked example loses
+      // its tab stop for the same reason — see `GameLayout`'s lesson column.
+      <LessonBody
+        id={namedTechnique}
+        locale={locale}
+        profile={profile}
+        titleAs="h2"
+        exampleFocusable={false}
+      />
     ) : (
       <TechniqueIndex profile={profile} />
     );
+
+  // What the column is showing, in one phrase, for its live region to
+  // announce. Deliberately not the column's content: see `GameLayout`.
+  const lessonTitle =
+    namedTechnique !== null
+      ? getLesson(locale, namedTechnique).name
+      : t('learn.techniques.title');
 
   return (
     <>
@@ -560,6 +576,7 @@ export function GameView({
         keypad={keypad}
         coach={coachRegion}
         lesson={lessonRegion}
+        lessonTitle={lessonTitle}
       />
 
       {/* Everything about this puzzle that is not a move. Rare actions do not

@@ -73,7 +73,21 @@ export function MasteryChip({ stage, t }: { stage: MasteryStage; t: Translate })
  * Every filled cell is drawn as a given: in an illustration there is no player
  * entry to distinguish, and the difference in weight would suggest one.
  */
-export function Example({ lesson }: { lesson: Lesson }) {
+export function Example({
+  lesson,
+  focusable = true,
+}: {
+  lesson: Lesson;
+  /**
+   * Whether the illustration keeps its cell in the tab order.
+   *
+   * True on the Learn page, where the example is the page's own content and a
+   * tab stop on it costs nothing. False in the game screen's lesson column,
+   * where the tab order leads a keyboard player from the keypad onward and
+   * must not deposit them inside a board they cannot play.
+   */
+  focusable?: boolean;
+}) {
   const marks = exampleMarks(lesson);
   const cells: GridCell[] = parseGrid(lesson.example.grid).map((value, index) => ({
     value,
@@ -93,6 +107,7 @@ export function Example({ lesson }: { lesson: Lesson }) {
           spotlight={lesson.example.highlight as CellIndex[]}
           highlightPeers={false}
           highlightMatches={false}
+          focusable={focusable}
           label={lesson.name}
         />
       </div>

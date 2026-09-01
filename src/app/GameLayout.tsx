@@ -9,6 +9,13 @@ export interface GameLayoutProps {
   keypad: ReactNode;
   coach: ReactNode;
   lesson?: ReactNode;
+  /**
+   * What `lesson` is currently showing, in one phrase — a technique's name, or
+   * the index's own title. This is the *only* thing the column announces when
+   * it swaps; see the live region below for why it is a separate prop rather
+   * than something read back out of `lesson`.
+   */
+  lessonTitle: string;
 }
 
 /**
@@ -22,7 +29,15 @@ export interface GameLayoutProps {
  * board's box. Each column's width is a property of the tier, never of what
  * the coach happens to be saying.
  */
-export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameLayoutProps) {
+export function GameLayout({
+  tier,
+  header,
+  board,
+  keypad,
+  coach,
+  lesson,
+  lessonTitle,
+}: GameLayoutProps) {
   const t = useT();
 
   if (tier === 'phone' || tier === 'tablet') {
@@ -88,27 +103,22 @@ export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameL
           <aside
             data-testid="lesson-column"
             aria-label={t('game.lessonAria')}
-            // Both `TechniqueIndex` and `LessonBody` are prose with nothing
-            // focusable in them here — `TechniqueIndex`'s `onOpen` and
-            // `LessonBody`'s `leading` are both left unset in this column
-            // (see below) — so once a lesson genuinely overflows its `6rem`
-            // budget, a keyboard user has no descendant to land on that
-            // would let them reach the rest of it. `tabIndex={0}` puts the
-            // scroll container itself in the tab order as the fallback;
-            // `aria-label` above is still what gets announced when it takes
-            // focus, so this doesn't add a second name for the one this
+            // The index state — the one this column rests in — has nothing
+            // focusable in it at all: `TechniqueIndex`'s `onOpen` is left
+            // unset here (see below), so its rows render as static text. So
+            // once the column scrolls, a keyboard user has no descendant to
+            // land on that would let them reach the rest of it. `tabIndex={0}`
+            // puts the scroll container itself in the tab order as the
+            // fallback. It stays needed in the lesson state too: `LessonBody`
+            // renders a worked-example grid, but that grid is an illustration
+            // — `Example` takes its cells out of the tab order for exactly
+            // that reason — so the column has no focusable descendant there
+            // either. `aria-label` above is still what gets announced when it
+            // takes focus, so this doesn't add a second name for the one this
             // aside already has. (The coach column's own scrollable sheet
             // doesn't need this: `CoachPanel` always renders real buttons,
             // so it already has focusable content to land on.)
             tabIndex={0}
-            // The hint text itself has its own `aria-live="polite"` region
-            // in `CoachPanel` (the sentence a level-1 or higher ask
-            // produces); this column's entire job is to reflect the same
-            // disclosure ladder one step further along — from the
-            // technique index to a named lesson — so a screen-reader user
-            // who has just paid for a rung deserves the same announcement
-            // here, not silence while the sidebar quietly swaps under them.
-            aria-live="polite"
             // `overflow-y-auto` does nothing on its own: the row is
             // `items-start` with no height constraint on this aside, so
             // there is no box for it to overflow *out of* — a tall lesson
@@ -126,6 +136,23 @@ export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameL
             // header that is free to change height later.
             className="max-h-[calc(100dvh-6rem)] w-[26rem] shrink-0 overflow-y-auto"
           >
+            {/* Announce the *change*, not the content. The column must not
+                swap silently — a player who has just paid for rung 2 should
+                hear that the sidebar answered — but `aria-live` on the aside
+                itself would, with the default `aria-relevant`, mark the whole
+                incoming subtree as an addition: title, one-liner, mastery
+                chip, both prose sections, the figcaption, and `Example`'s
+                81-cell grid, every cell of which carries an `aria-label` like
+                "r3c4, empty, notes 1, 4, 9". Several hundred words, read at a
+                player mid-move, in both directions of the swap. This span is
+                the whole live region instead: it is never itself replaced —
+                it is a sibling of `{lesson}`, not part of it — so only its
+                text mutates, and the mutation is one short phrase. The prose
+                stays where a screen-reader user can go and read it when they
+                choose to. */}
+            <span className="sr-only" aria-live="polite">
+              {t('game.lessonAnnounce', { title: lessonTitle })}
+            </span>
             {lesson}
           </aside>
         ) : null}

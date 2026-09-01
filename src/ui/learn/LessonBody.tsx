@@ -27,9 +27,33 @@ export interface LessonBodyProps {
    * one piece of markup in both places.
    */
   leading?: ReactNode;
+  /**
+   * The heading level of the lesson's title, which is a property of the page
+   * hosting it rather than of the lesson.
+   *
+   * `h1` on Learn's technique page, where the lesson *is* the document. `h2`
+   * in the game screen's lesson column, where the document is a game in
+   * progress: an `h1` there would make a sidebar the play screen's only
+   * top-level heading, and one that comes and goes with the disclosure
+   * ladder — the outline would gain and lose its root as hints are asked for.
+   */
+  titleAs?: 'h1' | 'h2';
+  /**
+   * Passed through to the worked example. See `Example`'s own `focusable`:
+   * the illustration is a dead tab stop, and beside a live board it sits in
+   * the player's path off the keypad.
+   */
+  exampleFocusable?: boolean;
 }
 
-export function LessonBody({ id, locale, profile, leading }: LessonBodyProps) {
+export function LessonBody({
+  id,
+  locale,
+  profile,
+  leading,
+  titleAs: Title = 'h1',
+  exampleFocusable = true,
+}: LessonBodyProps) {
   const t = useT();
   const lesson = getLesson(locale, id);
 
@@ -38,7 +62,7 @@ export function LessonBody({ id, locale, profile, leading }: LessonBodyProps) {
       <header className="flex items-start gap-3 pb-4">
         {leading}
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-2xl leading-tight text-ink">{lesson.name}</h1>
+          <Title className="font-display text-2xl leading-tight text-ink">{lesson.name}</Title>
           <p className="mt-1 text-sm text-ink-soft">{lesson.oneLiner}</p>
         </div>
         <MasteryChip stage={masteryOf(profile, id).stage} t={t} />
@@ -62,7 +86,7 @@ export function LessonBody({ id, locale, profile, leading }: LessonBodyProps) {
         <h2 className="mb-1 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
           {t('learn.example')}
         </h2>
-        <Example lesson={lesson} />
+        <Example lesson={lesson} focusable={exampleFocusable} />
       </section>
     </>
   );

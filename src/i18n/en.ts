@@ -48,6 +48,12 @@ export const en = {
 
   'game.menu': 'This puzzle',
   'game.lessonAria': 'Lesson',
+  // Announces *that* the column changed, never what it now says: the
+  // column's own name plus the name of what is in it. Reading the whole
+  // subtree aloud would be several hundred words — prose, a mastery chip
+  // and an 81-cell example grid whose every cell has a label of its own —
+  // fired at a player mid-move who asked for a hint, not a recital.
+  'game.lessonAnnounce': 'Lesson: {title}',
 
   'games.title': 'Your games',
   'games.empty': 'No games yet. Start one and it will be waiting here.',
