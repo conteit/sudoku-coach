@@ -105,15 +105,15 @@ only mean something on the device holding that game.
    into a square a peer already held stays unmarked — striking that one as it
    is typed would perform the elimination the player came here to learn. It is
    theirs to find, and "check my notes" is what finds it.
-9. **The board never gives up height.** A phone plays the game on one screen
-   with no page scroll, so nothing that appears mid-game — a nudge, a badge,
-   the coach itself — may occupy layout height beside the board and the
-   keypad. It is drawn over them or it is not drawn. The board's pixel height
-   is constant from the first move to the last. This breaks at two levels and
-   is guarded at both: `src/app/GameView.layout.test.tsx` asserts that neither
-   `<main>` nor the root column holds anything else in flow, and
-   `tests/e2e/play.spec.ts` measures the grid on a short viewport across every
-   state a game can be in.
+9. **The board never gives up its box.** No content that appears or
+   disappears during play — a nudge, a badge, an aside that exists only at
+   a wider tier — may resize the board, at any viewport: it is drawn over
+   the board and keypad or it is not drawn. Four tiers share the rule —
+   `phone`, `tablet`, `laptop`, `desktop` — declared in
+   `src/app/useViewportTier.ts`. Guarded at both levels it could break: the
+   unit canary over the root column's in-flow children in
+   `src/app/GameView.layout.test.tsx`, and the Playwright board-box
+   assertion in `tests/e2e/play.spec.ts`, now run in all four projects.
 
 ## Difficulty rating
 
