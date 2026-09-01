@@ -100,6 +100,13 @@ export function Keypad({
               disabled={disabled || done}
               onClick={() => fire('tap', () => onDigit(digit))}
               aria-label={pencilMode ? t('keypad.note', { digit }) : t('keypad.place', { digit })}
+              // The armed digit is a toggle state, so it gets the toggle-button
+              // semantics (aria-pressed) rather than a second label string — a
+              // tap that only arms/clears the highlight still says "Place n" /
+              // "Note n", because that stays true most of the time it fires;
+              // aria-pressed is what tells a screen reader this key also does
+              // something when nothing is entered.
+              aria-pressed={digit === highlighted}
               data-digit={digit}
               data-complete={done || undefined}
               data-highlighted={digit === highlighted ? 'true' : undefined}
