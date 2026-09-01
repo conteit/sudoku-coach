@@ -46,16 +46,19 @@ function TechniquePage({
 
   return (
     <article>
-      <header className="pb-4">
-        <IconButton
-          label={t('action.back')}
-          icon={<ChevronLeftIcon />}
-          className="flex-none"
-          onClick={onBack}
-        />
-      </header>
-
-      <LessonBody id={id} locale={locale} profile={profile} />
+      <LessonBody
+        id={id}
+        locale={locale}
+        profile={profile}
+        leading={
+          <IconButton
+            label={t('action.back')}
+            icon={<ChevronLeftIcon />}
+            className="flex-none"
+            onClick={onBack}
+          />
+        }
+      />
     </article>
   );
 }

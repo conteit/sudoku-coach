@@ -6,6 +6,7 @@
  * that drifted would be the one teaching the player the wrong thing.
  */
 
+import type { ReactNode } from 'react';
 import { getLesson } from '../../coach/lessons';
 import { useT } from '../../i18n/locale';
 import { masteryOf } from '../../state/mastery';
@@ -17,15 +18,25 @@ export interface LessonBodyProps {
   id: TechniqueId;
   locale: Locale;
   profile: PlayerProfile;
+  /**
+   * A control that belongs in the same header row as the title, owned by
+   * whoever is hosting this lesson rather than by the lesson itself: the
+   * back button in `LearnView`'s technique page, and nothing at all in the
+   * game screen's lesson column, which has nowhere to go back to. Passed in
+   * rather than duplicated so the title/mastery-chip row stays one row and
+   * one piece of markup in both places.
+   */
+  leading?: ReactNode;
 }
 
-export function LessonBody({ id, locale, profile }: LessonBodyProps) {
+export function LessonBody({ id, locale, profile, leading }: LessonBodyProps) {
   const t = useT();
   const lesson = getLesson(locale, id);
 
   return (
     <>
       <header className="flex items-start gap-3 pb-4">
+        {leading}
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-2xl leading-tight text-ink">{lesson.name}</h1>
           <p className="mt-1 text-sm text-ink-soft">{lesson.oneLiner}</p>
