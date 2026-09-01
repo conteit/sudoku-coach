@@ -88,6 +88,19 @@ export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameL
           <aside
             data-testid="lesson-column"
             aria-label={t('game.lessonAria')}
+            // Both `TechniqueIndex` and `LessonBody` are prose with nothing
+            // focusable in them here — `TechniqueIndex`'s `onOpen` and
+            // `LessonBody`'s `leading` are both left unset in this column
+            // (see below) — so once a lesson genuinely overflows its `6rem`
+            // budget, a keyboard user has no descendant to land on that
+            // would let them reach the rest of it. `tabIndex={0}` puts the
+            // scroll container itself in the tab order as the fallback;
+            // `aria-label` above is still what gets announced when it takes
+            // focus, so this doesn't add a second name for the one this
+            // aside already has. (The coach column's own scrollable sheet
+            // doesn't need this: `CoachPanel` always renders real buttons,
+            // so it already has focusable content to land on.)
+            tabIndex={0}
             // The hint text itself has its own `aria-live="polite"` region
             // in `CoachPanel` (the sentence a level-1 or higher ask
             // produces); this column's entire job is to reflect the same
