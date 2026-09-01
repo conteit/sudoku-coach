@@ -48,6 +48,7 @@ import {
 import { selectHighlight, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { useCoachSession } from './useCoachSession';
+import { useViewportTier } from './useViewportTier';
 
 /** How long a vibration says each thing. Absent hardware simply ignores it. */
 const HAPTICS: Record<HapticPattern, number | number[]> = {
@@ -55,17 +56,6 @@ const HAPTICS: Record<HapticPattern, number | number[]> = {
   toggle: [4, 30, 4],
   blocked: [12, 40, 12],
 };
-
-/**
- * Below Tailwind's `sm` (640px), the coach panel is the mobile overlay; at
- * and above it, it's the static desktop bar. The modal machinery — focus
- * trap, Escape — must key off the same line the CSS does, or pressing "h" on
- * a wide screen traps keyboard focus in a panel that visually covers nothing
- * and cannot be escaped without also discarding the hint just asked for
- * (WCAG 2.1.2). `.98` mirrors Tailwind's own boundary convention, keeping the
- * ranges from touching at exactly 640px.
- */
-const MOBILE_QUERY = '(max-width: 639.98px)';
 
 export interface GameViewProps {
   game: LiveGame;
@@ -111,16 +101,14 @@ export function GameView({
   // keyboard user at the top of the document.
   const coachPanelRef = useRef<HTMLDivElement>(null);
   const coachRestoreRef = useRef<HTMLElement | null>(null);
-  // Read once for the first paint (so it's right immediately, not a frame
-  // late) and kept live for anyone who resizes or rotates mid-game.
-  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
-  useEffect(() => {
-    const mql = window.matchMedia(MOBILE_QUERY);
-    const onChange = (): void => setIsNarrow(mql.matches);
-    onChange();
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
+  // Below Tailwind's `sm` (640px), the coach panel is the mobile overlay; at
+  // and above it, it's the static desktop bar. The modal machinery — focus
+  // trap, Escape — must key off the same line the CSS does, or pressing "h"
+  // on a wide screen traps keyboard focus in a panel that visually covers
+  // nothing and cannot be escaped without also discarding the hint just
+  // asked for (WCAG 2.1.2).
+  const tier = useViewportTier();
+  const isNarrow = tier === 'phone';
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
 
