@@ -427,8 +427,17 @@ export function GameView({
           onDigit={(digit) => {
             // The key's single meaning again: a tap that has somewhere to
             // write writes there, and does nothing else (R3). `enter` itself
-            // no-ops when the cell already holds `digit`.
-            if (selected !== null) enter(selected, digit);
+            // no-ops when the cell already holds `digit`. The haptic for a
+            // digit tap is decided here rather than by the keypad itself,
+            // because only this layer knows whether the tap is legal — a
+            // blanket 'tap' would fire even with nothing selected, which is
+            // exactly the no-op 'blocked' exists to feel different from.
+            if (selected === null) {
+              haptic('blocked');
+              return;
+            }
+            haptic('tap');
+            enter(selected, digit);
           }}
           onDigitLongPress={(digit) => setHighlightDigit((current) => toggleHighlight(digit, current))}
           onErase={() => {
