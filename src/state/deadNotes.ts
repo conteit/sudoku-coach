@@ -1,13 +1,12 @@
 /**
  * The notes a placement killed, as opposed to the notes that were never true.
  *
- * `Board.staleAt` answers "is this digit already held by a peer", which is a
- * timeless question and the wrong one to draw on the board: it strikes a note
- * through the instant it is written next to a peer, and doing the elimination
- * for the player is the one thing this app does not do. The question worth
- * drawing is "did a move I made *after* writing this note kill it" — that is
- * bookkeeping about the player's own placement, not a deduction taken away
- * from them.
+ * "Is this digit already held by a peer" is a timeless question and the wrong
+ * one to draw on the board: it strikes a note through the instant it is
+ * written next to a peer, and doing the elimination for the player is the one
+ * thing this app does not do. The question worth drawing is "did a move I made
+ * *after* writing this note kill it" — that is bookkeeping about the player's
+ * own placement, not a deduction taken away from them.
  *
  * Both timestamps are already in the move log, so the answer is derived rather
  * than stored: it survives undo, redo and a reload with no change to the
@@ -15,7 +14,7 @@
  */
 
 import type { Cell, CellIndex, Digit } from '../engine/types';
-import { CELL_COUNT, PEERS } from '../engine/board';
+import { CELL_COUNT, peersOf } from '../engine/board';
 import type { Move } from './types';
 
 /** Ascending dead digits per cell, index-aligned with `cells`. */
@@ -51,7 +50,7 @@ export function deadNotes(
       for (const digit of cell.candidates) {
         const written = notedAt.get(i * 10 + digit);
         if (written === undefined) continue;
-        for (const peer of PEERS[i]) {
+        for (const peer of peersOf(i)) {
           if (cells[peer]?.value !== digit) continue;
           const killed = placedAt.get(peer);
           if (killed !== undefined && killed > written) {
