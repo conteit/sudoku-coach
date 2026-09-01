@@ -202,7 +202,7 @@ describe('the coach sheet', () => {
     expect(screen.queryByRole('button', { name: /has something for you/i })).not.toBeInTheDocument();
   });
 
-  it("offers the eraser while the board is live, and withholds it while paused", () => {
+  it('offers the eraser once a placement has killed a note', () => {
     renderGame({ deadNotes: true, running: true });
     expect(screen.getByRole('button', { name: /clear 1 dead note/i })).toBeInTheDocument();
   });

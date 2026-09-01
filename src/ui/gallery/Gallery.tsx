@@ -250,6 +250,10 @@ export function Gallery() {
                 onClear={erase}
                 highlightPeers={peers}
                 highlightMatches={matches}
+                // The toggle above turns the layer on; this is the digit it
+                // lights. Without it the grid falls back to `null` and "Same
+                // number" is a switch wired to nothing.
+                highlightDigit={selected === null ? null : (cells[selected]?.value ?? null)}
                 conflicts={conflicts ? DEMO_CONFLICTS : undefined}
                 spotlight={coachSpotlight}
                 tintedHouses={coachHouses}
@@ -299,6 +303,7 @@ export function Gallery() {
                   onRedo={redo}
                   canUndo={board.past.length > 0}
                   canRedo={board.future.length > 0}
+                  canErase={selected !== null}
                   disabled={selected === null}
                 />
               </Panel>

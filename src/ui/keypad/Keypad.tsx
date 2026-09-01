@@ -37,6 +37,12 @@ export interface KeypadProps {
   onRedo: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  /**
+   * There is a cell to erase — i.e. one is selected. The digits deliberately
+   * stay live with nothing selected (a tap arms the green highlight, R3), but
+   * "erase" with no target is a key that can only do nothing.
+   */
+  canErase?: boolean;
   /** The board is paused or already solved — no move is legal right now. */
   disabled?: boolean;
   /** The digit the board's green layer is on, so the key that controls it looks like it does. */
@@ -64,6 +70,7 @@ export function Keypad({
   onRedo,
   canUndo = true,
   canRedo = true,
+  canErase = true,
   disabled = false,
   highlighted = null,
   onHaptic,
@@ -156,7 +163,7 @@ export function Keypad({
           label={t('keypad.erase')}
           caption={t('keypad.captionErase')}
           icon={<EraserIcon />}
-          disabled={disabled}
+          disabled={disabled || !canErase}
           onClick={() => fire('tap', onErase)}
         />
         <IconButton

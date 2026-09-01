@@ -104,6 +104,16 @@ describe('actions', () => {
     expect(onTogglePencil).toHaveBeenCalledOnce();
   });
 
+  it('has nothing to erase until a cell is selected', () => {
+    renderKeypad({ canErase: false });
+
+    // The digits stay live with no selection on purpose — a tap arms the
+    // green highlight rather than writing anything (R3) — which is exactly
+    // why the eraser cannot ride along on the pad's own `disabled`.
+    expect(screen.getByRole('button', { name: 'Erase cell' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Place 6' })).toBeEnabled();
+  });
+
   it('goes quiet while disabled, but still allows undo', () => {
     renderKeypad({ disabled: true });
 

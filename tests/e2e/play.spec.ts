@@ -368,6 +368,13 @@ test.describe('drills', () => {
     expect(solution).not.toBeNull();
     const finding = firstFinding(board);
     expect(finding).not.toBeNull();
+    // An elimination-only technique places nothing, and the loop below would
+    // then satisfy no drill and time out on the last assertion with a cause
+    // nobody would find. Say it here instead.
+    expect(
+      finding!.placements.length,
+      'this test applies the finding by placing its digits',
+    ).toBeGreaterThan(0);
 
     const spotlight = page.locator('[data-spotlight]');
     // Nothing is spotlighted by a level-2 disclosure: the technique is named,
