@@ -57,11 +57,11 @@ test('a dialog traps nothing it should not', async ({ page }) => {
 
 test('the coach sheet is accessible', async ({ page }, testInfo) => {
   // The header's coach trigger and the sheet it opens exist only below the
-  // sm breakpoint; on the desktop project the coach is already the static
-  // bar the other audits already cover, so there is no second screen state
-  // to open here.
+  // sm breakpoint; at and above it the coach is already the static bar the
+  // other audits already cover, so there is no second screen state to open
+  // on the tablet, laptop or wide projects.
   test.skip(
-    testInfo.project.name !== 'mobile',
+    testInfo.project.name !== 'phone',
     'the coach sheet only exists on a narrow viewport',
   );
 
@@ -76,4 +76,27 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
   await openCoach(page);
 
   expect((await audit(page).analyze()).violations).toEqual([]);
+});
+
+test('puts the board before the coach in the reading order', async ({ page }, testInfo) => {
+  // `GameLayout` only renders a `coach-column` div beside the board from the
+  // laptop tier up; the ordering only actually needs proving once the wide
+  // tier's third column (the lesson) makes it a real reading-order question
+  // rather than a two-item list with one obvious order, so this runs where
+  // all three are on screen at once.
+  test.skip(testInfo.project.name !== 'wide', 'three columns only exist on the wide tier');
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New puzzle' }).click();
+  await page.getByRole('button', { name: 'Easy', exact: true }).click();
+  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+
+  const order = await page.evaluate(() => {
+    const grid = document.querySelector('[role="grid"]')!;
+    const coach = document.querySelector('[data-testid="coach-column"]')!;
+    return grid.compareDocumentPosition(coach) & Node.DOCUMENT_POSITION_FOLLOWING
+      ? 'board-first'
+      : 'coach-first';
+  });
+  expect(order).toBe('board-first');
 });
