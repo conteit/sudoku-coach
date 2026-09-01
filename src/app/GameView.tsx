@@ -19,6 +19,7 @@ import { getLesson } from '../coach/lessons';
 import { recap } from '../coach/recap';
 import { deadNotes } from '../state/deadNotes';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
+import { useProfile } from '../state/profile';
 import { useGameStore } from '../state/store';
 import { formatList } from '../i18n';
 import { useT } from '../i18n/locale';
@@ -29,6 +30,8 @@ import { DifficultyBadge } from '../ui/game/DifficultyBadge';
 import { Timer } from '../ui/game/Timer';
 import { formatDuration } from '../ui/game/duration';
 import { Keypad, type HapticPattern } from '../ui/keypad/Keypad';
+import { LessonBody } from '../ui/learn/LessonBody';
+import { TechniqueIndex } from '../ui/learn/TechniqueIndex';
 import { cx } from '../ui/primitives/cx';
 import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
@@ -82,6 +85,11 @@ export function GameView({
   const t = useT();
   const dispatch = useGameStore((state) => state.dispatch);
   const removeGame = useGameStore((state) => state.removeGame);
+  // `GameView` is handed `settings` alone (the slice `App.tsx` already reads
+  // for itself); the lesson column needs the whole profile, the same way
+  // `useCoachSession` reaches into the profile store for mastery credit
+  // rather than having it threaded down as a second prop for the same data.
+  const profile = useProfile((state) => state.profile);
 
   const [selected, setSelected] = useState<CellIndex | null>(null);
   // Not derived from `selected` on every render: a highlight that dies on the
@@ -509,6 +517,24 @@ export function GameView({
     </>
   );
 
+  /*
+   * The column always has something in it, so its box never changes and the
+   * board never moves. Before the coach has named a technique that is the
+   * player's own mastery — the same reading the coach uses to pick a puzzle
+   * at the edge of what they know. Level 2 is where the name is paid for;
+   * showing the lesson earlier would hand over the rung they have not
+   * climbed. Neither sub-view gets a way to navigate: `LessonBody`'s
+   * `leading` back button and `TechniqueIndex`'s `onOpen` are both left
+   * unset, because this column has nowhere to go back to and nothing to open
+   * — Learn already owns the page these two exist on.
+   */
+  const lessonRegion =
+    coach.hint !== null && coach.hint.level >= 2 ? (
+      <LessonBody id={coach.hint.technique} locale={locale} profile={profile} />
+    ) : (
+      <TechniqueIndex profile={profile} />
+    );
+
   return (
     <>
       <GameLayout
@@ -517,10 +543,7 @@ export function GameView({
         board={board}
         keypad={keypad}
         coach={coachRegion}
-        // Task 4 wires the real technique index / lesson body pairing here;
-        // this task only has to prove the column exists and holds its own
-        // width on a desktop, independent of what ends up inside it.
-        lesson={<></>}
+        lesson={lessonRegion}
       />
 
       {/* Everything about this puzzle that is not a move. Rare actions do not
