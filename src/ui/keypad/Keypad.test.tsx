@@ -172,8 +172,12 @@ describe('long-press', () => {
     vi.advanceTimersByTime(500);
     // The release still ends in a browser `click`, mouse or touch — the key
     // under test is that it gets swallowed rather than also entering.
+    // `detail: 1` is what marks this as the real pointer-originated click a
+    // completed press-and-release produces (a keyboard activation is always
+    // 0) — see the "does not swallow a keyboard activation" case below for
+    // the other half of that gate.
     fireEvent.pointerUp(key);
-    fireEvent.click(key);
+    fireEvent.click(key, { detail: 1 });
 
     expect(onDigitLongPress).toHaveBeenCalledWith(6);
     expect(onDigit).not.toHaveBeenCalled();
@@ -205,13 +209,94 @@ describe('long-press', () => {
     expect(onDigitLongPress).not.toHaveBeenCalled();
   });
 
-  it('does nothing on a long-press with no handler wired', () => {
-    renderKeypad();
+  it('cancels a held press once the pointer drifts past the move threshold', () => {
+    // The touch case `pointerleave` cannot cover: a touch pointer gets
+    // implicit capture on `pointerdown`, so `pointerleave`/`pointerout` are
+    // deferred until release rather than firing as the finger slides onto a
+    // neighbour — `pointermove` is what still reaches this key while that is
+    // happening, and is what the fix under test relies on.
+    const onDigitLongPress = vi.fn();
+    renderKeypad({ onDigitLongPress });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key, { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(key, { clientX: 20, clientY: 0 });
+    vi.advanceTimersByTime(500);
+
+    expect(onDigitLongPress).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a small wobble that stays under the move threshold', () => {
+    const onDigitLongPress = vi.fn();
+    renderKeypad({ onDigitLongPress });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key, { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(key, { clientX: 3, clientY: 3 });
+    vi.advanceTimersByTime(500);
+
+    expect(onDigitLongPress).toHaveBeenCalledWith(6);
+  });
+
+  it('does not swallow a keyboard activation against a stale fired flag', () => {
+    // The gap the `event.detail` gate closes: a press that fires (held past
+    // the threshold) and is then abandoned — dragged off and released
+    // somewhere that never dispatches this key's own click — leaves `fired`
+    // stale-true with nothing to clear it. A keyboard Enter/Space on the
+    // same key afterwards is a click with no preceding `pointerdown` at all,
+    // and always `detail: 0`; it must still enter the digit.
+    const onDigit = vi.fn();
+    const onDigitLongPress = vi.fn();
+    renderKeypad({ onDigit, onDigitLongPress });
 
     const key = screen.getByRole('button', { name: 'Place 6' });
     fireEvent.pointerDown(key);
     vi.advanceTimersByTime(500);
-    // No assertion beyond "did not throw" — the prop is optional by design.
+    fireEvent.pointerLeave(key); // the drag-off; no click ever follows it
+
+    expect(onDigitLongPress).toHaveBeenCalledWith(6);
+
+    fireEvent.click(key); // the keyboard activation — detail defaults to 0
+
+    expect(onDigit).toHaveBeenCalledWith(6);
+  });
+
+  it('does nothing on a long-press with no handler wired', () => {
+    const onHaptic = vi.fn();
+    renderKeypad({ onHaptic });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    vi.advanceTimersByTime(500);
     fireEvent.pointerUp(key);
+
+    // Not merely "did not throw": no handler wired means no haptic either —
+    // there is nothing for the player to feel a response to.
+    expect(onHaptic).not.toHaveBeenCalled();
+  });
+
+  it('clears a pending press on unmount rather than leaving the timer live', () => {
+    const onDigitLongPress = vi.fn();
+    const { unmount } = renderKeypad({ onDigitLongPress });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    unmount();
+    vi.advanceTimersByTime(500);
+
+    // If the timer were still live, this is exactly when it would fire —
+    // into a component that no longer exists.
+    expect(onDigitLongPress).not.toHaveBeenCalled();
+  });
+
+  it('suppresses the platform long-press (text selection, context menu)', () => {
+    renderKeypad();
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    expect(key).toHaveClass('select-none', 'touch-none');
+
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    key.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
   });
 });
