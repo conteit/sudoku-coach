@@ -64,6 +64,14 @@ export interface SudokuGridProps {
   highlightPeers?: boolean;
   /** Green same-number highlight across the board (R3). */
   highlightMatches?: boolean;
+  /**
+   * The digit the green layer is on, independent of the selection (R3).
+   *
+   * Derived from the selected cell it could not survive moving the caret,
+   * which is the one thing a player uses it for: scanning the grid for where
+   * else this digit can go.
+   */
+  highlightDigit?: Digit | null;
   /** Accessible name for the grid. Defaults to the localized board name. */
   label?: string;
   className?: string;
@@ -83,6 +91,7 @@ export function SudokuGrid({
   staleMarks,
   highlightPeers = true,
   highlightMatches = true,
+  highlightDigit = null,
   label,
   className,
 }: SudokuGridProps) {
@@ -102,9 +111,6 @@ export function SudokuGrid({
     return out;
   }, [staleMarks]);
 
-  /** The digit the selection is about — null when the selected cell is empty. */
-  const matchDigit = selected === null ? null : (cells[selected]?.value ?? null);
-
   // One pass builds every highlight layer into a byte per cell. Cells compare
   // that byte, so a selection change re-renders only the cells whose byte moved.
   const flags = useMemo(() => {
@@ -112,10 +118,10 @@ export function SudokuGrid({
     if (selected !== null) {
       out[selected] |= CELL_SELECTED;
       if (highlightPeers) for (const peer of peersOf(selected)) out[peer] |= CELL_PEER;
-      if (highlightMatches && matchDigit !== null) {
-        for (let i = 0; i < cells.length; i++) {
-          if (cells[i].value === matchDigit) out[i] |= CELL_MATCH;
-        }
+    }
+    if (highlightMatches && highlightDigit !== null) {
+      for (let i = 0; i < cells.length; i++) {
+        if (cells[i].value === highlightDigit) out[i] |= CELL_MATCH;
       }
     }
     for (const house of tintedHouses ?? []) {
@@ -125,7 +131,7 @@ export function SudokuGrid({
     for (const cell of spotlight ?? []) out[cell] |= CELL_SPOTLIGHT;
     for (const cell of conflicts ?? []) out[cell] |= CELL_CONFLICT;
     return out;
-  }, [cells, selected, matchDigit, spotlight, tintedHouses, conflicts, highlightPeers, highlightMatches]);
+  }, [cells, selected, highlightDigit, spotlight, tintedHouses, conflicts, highlightPeers, highlightMatches]);
 
   const move = useCallback(
     (from: CellIndex, dRow: number, dCol: number) => {
@@ -226,7 +232,7 @@ export function SudokuGrid({
                 marks={masks[index]}
                 stale={staleMasks[index]}
                 flags={flags[index]}
-                matchDigit={highlightMatches ? matchDigit : null}
+                matchDigit={highlightMatches ? highlightDigit : null}
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
               />

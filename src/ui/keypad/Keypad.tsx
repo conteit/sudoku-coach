@@ -37,8 +37,10 @@ export interface KeypadProps {
   onRedo: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
-  /** No cell selected yet — the digits have nowhere to go. */
+  /** The board is paused or already solved — no move is legal right now. */
   disabled?: boolean;
+  /** The digit the board's green layer is on, so the key that controls it looks like it does. */
+  highlighted?: Digit | null;
   /** Fired before each action so the host can vibrate. Optional by design. */
   onHaptic?: (pattern: HapticPattern) => void;
   className?: string;
@@ -63,6 +65,7 @@ export function Keypad({
   canUndo = true,
   canRedo = true,
   disabled = false,
+  highlighted = null,
   onHaptic,
   className,
 }: KeypadProps) {
@@ -99,6 +102,7 @@ export function Keypad({
               aria-label={pencilMode ? t('keypad.note', { digit }) : t('keypad.place', { digit })}
               data-digit={digit}
               data-complete={done || undefined}
+              data-highlighted={digit === highlighted ? 'true' : undefined}
               className={cx(
                 'group flex min-h-12 flex-col items-stretch rounded-cell border',
                 'transition-[background-color,border-color,transform] duration-100 ease-snap',
@@ -107,6 +111,7 @@ export function Keypad({
                   ? 'border-rule bg-transparent opacity-45'
                   : 'border-rule-strong bg-paper-raised hover:bg-paper-sunk',
                 disabled && 'opacity-45',
+                digit === highlighted && 'ring-2 ring-match',
               )}
             >
               <span className="relative grid flex-1 place-items-center">
