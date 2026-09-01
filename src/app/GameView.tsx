@@ -43,6 +43,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
+import { keypadTap } from './keypadTap';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { useCoachSession } from './useCoachSession';
 
@@ -248,13 +249,14 @@ export function GameView({
           pencilMode={pencilMode}
           onTogglePencil={() => setPencilMode((on) => !on)}
           onDigit={(digit) => {
-            const entered = selected !== null && game.cells[selected]?.value !== digit;
+            const { entered, highlight } = keypadTap(
+              selected,
+              selected !== null ? (game.cells[selected]?.value ?? null) : null,
+              digit,
+              highlightDigit,
+            );
             if (entered) enter(selected as CellIndex, digit);
-            // A tap that wrote something arms the green on what was just written.
-            // A tap that wrote nothing is purely a request about the highlight,
-            // and that is the only tap allowed to turn it off — otherwise
-            // placing the same digit into two cells would blink it away.
-            setHighlightDigit((current) => (!entered && current === digit ? null : digit));
+            setHighlightDigit(highlight);
           }}
           onErase={() => {
             if (selected !== null) dispatch({ type: 'clearCell', cell: selected });

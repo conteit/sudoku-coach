@@ -115,7 +115,15 @@ describe('actions', () => {
   it('marks the armed digit so the player can see what the green is', () => {
     renderKeypad({ highlighted: 5 });
 
-    expect(screen.getByRole('button', { name: /5/ })).toHaveAttribute('data-highlighted', 'true');
-    expect(screen.getByRole('button', { name: /4/ })).not.toHaveAttribute('data-highlighted');
+    const armed = screen.getByRole('button', { name: /5/ });
+    const other = screen.getByRole('button', { name: /4/ });
+    expect(armed).toHaveAttribute('data-highlighted', 'true');
+    expect(other).not.toHaveAttribute('data-highlighted');
+    // aria-pressed carries the armed state to the accessibility tree: the
+    // key's name stays "Place 5" even on a tap that only arms/clears, so
+    // pressed state is the only signal a screen reader gets that this key
+    // has a second meaning.
+    expect(armed).toHaveAttribute('aria-pressed', 'true');
+    expect(other).toHaveAttribute('aria-pressed', 'false');
   });
 });
