@@ -271,8 +271,12 @@ export function GameView({
       coach.ask();
     },
     // A dialog is a question; answering it with "u" should not rewind the board
-    // behind it. A paused or finished board takes no moves either.
-    enabled: confirming === null && !paused && !solved,
+    // behind it. That covers every overlay that owns the screen, the coach
+    // sheet included — it became a real `role="dialog"` on narrow viewports in
+    // this task, and `onHint` above opens it deliberately, so "h" twice would
+    // otherwise re-capture the focus-restore target and strand focus on
+    // Escape. A paused or finished board takes no moves either.
+    enabled: confirming === null && !paused && !solved && !modalOpen && !menuOpen,
   });
 
   return (
