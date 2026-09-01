@@ -185,6 +185,50 @@ describe('the coach sheet', () => {
   });
 });
 
+describe('the board shortcuts', () => {
+  /*
+   * The probe is "n" (notes mode) rather than "u": `enabled` gates all four
+   * shortcuts as one flag, and pencil mode is the one whose effect this
+   * harness can actually observe — the view renders the `game` it is handed
+   * as a prop, so a dispatched undo changes the store and nothing on screen.
+   * A test written around "u" here would pass whether or not the guard
+   * exists.
+   */
+  it('do not reach the board behind the open coach sheet', async () => {
+    const { user } = renderGame({ running: true });
+    await user.click(screen.getByRole('button', { name: 'Coach' }));
+    await user.keyboard('n');
+    expect(screen.getByRole('group', { name: 'Keypad' })).toBeInTheDocument();
+  });
+
+  it('do not reach the board behind the open game menu', async () => {
+    const { user } = renderGame({ running: true });
+    await user.click(screen.getByRole('button', { name: 'This puzzle' }));
+    await user.keyboard('n');
+    expect(screen.getByRole('group', { name: 'Keypad' })).toBeInTheDocument();
+  });
+
+  it('leave the focus-restore target alone when "h" is pressed twice', async () => {
+    const { user } = renderGame({ running: true });
+    // Wherever focus plausibly is when a keyboard player asks for a hint —
+    // and where the sheet owes it back on close.
+    const pause = screen.getByRole('button', { name: 'Pause' });
+    pause.focus();
+
+    // The first "h" opens the sheet and records `pause` as the restore
+    // target. The second must not fire at all: `openSheet` reads
+    // `document.activeElement` unconditionally, so a second run would record
+    // the panel's own Close button instead — and `setSheetOpen(true)` being a
+    // no-op means nothing re-renders to show it, until Escape hands focus to
+    // a control inside a panel that has just been hidden.
+    await user.keyboard('h');
+    await user.keyboard('h');
+    await user.keyboard('{Escape}');
+
+    expect(pause).toHaveFocus();
+  });
+});
+
 describe('the coach panel on a wide screen', () => {
   it('does not modalize or trap focus when "h" is pressed', async () => {
     window.innerWidth = 1024;
