@@ -97,6 +97,23 @@ only mean something on the device holding that game.
 7. **Chrome is never hardcoded English.** Every user-visible string comes from
    `src/i18n`, read through the locale context. A component that spells its own
    copy will ship English into the Italian build.
+8. **A note is flagged only when the player killed it.** The sharpest form of
+   invariant 1. The board strikes a pencil mark through only when one of the
+   player's *own later* placements contradicted it: `deadNotes()`
+   (`src/state/deadNotes.ts`) compares when a mark was written against when a
+   peer was filled, and both timestamps come from the move log. A mark written
+   into a square a peer already held stays unmarked — striking that one as it
+   is typed would perform the elimination the player came here to learn. It is
+   theirs to find, and "check my notes" is what finds it.
+9. **The board never gives up height.** A phone plays the game on one screen
+   with no page scroll, so nothing that appears mid-game — a nudge, a badge,
+   the coach itself — may occupy layout height beside the board and the
+   keypad. It is drawn over them or it is not drawn. The board's pixel height
+   is constant from the first move to the last. This breaks at two levels and
+   is guarded at both: `src/app/GameView.layout.test.tsx` asserts that neither
+   `<main>` nor the root column holds anything else in flow, and
+   `tests/e2e/play.spec.ts` measures the grid on a short viewport across every
+   state a game can be in.
 
 ## Difficulty rating
 
