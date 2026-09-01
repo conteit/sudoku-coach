@@ -395,6 +395,20 @@ test('the board keeps its box whatever the coach is doing', async ({ page }) => 
   const withHint = (await grid.boundingBox())!;
   expect(withHint.width).toBeCloseTo(atRest.width, 1);
   expect(withHint.height).toBeCloseTo(atRest.height, 1);
+
+  // The state the desktop tier exists to introduce, and the only one that
+  // changes the third column's content: level 2 names a technique, which
+  // swaps a fourteen-row index for a full lesson — two prose sections and a
+  // second 81-cell grid. Nothing above measured it. `openCoach` performs no
+  // click at all above 640px, so `withCoach` re-measures the resting state
+  // there, and a level-1 hint only adds a sentence inside a column that was
+  // already on screen at its final width. Unguarded by tier: escalating
+  // works everywhere, and it gives the tablet and the laptop a genuinely
+  // second state too.
+  await page.getByRole('button', { name: /name the technique/i }).click();
+  const withLesson = (await grid.boundingBox())!;
+  expect(withLesson.width).toBeCloseTo(atRest.width, 1);
+  expect(withLesson.height).toBeCloseTo(atRest.height, 1);
 });
 
 /*
