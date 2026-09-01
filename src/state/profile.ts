@@ -57,9 +57,22 @@ function profileStore(deps: ProfileDeps): StateCreator<ProfileStore> {
         const stored = await readProfile(deps.conn);
         // A first run is not persisted here: nothing has been chosen yet, and
         // writing the guess would turn it into a choice.
+        if (stored === undefined) {
+          set({
+            profile: preferred === undefined ? DEFAULT_PROFILE : { ...DEFAULT_PROFILE, locale: preferred },
+            hydrated: true,
+          });
+          return;
+        }
+        // A profile saved before a settings field existed does not have it on
+        // disk — `settings` predates structural sharing of individual keys,
+        // so a stored object is whatever shape it was written in. Filling
+        // gaps from `DEFAULT_PROFILE` here, once, means every new setting
+        // gets its documented default for existing players without a
+        // migration step, and every reader downstream can keep treating
+        // `settings` as fully populated.
         set({
-          profile:
-            stored ?? (preferred === undefined ? DEFAULT_PROFILE : { ...DEFAULT_PROFILE, locale: preferred }),
+          profile: { ...stored, settings: { ...DEFAULT_PROFILE.settings, ...stored.settings } },
           hydrated: true,
         });
       },

@@ -102,6 +102,11 @@ export function SettingsSheet({
           onChange={(highlightConflicts) => onSettings({ highlightConflicts })}
         />
         <Toggle
+          label={t('settings.highlightMatchingNotes')}
+          checked={profile.settings.highlightMatchingNotes}
+          onChange={(highlightMatchingNotes) => onSettings({ highlightMatchingNotes })}
+        />
+        <Toggle
           label={t('settings.haptics')}
           checked={profile.settings.haptics}
           onChange={(haptics) => onSettings({ haptics })}

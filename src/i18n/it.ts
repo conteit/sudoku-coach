@@ -139,6 +139,7 @@ export const it: Dictionary = {
   'settings.theme.dark': 'Scuro',
   'settings.haptics': 'Vibrazione',
   'settings.highlightConflicts': 'Segnala le cifre in conflitto',
+  'settings.highlightMatchingNotes': 'Evidenzia anche le annotazioni uguali',
 
   'mastery.title': 'Tecniche',
   'mastery.unseen': 'Non ancora incontrata',

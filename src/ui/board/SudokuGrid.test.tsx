@@ -35,6 +35,7 @@ function Harness({
   onClear?: (cell: CellIndex) => void;
   highlightMatches?: boolean;
   highlightDigit?: Digit | null;
+  highlightMatchingNotes?: boolean;
 }) {
   const [selected, setSelected] = useState<CellIndex | null>(initialSelected);
   return (
@@ -123,6 +124,28 @@ describe('same-number highlight', () => {
   it('draws no match layer when highlightDigit is null', () => {
     render(<Harness initialSelected={0} highlightDigit={null} />);
     expect(screen.getByRole('gridcell', { name: /r1c1/ })).not.toHaveAttribute('data-match');
+  });
+});
+
+describe('matching-notes echo', () => {
+  // r1c3 (index 2) is empty in PUZZLE, so it can carry a pencil mark for 5
+  // without also being a placed match — the note styling is the only thing
+  // under test here.
+  const notedSlot = () => cellAt(2).querySelector('[data-slot="5"]');
+
+  it('leaves matching notes alone when the setting is off — that would point at every square the digit could still go', () => {
+    render(<Harness cells={buildCells({ 2: [5] })} highlightDigit={5} highlightMatchingNotes={false} />);
+    expect(notedSlot()).not.toHaveClass('text-match');
+  });
+
+  it('echoes onto matching notes when the setting is on', () => {
+    render(<Harness cells={buildCells({ 2: [5] })} highlightDigit={5} highlightMatchingNotes />);
+    expect(notedSlot()).toHaveClass('text-match');
+  });
+
+  it('does not echo a note for a digit other than the one highlighted', () => {
+    render(<Harness cells={buildCells({ 2: [4] })} highlightDigit={5} highlightMatchingNotes />);
+    expect(cellAt(2).querySelector('[data-slot="4"]')).not.toHaveClass('text-match');
   });
 });
 

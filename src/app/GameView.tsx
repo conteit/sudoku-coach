@@ -406,6 +406,7 @@ export function GameView({
             conflicts={conflicts}
             staleMarks={stale}
             highlightDigit={highlightDigit}
+            highlightMatchingNotes={settings.highlightMatchingNotes}
               className={paused ? 'pointer-events-none blur-md select-none' : undefined}
             />
             {paused ? (

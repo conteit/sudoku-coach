@@ -72,6 +72,15 @@ export interface SudokuGridProps {
    * else this digit can go.
    */
   highlightDigit?: Digit | null;
+  /**
+   * Also echo the green onto pencil marks that match `highlightDigit`, not
+   * just placed digits. Independent of `highlightMatches`: that one turns the
+   * whole layer off, this one only decides whether it reaches into notes. The
+   * app itself defaults this to off (a player setting) — every note it would
+   * light is a square the digit could still go, which is the elimination the
+   * coach exists to make the player find for themselves.
+   */
+  highlightMatchingNotes?: boolean;
   /** Accessible name for the grid. Defaults to the localized board name. */
   label?: string;
   className?: string;
@@ -92,6 +101,7 @@ export function SudokuGrid({
   highlightPeers = true,
   highlightMatches = true,
   highlightDigit = null,
+  highlightMatchingNotes = true,
   label,
   className,
 }: SudokuGridProps) {
@@ -232,7 +242,7 @@ export function SudokuGrid({
                 marks={masks[index]}
                 stale={staleMasks[index]}
                 flags={flags[index]}
-                matchDigit={highlightMatches ? highlightDigit : null}
+                matchDigit={highlightMatches && highlightMatchingNotes ? highlightDigit : null}
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
               />

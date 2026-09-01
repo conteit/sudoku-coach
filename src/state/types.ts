@@ -99,5 +99,12 @@ export interface PlayerProfile {
     highlightConflicts: boolean;
     theme: 'system' | 'light' | 'dark';
     haptics: boolean;
+    /**
+     * Echo the green same-digit highlight onto matching pencil marks, not
+     * just placed digits. Off by default: every note it would light is a
+     * square the digit could still go, which is the elimination the coach
+     * exists to make the player find for themselves.
+     */
+    highlightMatchingNotes: boolean;
   };
 }
