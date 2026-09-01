@@ -45,7 +45,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
-import { keypadTap } from './keypadTap';
+import { selectHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { useCoachSession } from './useCoachSession';
 
@@ -93,9 +93,10 @@ export function GameView({
   const removeGame = useGameStore((state) => state.removeGame);
 
   const [selected, setSelected] = useState<CellIndex | null>(null);
-  // Owned by the keypad, not derived from the selection: a highlight that
-  // dies on the move that makes it useful — scanning the grid for where else
-  // a digit can go — is not a highlight (R3).
+  // Not derived from `selected` on every render: a highlight that dies on the
+  // move that makes it useful — scanning the grid for where else a digit can
+  // go — is not a highlight (R3). Selecting a filled cell arms or clears it
+  // (see `selectCell` below); selecting an empty cell leaves it alone.
   const [highlightDigit, setHighlightDigit] = useState<Digit | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
   const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
@@ -247,6 +248,21 @@ export function GameView({
     [dispatch, pencilMode],
   );
 
+  /**
+   * Selecting a cell is the green's arm/clear decision now, not a keypad tap
+   * (R3). Empty cells pass `selectHighlight` a null value, which is exactly
+   * what makes it a no-op for them — the caret can move across the whole
+   * board hunting for a spot without ever disturbing the highlight.
+   */
+  const selectCell = useCallback(
+    (cell: CellIndex) => {
+      setSelected(cell);
+      const value = game.cells[cell]?.value ?? null;
+      setHighlightDigit((current) => selectHighlight(value, current));
+    },
+    [game.cells],
+  );
+
   // "Speaking" is the panel having something the player asked for on screen.
   const speaking =
     coach.hint !== null || coach.review !== null || coach.drill !== null || coach.exhausted;
@@ -382,7 +398,7 @@ export function GameView({
             <SudokuGrid
             cells={game.cells}
             selected={selected}
-            onSelect={setSelected}
+            onSelect={selectCell}
             onEnter={enter}
             onClear={(cell) => dispatch({ type: 'clearCell', cell })}
             spotlight={spotlight}
@@ -408,14 +424,10 @@ export function GameView({
           pencilMode={pencilMode}
           onTogglePencil={() => setPencilMode((on) => !on)}
           onDigit={(digit) => {
-            const { entered, highlight } = keypadTap(
-              selected,
-              selected !== null ? (game.cells[selected]?.value ?? null) : null,
-              digit,
-              highlightDigit,
-            );
-            if (entered) enter(selected as CellIndex, digit);
-            setHighlightDigit(highlight);
+            // The key's single meaning again: a tap that has somewhere to
+            // write writes there, and does nothing else (R3). `enter` itself
+            // no-ops when the cell already holds `digit`.
+            if (selected !== null) enter(selected, digit);
           }}
           onErase={() => {
             if (selected !== null) dispatch({ type: 'clearCell', cell: selected });
@@ -424,9 +436,9 @@ export function GameView({
           onRedo={() => dispatch({ type: 'redo' })}
           canUndo={game.undoStack.length > 0}
           canRedo={game.redoStack.length > 0}
-          // The pad as a whole stays live with nothing selected — a digit tap
-          // arms the highlight — but the eraser has nothing to erase, so it
-          // needs the gate the pad no longer applies for it.
+          // The pad as a whole stays live with nothing selected — but the
+          // eraser has nothing to erase, so it needs the gate the pad no
+          // longer applies for it.
           canErase={selected !== null}
           disabled={paused || solved}
           highlighted={highlightDigit}
