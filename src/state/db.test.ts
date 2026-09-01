@@ -11,7 +11,7 @@ import {
 import type { SchemaVersion } from './db';
 import { newGame, reduce, toStored } from './game';
 import { DEFAULT_PROFILE, onTaught } from './mastery';
-import type { Game } from './types';
+import type { Game, PlayerProfile } from './types';
 
 const SOLVED =
   '534678912672195348198342567859761423426853791713924856961537284287419635345286179';
@@ -219,5 +219,30 @@ describe('the player profile', () => {
     await saveProfile({ ...DEFAULT_PROFILE, locale: 'en' }, conn);
     expect(await conn.profile.count()).toBe(1);
     expect((await loadProfile(conn)).locale).toBe('en');
+  });
+
+  it('backfills a settings field a stored profile predates', async () => {
+    // `profile.ts`'s `hydrate` isn't the only path a stored profile reaches a
+    // caller through — this one goes straight through `db.ts`, and it has to
+    // apply the same fill-in. Shaped the way a profile saved before
+    // `highlightMatchingNotes` existed would actually be on disk: the key is
+    // simply absent, not `undefined`.
+    const conn = freshDb();
+    const legacy = {
+      ...DEFAULT_PROFILE,
+      settings: {
+        highlightConflicts: false,
+        theme: 'dark',
+        haptics: false,
+      },
+    } as PlayerProfile;
+    await saveProfile(legacy, conn);
+
+    expect((await loadProfile(conn)).settings).toEqual({
+      highlightConflicts: false,
+      theme: 'dark',
+      haptics: false,
+      highlightMatchingNotes: DEFAULT_PROFILE.settings.highlightMatchingNotes,
+    });
   });
 });

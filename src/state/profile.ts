@@ -14,7 +14,7 @@
  */
 
 import { create, createStore, type StateCreator, type StoreApi } from 'zustand';
-import { db, readProfile, saveProfile, type SudokuCoachDB } from './db';
+import { db, readProfile, saveProfile, withDefaultSettings, type SudokuCoachDB } from './db';
 import { DEFAULT_PROFILE } from './mastery';
 import type { Locale, PlayerProfile } from './types';
 
@@ -65,16 +65,12 @@ function profileStore(deps: ProfileDeps): StateCreator<ProfileStore> {
           return;
         }
         // A profile saved before a settings field existed does not have it on
-        // disk — `settings` predates structural sharing of individual keys,
-        // so a stored object is whatever shape it was written in. Filling
-        // gaps from `DEFAULT_PROFILE` here, once, means every new setting
-        // gets its documented default for existing players without a
-        // migration step, and every reader downstream can keep treating
-        // `settings` as fully populated.
-        set({
-          profile: { ...stored, settings: { ...DEFAULT_PROFILE.settings, ...stored.settings } },
-          hydrated: true,
-        });
+        // disk — `withDefaultSettings` (shared with `loadProfile`, the other
+        // path a stored profile can reach a caller through) fills any gap
+        // from `DEFAULT_PROFILE`, so every new setting gets its documented
+        // default for existing players without a migration step, and every
+        // reader downstream can keep treating `settings` as fully populated.
+        set({ profile: withDefaultSettings(stored), hydrated: true });
       },
 
       update: (change) => {
