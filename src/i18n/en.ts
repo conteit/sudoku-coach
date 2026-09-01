@@ -47,6 +47,7 @@ export const en = {
   'difficulty.expert': 'Expert',
 
   'game.menu': 'This puzzle',
+  'game.lessonAria': 'Lesson',
 
   'games.title': 'Your games',
   'games.empty': 'No games yet. Start one and it will be waiting here.',

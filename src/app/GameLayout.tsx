@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useT } from '../i18n/locale';
 import type { Tier } from './useViewportTier';
 
 export interface GameLayoutProps {
@@ -13,13 +14,17 @@ export interface GameLayoutProps {
 /**
  * Which regions exist at this width, and how they sit.
  *
- * Split out of `GameView` because composing four regions three ways inside a
- * file that also owns the game's state is how that file stopped being readable.
- * The rule this enforces is invariant 9: whatever the tier, nothing that comes
- * and goes during play may change the board's box. Each column's width is a
- * property of the tier, never of what the coach happens to be saying.
+ * Split out of `GameView`, not because that file got shorter — it grew, by
+ * design, since the brief kept every hook and handler exactly where it was —
+ * but because composing four tiers from one set of regions needed a function
+ * of its own to do the composing. The rule this enforces is invariant 9:
+ * whatever the tier, nothing that comes and goes during play may change the
+ * board's box. Each column's width is a property of the tier, never of what
+ * the coach happens to be saying.
  */
 export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameLayoutProps) {
+  const t = useT();
+
   if (tier === 'phone' || tier === 'tablet') {
     return (
       /*
@@ -63,12 +68,28 @@ export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameL
             sidebar that grows when a hint arrives — or when the technique
             index becomes a lesson — resizes the board just as surely as a
             bar that appears above it on a phone. Each aside's width is a
-            property of the tier alone. */}
-        <aside data-testid="coach-column" className="w-[22rem] shrink-0">
+            property of the tier alone.
+
+            A plain `div`, not an `aside`: `CoachPanel` already renders its
+            own named `region` landmark ("Coach") inside `coach` — wrapping
+            it in a second, unlabelled `complementary` landmark would give a
+            screen-reader user two "Coach" entries in the landmark list, the
+            outer one with no name to tell it apart from the lesson column
+            beside it. */}
+        <div data-testid="coach-column" className="w-[22rem] shrink-0">
           {coach}
-        </aside>
+        </div>
         {tier === 'desktop' && lesson ? (
-          <aside data-testid="lesson-column" className="w-[26rem] shrink-0 overflow-y-auto">
+          // Unlike the coach column, nothing inside `lesson` names its own
+          // landmark — `TechniqueIndex` and `LessonBody` are both bare
+          // `<section>`s with no accessible name of their own — so this one
+          // keeps the `aside` and gets an explicit label instead of losing
+          // the landmark altogether.
+          <aside
+            data-testid="lesson-column"
+            aria-label={t('game.lessonAria')}
+            className="w-[26rem] shrink-0 overflow-y-auto"
+          >
             {lesson}
           </aside>
         ) : null}
