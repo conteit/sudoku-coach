@@ -14,7 +14,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { Board } from '../../src/engine/board';
-import { solveBruteForce } from '../../src/engine/solver';
+import { firstFinding, solveBruteForce } from '../../src/engine/solver';
 import type { Digit } from '../../src/engine/types';
 
 test.describe.configure({ mode: 'serial' });
@@ -86,6 +86,17 @@ async function startEasyGame(page: Page): Promise<void> {
   await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
 }
 
+/**
+ * The coach rests as a button on a phone; the panel is behind it. On a wide
+ * viewport the panel is already the static bar and the FAB never renders, so
+ * the click is skipped rather than attempted against a hidden element.
+ */
+async function openCoach(page: Page) {
+  const fab = page.getByRole('button', { name: /^Coach/ });
+  if (await fab.isVisible()) await fab.click();
+  return page.getByRole('region', { name: 'Coach' });
+}
+
 test.describe('one puzzle, end to end', () => {
   test('generates a puzzle and opens it on the board', async ({ page }) => {
     await startEasyGame(page);
@@ -98,7 +109,7 @@ test.describe('one puzzle, end to end', () => {
 
   test('climbs the disclosure ladder one rung at a time', async ({ page }) => {
     await startEasyGame(page);
-    const coach = page.getByRole('region', { name: 'Coach' });
+    const coach = await openCoach(page);
 
     // Nothing is disclosed until the player asks (R7). The ladder itself only
     // appears once there is a rung to be on — on a phone it is board otherwise.
@@ -132,7 +143,7 @@ test.describe('one puzzle, end to end', () => {
     await page.getByRole('button', { name: 'Notes off' }).click();
     await enter(page, pair.cell, pair.digit);
 
-    const coach = page.getByRole('region', { name: 'Coach' });
+    const coach = await openCoach(page);
     await coach.getByRole('button', { name: 'Check my notes' }).click();
     await expect(coach.getByText(/need a second look/)).toBeVisible();
 
@@ -192,12 +203,40 @@ test.describe('one puzzle, end to end', () => {
     );
 
     // One press to clear, one undo to get them back: the marks stay the
-    // player's either way.
-    await page.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
+    // player's either way. The button lives in the coach panel now, so it is
+    // behind the same FAB as the rest of the coach on a phone.
+    const coach = await openCoach(page);
+    await coach.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([]);
 
+    // The sheet is a real modal on a phone (R against a keyboard trap) and
+    // sits over the keypad while open, so the keypad's own Undo has to be
+    // reached the way a player would: close the sheet first. Escape is a
+    // no-op on the desktop bar, where the keypad was never covered.
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Undo' }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([digit]);
+  });
+
+  test('the green highlight survives moving the caret', async ({ page }) => {
+    await startEasyGame(page);
+
+    // Any digit a given already carries is guaranteed to light something up;
+    // the puzzle's own givens are what makes the choice safe rather than
+    // hardcoding a digit that might not appear on this board at all.
+    const digit = (await readBoard(page)).find((cell) => cell.given)!.value as Digit;
+
+    // Arming does not need a selected cell at all — the keypad owns this
+    // state now, not the selection (R3).
+    await page.getByRole('button', { name: `Place ${digit}` }).click();
+    const lit = page.locator('[role="gridcell"][data-match="true"]');
+    await expect(lit.first()).toBeVisible();
+    const before = await lit.count();
+
+    // Moving the caret is not a tap that writes anything, so it must leave
+    // the highlight exactly as it was.
+    await page.getByRole('gridcell', { name: /r5c5/ }).click();
+    await expect(lit).toHaveCount(before);
   });
 
   test('plays a puzzle through to the end', async ({ page }) => {
@@ -231,37 +270,55 @@ test.describe('one puzzle, end to end', () => {
 test.describe('drills', () => {
   test('sets a challenge, and confirms it only when the board shows it', async ({ page }) => {
     await startEasyGame(page);
-    const coach = page.getByRole('region', { name: 'Coach' });
+    let coach = await openCoach(page);
 
     await coach.getByRole('button', { name: 'Set me a challenge' }).click();
     await expect(coach.getByText(/There is a .* on this board/)).toBeVisible();
 
-    // An easy board's first finding is a single, so applying it is placing the
-    // digit it proves — which the test works out the same way the engine does.
+    // An easy board's first finding is a single, so applying it is placing
+    // the digit it proves — read with the same engine call the app itself
+    // makes (`nextFinding` is `firstFinding` over exactly this board), not by
+    // guessing which cell the drill meant.
     const cells = await readBoard(page);
     const values = cells.map((cell) => (cell.value === null ? null : (cell.value as Digit)));
-    const solution = solveBruteForce(Board.fromValues(values));
+    const board = Board.fromValues(values);
+    const solution = solveBruteForce(board);
     expect(solution).not.toBeNull();
+    const finding = firstFinding(board);
+    expect(finding).not.toBeNull();
 
     const spotlight = page.locator('[data-spotlight]');
     // Nothing is spotlighted by a level-2 disclosure: the technique is named,
     // the cells are not (R7).
     await expect(spotlight).toHaveCount(0);
 
+    // The sheet is a real modal on a phone and sits over the board while
+    // open, so touching a cell means closing it first — the same trade a
+    // player makes. `Escape` is a no-op on the desktop bar, which never
+    // covered the board in the first place.
+    await page.keyboard.press('Escape');
+
     // A wrong move does not satisfy a drill.
     const empty = cells.find((cell) => cell.value === null)!;
     const wrong = ((solution!.values[empty.index]! % 9) + 1) as Digit;
     await enter(page, empty.index, wrong);
+    coach = await openCoach(page);
     await expect(coach.getByText(/applied by you/)).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await page.locator(`[data-cell="${empty.index}"]`).click();
     await page.keyboard.press('Backspace');
 
-    for (const cell of cells) {
-      if (cell.value !== null) continue;
-      await enter(page, cell.index, solution!.values[cell.index]!);
-      if (await coach.getByText(/applied by you/).isVisible()) break;
+    // Only the cell(s) the finding itself places, not the rest of the board:
+    // filling every remaining cell would solve the puzzle outright, and a
+    // solved game covers the FAB with its own "Solved" sheet before this
+    // could reopen the coach to read it. Placing just the finding's own
+    // digit is also the more exact proof — it is the move the drill is
+    // actually about, not an accident of finishing the grid.
+    for (const { cell, digit } of finding!.placements) {
+      await enter(page, cell, digit);
     }
 
+    coach = await openCoach(page);
     await expect(coach.getByText(/applied by you/)).toBeVisible();
   });
 });
@@ -292,9 +349,15 @@ test.describe('the keyboard', () => {
     await page.keyboard.press('ControlOrMeta+z');
     expect((await readBoard(page))[empty.index].value).toBeNull();
 
+    // 'h' opens the sheet itself on a narrow viewport (it is how a keyboard
+    // player reaches a coach that a mouse would tap the FAB for) — a direct
+    // query here, not `openCoach`, because that helper's own eager
+    // `isVisible()` read on the FAB can land in the instant between the
+    // keypress and React committing `sheetOpen`, where the FAB is still
+    // mid-transition; `toBeVisible`'s own retrying is what the FAB's minimal
+    // fixed-membership guard cannot offer.
     await page.keyboard.press('h');
-    await expect(
-      page.getByRole('region', { name: 'Coach' }).getByLabel('Disclosure level 1 of 4'),
-    ).toBeVisible();
+    const coach = page.getByRole('region', { name: 'Coach' });
+    await expect(coach.getByLabel('Disclosure level 1 of 4')).toBeVisible();
   });
 });
