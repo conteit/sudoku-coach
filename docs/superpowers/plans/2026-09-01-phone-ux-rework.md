@@ -617,7 +617,10 @@ Add `const [sheetOpen, setSheetOpen] = useState(false);` to the view state, and 
 
 The button's `bottom-[13rem]` clears the `min-h-[11.5rem]` keypad. If the keypad's height budget changes, that number changes with it; a comment on the class saying so is worth its line.
 
-`CoachIcon` — reuse the existing `TargetIcon` from `src/ui/primitives/icons` rather than drawing a new glyph, unless the icon set already has something better named.
+`CoachIcon` — reuse the existing `TargetIcon` from `src/ui/primitives/icons` rather than drawing a
+new glyph, unless the icon set already has something better named. Check `IconButton`'s `size`
+union before using `size="lg"`; `CoachPanel` only ever passes `sm`, so `lg` may not exist yet —
+if it does not, add it there rather than reaching past the primitive with a className.
 
 4. The sheet must open when the player asks for a hint by keyboard, or `H` would put text into a hidden panel: in `useBoardShortcuts`, change `onHint: coach.ask` to `onHint: () => { setSheetOpen(true); coach.ask(); }`.
 
@@ -644,7 +647,9 @@ In `src/ui/coach/CoachPanel.tsx`, add the four props from the Interfaces block a
 
 The "Show me where" button goes: the sheet covers the board, so spotlighting cells behind it points at nothing. Dismissal still records `triggerKey`, so a dismissed nudge stays dismissed.
 
-Add the eraser to the existing action row, beside "Check my notes":
+Add the eraser to the existing action row, beside "Check my notes". `EraserIcon` is not imported
+in this file yet — add it to the existing `../primitives/icons` import, and add `TeachableTrigger`
+to the type import from `../../coach/types`:
 
 ```tsx
         {onClearStale && staleCount ? (
