@@ -2,10 +2,10 @@
  * Shared by every spec that has to reach the coach.
  *
  * Below `sm` (639.98px — GameView's own `MOBILE_QUERY`) the panel rests
- * behind a floating button and only renders once the sheet is opened; at and
+ * behind a header button and only renders once the sheet is opened; at and
  * above it, the panel is the static bar and was never hidden in the first
  * place. The viewport width is what decides which of those is true here, not
- * a live read of the FAB's current visibility: a `getByRole('button',
+ * a live read of the trigger's current visibility: a `getByRole('button',
  * ...).isVisible()` probe races React's own commit of `sheetOpen` — ask
  * whether the button that just opened the sheet is still there, and
  * sometimes the DOM answers from a half-committed render. Width is settled
@@ -15,7 +15,7 @@ import { expect, type Page } from '@playwright/test';
 
 const MOBILE_BREAKPOINT_PX = 640;
 
-/** Opens the coach where it rests behind a button, and reads it either way. */
+/** Opens the coach where it rests behind the header's trigger, and reads it either way. */
 export async function openCoach(page: Page) {
   const width = page.viewportSize()?.width ?? MOBILE_BREAKPOINT_PX;
   if (width < MOBILE_BREAKPOINT_PX) {

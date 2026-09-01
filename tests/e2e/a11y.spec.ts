@@ -56,9 +56,10 @@ test('a dialog traps nothing it should not', async ({ page }) => {
 });
 
 test('the coach sheet is accessible', async ({ page }, testInfo) => {
-  // The FAB and the sheet it opens exist only below the sm breakpoint; on the
-  // desktop project the coach is already the static bar the other audits
-  // already cover, so there is no second screen state to open here.
+  // The header's coach trigger and the sheet it opens exist only below the
+  // sm breakpoint; on the desktop project the coach is already the static
+  // bar the other audits already cover, so there is no second screen state
+  // to open here.
   test.skip(
     testInfo.project.name !== 'mobile',
     'the coach sheet only exists on a narrow viewport',

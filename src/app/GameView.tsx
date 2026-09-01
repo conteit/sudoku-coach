@@ -145,11 +145,12 @@ export function GameView({
   const coach = useCoachSession({ game, locale, onCoachLog });
 
   /**
-   * Opens the sheet. The restore target has to be captured *here*, not in the
-   * effect below: the FAB that was just clicked unmounts the instant
-   * `sheetOpen` flips true (it only renders `!sheetOpen`), so by the time an
-   * effect runs post-commit, `document.activeElement` has already fallen back
-   * to `<body>` and there is nothing left to restore focus to.
+   * Opens the sheet. The restore target has to be captured *here*, synchronously
+   * in the click handler, not in an effect: the panel's own focus-move effect
+   * below also fires once `sheetOpen` commits, and effects run in declaration
+   * order — a capture written as an effect could just as easily run after it,
+   * by which point `document.activeElement` is already the panel's own Close
+   * button, not whatever had focus before the click.
    */
   const openSheet = useCallback(() => {
     coachRestoreRef.current = document.activeElement as HTMLElement | null;
@@ -294,6 +295,13 @@ export function GameView({
           className="flex-none"
           onClick={onExit}
         />
+        {/* `overflow-hidden` is load-bearing, not decorative: `DifficultyBadge`'s
+            own root is `inline-flex`, which sizes to its own content rather
+            than to this shrunk flex item, so on a narrow header (a long word —
+            worst case, Italian "Difficile" — with five siblings competing for
+            room) the badge painted past this div's edge and into the timer's
+            digits without it. This clips instead of overlapping; it does not
+            make the badge fit. */}
         <div className="min-w-0 flex-1 overflow-hidden">
           <DifficultyBadge difficulty={game.difficulty} />
         </div>

@@ -22,10 +22,11 @@ import { useGameStore } from '../state/store';
 import type { LiveGame, PlayerProfile } from '../state/types';
 import { GameView } from './GameView';
 
-// Mobile is this file's default context — the sheet, the FAB and the modal
-// behaviours only exist below `sm` (640px). The one wide-screen case sets its
-// own width; `beforeEach` puts every other test back on narrow before it
-// runs, so ordering can't leak one test's width into the next.
+// Mobile is this file's default context — the sheet, the header's coach
+// trigger and the modal behaviours only exist below `sm` (640px). The one
+// wide-screen case sets its own width; `beforeEach` puts every other test
+// back on narrow before it runs, so ordering can't leak one test's width
+// into the next.
 beforeEach(() => {
   window.innerWidth = 375;
 });
@@ -120,9 +121,10 @@ const OUT_OF_FLOW = new Set(['absolute', 'fixed', 'hidden']);
  * Both halves of the invariant. `<main>` gaining a third child is how it broke
  * the first time; a new `shrink-0` sibling of `<main>` is how it broke the
  * other two times, silently. Nothing but the header may share the root column
- * with `<main>` — the header is fixed chrome whose height never moves, and
- * everything the coach does is either absolutely positioned over the board or
- * not rendered at all.
+ * with `<main>` — the header is fixed chrome whose height never moves. The
+ * coach's own trigger lives there now, as a plain, unconditional, fixed-height
+ * header child; everything else the coach does — the sheet, the scrim — is
+ * either out of flow or not rendered at all.
  */
 function expectOnlyTheBoardAndKeypadInFlow(): void {
   const main = screen.getByRole('main');
@@ -181,19 +183,19 @@ describe('the coach sheet', () => {
 
   it('restores focus to the coach button on close', async () => {
     const { user } = renderGame();
-    const fab = screen.getByRole('button', { name: 'Coach' });
-    await user.click(fab);
+    const trigger = screen.getByRole('button', { name: 'Coach' });
+    await user.click(trigger);
     await user.keyboard('{Escape}');
     // The button has to still be the *same node* handed back focus — it is
     // kept mounted (merely `hidden`) while the sheet is open specifically so
     // this reference stays live across the round trip.
-    expect(fab).toHaveFocus();
+    expect(trigger).toHaveFocus();
   });
 
   it('closes on Escape and consumes the nudge badge on the way out', async () => {
     const { user } = renderGame({ nudge: true });
-    const fab = await screen.findByRole('button', { name: /has something for you/i });
-    await user.click(fab);
+    const trigger = await screen.findByRole('button', { name: /has something for you/i });
+    await user.click(trigger);
     await user.keyboard('{Escape}');
     // Consuming happens on close, not on open (spec: read, not re-solicited)
     // — so the proof is that the badge is gone *after* Escape, not that it

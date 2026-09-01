@@ -194,7 +194,7 @@ test.describe('one puzzle, end to end', () => {
 
     // One press to clear, one undo to get them back: the marks stay the
     // player's either way. The button lives in the coach panel now, so it is
-    // behind the same FAB as the rest of the coach on a phone.
+    // behind the same header trigger as the rest of the coach on a phone.
     const coach = await openCoach(page);
     await coach.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([]);
@@ -318,8 +318,23 @@ test.describe('the board never gives up height', () => {
     const spare = cells.find((cell) => !cell.given && cell.value === null)!;
     const wrong = ((solution!.values[spare.index]! % 9) + 1) as Digit;
     await enter(page, spare.index, wrong);
-    await expect(page.getByRole('button', { name: /has something for you/ })).toBeVisible();
+    const trigger = page.getByRole('button', { name: /has something for you/ });
+    await expect(trigger).toBeVisible();
     expect(await heightNow()).toBeCloseTo(atRest, 1);
+
+    // The dot is an `::after` pseudo-element positioned `absolute` — it only
+    // lands on the icon because the button itself is `position: relative`.
+    // Drop that class in a future refactor and the pseudo-element resolves
+    // against the next positioned ancestor up the tree instead — silently,
+    // since the `top-0 right-0` in the CSS never changes, only what it's
+    // relative to does. The button's own computed position is the one
+    // property that actually catches that regression.
+    const [triggerPosition, dotPosition] = await trigger.evaluate((el) => [
+      getComputedStyle(el).position,
+      getComputedStyle(el, '::after').position,
+    ]);
+    expect(triggerPosition, 'the trigger must be its own containing block').toBe('relative');
+    expect(dotPosition, 'the badge dot must be positioned against the trigger').toBe('absolute');
 
     // Cleared again before the next state, so each one is measured on its own
     // rather than on the accumulation of the ones before it.
@@ -348,6 +363,63 @@ test.describe('the board never gives up height', () => {
     // push the board around the most.
     await openCoach(page);
     expect(await heightNow()).toBeCloseTo(atRest, 1);
+  });
+});
+
+/*
+ * The header is the crowded surface now that the coach trigger lives there
+ * (five siblings competing for one row), and a manual measurement at a couple
+ * of widths is what rots the next time a control or a locale is added. This
+ * pins the two properties that measurement checked: the 44px touch-target
+ * floor holds on every header button, and the difficulty badge never reaches
+ * the timer, at the header's narrowest supported width and with the timer at
+ * its widest — a long game, not a fresh one, is the case that actually eats
+ * into the badge's share of the row.
+ */
+test.describe('the header at its narrowest', () => {
+  test.skip(({ isMobile }) => !isMobile, 'the crowded header only exists on a narrow phone');
+
+  test('keeps every control at the 44px floor and the badge clear of the timer', async ({
+    page,
+  }) => {
+    // Installed before navigation, per Playwright's own guidance, so
+    // `Date.now()` — what the shared second-hand in `clock.ts` reads — can be
+    // pushed forward without actually waiting an hour for the timer to widen.
+    await page.clock.install();
+    await page.setViewportSize({ width: 320, height: 700 });
+    await startEasyGame(page);
+
+    // "1:02:03" is close to the widest the timer ever gets; it's the width
+    // that actually eats into the badge's share of the row, not the width at
+    // 0:00 a fresh game starts from.
+    await page.clock.fastForward('01:02:03');
+
+    const header = page.locator('header');
+    const buttons = header.getByRole('button');
+    const count = await buttons.count();
+    expect(count, 'back, pause, the coach trigger and the overflow menu').toBe(4);
+    for (let i = 0; i < count; i++) {
+      const box = await buttons.nth(i).boundingBox();
+      expect(box, `header button ${i} must be on screen to be measured`).not.toBeNull();
+      expect(box!.width, `header button ${i} width`).toBeGreaterThanOrEqual(44);
+      expect(box!.height, `header button ${i} height`).toBeGreaterThanOrEqual(44);
+    }
+
+    // The badge's own wrapper — the one `overflow-hidden` div in the header —
+    // is what actually bounds what's painted: `DifficultyBadge`'s own root
+    // sizes to its full content regardless of the room it's given, so
+    // measuring the wrapper is what proves nothing is painted past it, not
+    // what the badge would take up if it could have all the room it wanted.
+    const badge = header.locator('> div');
+    const timer = header.getByRole('timer');
+    const badgeBox = await badge.boundingBox();
+    const timerBox = await timer.boundingBox();
+    expect(badgeBox, 'the badge must be on screen to be measured').not.toBeNull();
+    expect(timerBox, 'the timer must be on screen to be measured').not.toBeNull();
+    expect(
+      badgeBox!.x + badgeBox!.width,
+      'the badge must never reach the timer, even at its narrowest',
+    ).toBeLessThanOrEqual(timerBox!.x);
   });
 });
 
@@ -408,10 +480,10 @@ test.describe('drills', () => {
 
     // Only the cell(s) the finding itself places, not the rest of the board:
     // filling every remaining cell would solve the puzzle outright, and a
-    // solved game covers the FAB with its own "Solved" sheet before this
-    // could reopen the coach to read it. Placing just the finding's own
-    // digit is also the more exact proof — it is the move the drill is
-    // actually about, not an accident of finishing the grid.
+    // solved game covers the header's coach trigger with its own "Solved"
+    // sheet before this could reopen the coach to read it. Placing just the
+    // finding's own digit is also the more exact proof — it is the move the
+    // drill is actually about, not an accident of finishing the grid.
     for (const { cell, digit } of finding!.placements) {
       await enter(page, cell, digit);
     }
@@ -448,9 +520,10 @@ test.describe('the keyboard', () => {
     expect((await readBoard(page))[empty.index].value).toBeNull();
 
     // 'h' opens the sheet itself on a narrow viewport (it is how a keyboard
-    // player reaches a coach that a mouse would tap the FAB for) — read
-    // directly here rather than through `openCoach`, which clicks the FAB:
-    // this test's whole point is that no pointer input is needed at all.
+    // player reaches a coach that a mouse would tap the header trigger for)
+    // — read directly here rather than through `openCoach`, which clicks that
+    // trigger: this test's whole point is that no pointer input is needed at
+    // all.
     await page.keyboard.press('h');
     const coach = page.getByRole('region', { name: 'Coach' });
     await expect(coach.getByLabel('Disclosure level 1 of 4')).toBeVisible();
