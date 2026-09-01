@@ -191,6 +191,59 @@ function expectOnlyTheBoardAndKeypadInFlow(): void {
   expect(inFlow.map((child) => child.tagName)).toEqual(['HEADER', 'MAIN']);
 }
 
+/** The in-flow children of an element, by the same class-token reading. */
+function inFlowChildren(parent: Element): Element[] {
+  return Array.from(parent.children).filter(
+    (child) => !Array.from(child.classList).some((token) => OUT_OF_FLOW.has(token)),
+  );
+}
+
+/**
+ * The wide half of invariant 9, which the stacked canary above cannot reach.
+ *
+ * `expectOnlyTheBoardAndKeypadInFlow` reads `main.parentElement` and expects
+ * `[HEADER, MAIN]`. That is only ever true in the stacked branch: from `lg`
+ * up, `main`'s parent is the row it shares with one or two asides, so the
+ * function would fail there for a reason that has nothing to do with the
+ * invariant, and the tiers the branch exists for were left unguarded at the
+ * unit level altogether.
+ *
+ * What has to hold here is a different sentence with the same meaning: the
+ * board's column is one of a fixed set of siblings, and none of the others
+ * can take width from it. A fixed `w-*` alone does not say that — a flex item
+ * whose `min-width` is still `auto` is floored at its min-content width, so
+ * an unbreakable string in a sidebar widens the sidebar and narrows the
+ * board. `shrink-0` and `min-w-0` together are what make each column's width
+ * a property of the tier, and all three tokens are asserted because dropping
+ * any one of them reopens the defect.
+ */
+function expectTheColumnsCannotTakeWidthFromTheBoard(tier: 'laptop' | 'desktop'): void {
+  const main = screen.getByRole('main');
+  expect(main.children).toHaveLength(2);
+
+  const columns = [screen.getByTestId('coach-column')];
+  if (tier === 'desktop') columns.push(screen.getByTestId('lesson-column'));
+
+  const row = main.parentElement!;
+  expect(inFlowChildren(row)).toEqual([main, ...columns]);
+
+  for (const column of columns) {
+    const tokens = new Set(column.classList);
+    expect([...tokens].some((token) => /^w-\[[\d.]+rem\]$/.test(token))).toBe(true);
+    expect(tokens.has('shrink-0')).toBe(true);
+    expect(tokens.has('min-w-0')).toBe(true);
+    expect(tokens.has('flex-1')).toBe(false);
+    expect(tokens.has('grow')).toBe(false);
+  }
+
+  // And nothing but the header shares the page column with that row, which is
+  // the same claim the stacked canary makes one level down.
+  expect(inFlowChildren(row.parentElement!).map((child) => child.tagName)).toEqual([
+    'HEADER',
+    'DIV',
+  ]);
+}
+
 /** The one live region inside a subtree, which is all a swapping column may have. */
 function liveRegionIn(root: HTMLElement): HTMLElement {
   const regions = root.querySelectorAll<HTMLElement>('[aria-live]');
@@ -209,12 +262,14 @@ describe('the game screen at each tier', () => {
     renderGame({ tier: 'laptop' });
     expect(screen.getByTestId('coach-column')).toBeTruthy();
     expect(screen.queryByTestId('lesson-column')).toBeNull();
+    expectTheColumnsCannotTakeWidthFromTheBoard('laptop');
   });
 
   it('adds the lesson column on a desktop', () => {
     renderGame({ tier: 'desktop' });
     expect(screen.getByTestId('coach-column')).toBeTruthy();
     expect(screen.getByTestId('lesson-column')).toBeTruthy();
+    expectTheColumnsCannotTakeWidthFromTheBoard('desktop');
   });
 
   it('keeps the tablet stacked, but lets the board past the phone cap', () => {

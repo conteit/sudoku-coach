@@ -1,7 +1,8 @@
 /**
  * Shared by every spec that has to reach the coach.
  *
- * Below `sm` (639.98px — GameView's own `MOBILE_QUERY`) the panel rests
+ * Below `sm` (639.98px — the `PHONE` query in `src/app/useViewportTier.ts`,
+ * which is where the tier boundaries now live) the panel rests
  * behind a header button and only renders once the sheet is opened; at and
  * above it, the panel is the static bar and was never hidden in the first
  * place. The viewport width is what decides which of those is true here, not

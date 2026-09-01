@@ -110,10 +110,16 @@ only mean something on the device holding that game.
    a wider tier — may resize the board, at any viewport: it is drawn over
    the board and keypad or it is not drawn. Four tiers share the rule —
    `phone`, `tablet`, `laptop`, `desktop` — declared in
-   `src/app/useViewportTier.ts`. Guarded at both levels it could break: the
-   unit canary over the root column's in-flow children in
-   `src/app/GameView.layout.test.tsx`, and the Playwright board-box
-   assertion in `tests/e2e/play.spec.ts`, now run in all four projects.
+   `src/app/useViewportTier.ts`. Guarded at both levels it could break. In
+   `src/app/GameView.layout.test.tsx`, two unit canaries, because the
+   stacked and side-by-side branches break differently: the stacked one
+   asserts the root column's in-flow children are the header and `<main>`
+   alone, and the wide one asserts the row's in-flow children are `<main>`
+   and the columns, each column pinned by `w-* shrink-0 min-w-0` so it
+   cannot take width from the board. Above them, the Playwright board-box
+   assertion in `tests/e2e/play.spec.ts` measures the real thing in all four
+   projects, through the level-2 disclosure that swaps the lesson column's
+   contents — the one state that actually changes a column's content mid-game.
 
 ## Difficulty rating
 
