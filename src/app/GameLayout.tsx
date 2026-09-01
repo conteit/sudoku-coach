@@ -88,7 +88,22 @@ export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameL
           <aside
             data-testid="lesson-column"
             aria-label={t('game.lessonAria')}
-            className="w-[26rem] shrink-0 overflow-y-auto"
+            // `overflow-y-auto` does nothing on its own: the row is
+            // `items-start` with no height constraint on this aside, so
+            // there is no box for it to overflow *out of* — a tall lesson
+            // just grows the row, and the page scrolls instead of the
+            // column. The cap is sized off the viewport alone, not off
+            // `main` or the coach column: those two already have their own
+            // fixed-height budgets (the board's aspect ratio, the coach
+            // bar's own content), and reading either one back into this
+            // element's height would make the lesson column's box a
+            // function of siblings that have nothing to do with it. `6rem`
+            // is the header's own budget (its icon buttons plus `pt-3
+            // pb-2`) plus this row's `pb-6` — generous rather than exact,
+            // since a pixel-perfect match buys nothing a scrollbar doesn't
+            // already cover, and a comment can't stay honest against a
+            // header that is free to change height later.
+            className="max-h-[calc(100dvh-6rem)] w-[26rem] shrink-0 overflow-y-auto"
           >
             {lesson}
           </aside>

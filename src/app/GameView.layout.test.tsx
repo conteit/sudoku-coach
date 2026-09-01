@@ -210,6 +210,28 @@ describe('the game screen at each tier', () => {
   });
 });
 
+describe('the lesson column', () => {
+  it('shows the technique index until the coach has named a technique', () => {
+    renderGame({ tier: 'desktop' });
+    const lesson = screen.getByTestId('lesson-column');
+    expect(within(lesson).getByRole('heading', { name: /techniques/i })).toBeTruthy();
+  });
+
+  // The one that matters: a sidebar that prints the lesson at level 1 hands
+  // over the rung the ladder is deliberately withholding. "Where should I
+  // look?" (coach.rung1.ask) only ever produces a level-1 hint — the coach's
+  // own `resumeLevel` picker starts every fresh exchange there — so if the
+  // lesson region's gate were `level >= 1` instead of `level >= 2`, this is
+  // the click that would catch it: the index would vanish and the lesson
+  // would take its place, one rung early.
+  it('does not name the technique in the sidebar at disclosure level 1', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(screen.getByRole('button', { name: /where should i look/i }));
+    const lesson = screen.getByTestId('lesson-column');
+    expect(within(lesson).getByRole('heading', { name: /techniques/i })).toBeTruthy();
+  });
+});
+
 describe('the game screen', () => {
   it('keeps exactly the board and the keypad in flow', () => {
     renderGame();
