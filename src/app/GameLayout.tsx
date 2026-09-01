@@ -8,7 +8,7 @@ export interface GameLayoutProps {
   board: ReactNode;
   keypad: ReactNode;
   coach: ReactNode;
-  lesson?: ReactNode;
+  lesson: ReactNode;
   /**
    * What `lesson` is currently showing, in one phrase — a technique's name, or
    * the index's own title. This is the *only* thing the column announces when
@@ -78,12 +78,18 @@ export function GameLayout({
           {board}
           {keypad}
         </main>
-        {/* Fixed width, not `flex-1` or `min-w-*`: invariant 9 says nothing
-            that comes and goes during play may resize the board, and a
-            sidebar that grows when a hint arrives — or when the technique
-            index becomes a lesson — resizes the board just as surely as a
-            bar that appears above it on a phone. Each aside's width is a
-            property of the tier alone.
+        {/* `w-[..] shrink-0 min-w-0`, all three: invariant 9 says nothing that
+            comes and goes during play may resize the board, and a sidebar
+            that grows when a hint arrives — or when the technique index
+            becomes a lesson — resizes the board just as surely as a bar that
+            appears above it on a phone. `w-*` alone would still stretch under
+            `flex-1`; `shrink-0` alone still leaves `min-width: auto` in
+            place, which floors a flex item at its min-content width — one
+            unbreakable string (a long technique name, a cell reference, a
+            future locale's compound word) would then push the column wider
+            than its declared width and steal the difference from `main`.
+            `min-w-0` is what makes the width a property of the tier alone
+            rather than of what the coach happens to be saying.
 
             A plain `div`, not an `aside`: `CoachPanel` already renders its
             own named `region` landmark ("Coach") inside `coach` — wrapping
@@ -91,10 +97,10 @@ export function GameLayout({
             screen-reader user two "Coach" entries in the landmark list, the
             outer one with no name to tell it apart from the lesson column
             beside it. */}
-        <div data-testid="coach-column" className="w-[22rem] shrink-0">
+        <div data-testid="coach-column" className="w-[22rem] min-w-0 shrink-0">
           {coach}
         </div>
-        {tier === 'desktop' && lesson ? (
+        {tier === 'desktop' ? (
           // Unlike the coach column, nothing inside `lesson` names its own
           // landmark — `TechniqueIndex` and `LessonBody` are both bare
           // `<section>`s with no accessible name of their own — so this one
@@ -134,7 +140,7 @@ export function GameLayout({
             // since a pixel-perfect match buys nothing a scrollbar doesn't
             // already cover, and a comment can't stay honest against a
             // header that is free to change height later.
-            className="max-h-[calc(100dvh-6rem)] w-[26rem] shrink-0 overflow-y-auto"
+            className="max-h-[calc(100dvh-6rem)] w-[26rem] min-w-0 shrink-0 overflow-y-auto"
           >
             {/* Announce the *change*, not the content. The column must not
                 swap silently — a player who has just paid for rung 2 should
