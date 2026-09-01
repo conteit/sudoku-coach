@@ -1,8 +1,16 @@
 /**
- * The layout invariant this task exists to enforce: `<main>` holds the board
- * and the keypad and nothing else, in every state a game can be in. Anything
- * that used to be a third flow sibling — the stale-note row, the nudge — is a
- * regression the moment `main.children` stops being exactly two.
+ * The layout invariant this task exists to enforce: the board and the keypad
+ * are the only things that take height while a game is being played, in every
+ * state a game can be in.
+ *
+ * Counting `main.children` alone is not that check, and would not have caught
+ * the defect it was written for. Of the three surfaces the spec names as the
+ * cause, only the stale-note row was ever a child of `<main>`; the resting
+ * coach bar and the nudge `<aside>` were `shrink-0` children of the *root*
+ * flex column, siblings of a `flex-1` `<main>`, and stole board height without
+ * ever touching `main.children`. So both levels are asserted here — and the
+ * pixel-height property they exist to protect is measured for real in
+ * `tests/e2e/play.spec.ts`, which has a browser that can do layout.
  */
 
 import { render, screen, within } from '@testing-library/react';
@@ -99,16 +107,44 @@ function renderGame(
   return { user: userEvent.setup() };
 }
 
+/**
+ * Class tokens that take an element out of flow, or out of the render
+ * entirely. jsdom carries no stylesheet, so the Tailwind class list is where
+ * position and visibility have to be read from — the same strings the browser
+ * reads. Exact tokens, not substrings: `sm:hidden` is a wide-screen rule and
+ * says nothing about the phone layout this file is about.
+ */
+const OUT_OF_FLOW = new Set(['absolute', 'fixed', 'hidden']);
+
+/**
+ * Both halves of the invariant. `<main>` gaining a third child is how it broke
+ * the first time; a new `shrink-0` sibling of `<main>` is how it broke the
+ * other two times, silently. Nothing but the header may share the root column
+ * with `<main>` — the header is fixed chrome whose height never moves, and
+ * everything the coach does is either absolutely positioned over the board or
+ * not rendered at all.
+ */
+function expectOnlyTheBoardAndKeypadInFlow(): void {
+  const main = screen.getByRole('main');
+  expect(main.children).toHaveLength(2);
+
+  const root = main.parentElement;
+  expect(root).not.toBeNull();
+  const inFlow = Array.from(root!.children).filter(
+    (child) => !Array.from(child.classList).some((token) => OUT_OF_FLOW.has(token)),
+  );
+  expect(inFlow.map((child) => child.tagName)).toEqual(['HEADER', 'MAIN']);
+}
+
 describe('the game screen', () => {
   it('keeps exactly the board and the keypad in flow', () => {
     renderGame();
-    const main = screen.getByRole('main');
-    expect(main.children).toHaveLength(2);
+    expectOnlyTheBoardAndKeypadInFlow();
   });
 
   it('keeps them in flow when there are dead notes to clear', () => {
     renderGame({ deadNotes: true });
-    expect(screen.getByRole('main').children).toHaveLength(2);
+    expectOnlyTheBoardAndKeypadInFlow();
   });
 
   it('keeps them in flow when the coach has something to say', async () => {
@@ -120,13 +156,13 @@ describe('the game screen', () => {
     // nudge state rather than merely re-running the plain case under a
     // different name.
     await screen.findByRole('button', { name: /has something for you/i });
-    expect(screen.getByRole('main').children).toHaveLength(2);
+    expectOnlyTheBoardAndKeypadInFlow();
   });
 
   it('keeps them in flow with the coach sheet open', async () => {
     const { user } = renderGame();
     await user.click(screen.getByRole('button', { name: /coach/i }));
-    expect(screen.getByRole('main').children).toHaveLength(2);
+    expectOnlyTheBoardAndKeypadInFlow();
   });
 });
 

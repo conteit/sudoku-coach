@@ -264,6 +264,91 @@ test.describe('one puzzle, end to end', () => {
   });
 });
 
+/*
+ * The layout invariant, measured rather than inferred from the shape of the
+ * tree. The spec states it as a pixel property — "board pixel height is
+ * constant from first move to last" — and the unit canary beside `GameView`
+ * cannot check it, because jsdom does no layout. This is where the property
+ * itself is asserted, against the real build, in a browser.
+ *
+ * Phone only, deliberately: above `sm` the coach is a static bar that
+ * legitimately grows when it has something to say, and the page scrolls. The
+ * one-screen, nothing-moves promise belongs to the phone layout.
+ */
+test.describe('the board never gives up height', () => {
+  test.skip(({ isMobile }) => !isMobile, 'the one-screen layout is the phone layout');
+
+  // Short on purpose. The grid is `aspect-square w-full`, so on a tall phone
+  // its height is derived from the screen's *width* and a sibling that steals
+  // vertical space comes out of the slack instead — the board would hold its
+  // size here for a reason that has nothing to do with the invariant, and the
+  // test would pass on exactly the code it exists to reject. At this height
+  // the board is the piece that gives, which is the whole design.
+  const SHORT_PHONE = { width: 412, height: 560 };
+
+  test('stays the same size in every state a game can be in', async ({ page }) => {
+    await page.setViewportSize(SHORT_PHONE);
+    await startEasyGame(page);
+    const grid = page.getByRole('grid');
+    const heightNow = async (): Promise<number> => {
+      const box = await grid.boundingBox();
+      expect(box, 'the grid has to be on screen to be measured').not.toBeNull();
+      return box!.height;
+    };
+
+    const atRest = await heightNow();
+    expect(atRest).toBeGreaterThan(0);
+    // The test's own precondition, asserted rather than assumed: the board has
+    // to be height-bound for any of the measurements below to mean anything.
+    expect(
+      atRest,
+      'the board must be sized by the height it was left, not by the screen width',
+    ).toBeLessThan(SHORT_PHONE.width - 24);
+
+    // The coach badge lit. A digit the solution contradicts is a nudge the
+    // trigger machinery raises without a detector pass, and the badge is a
+    // pseudo-element on a button floating over the board's own corner — which
+    // is precisely the claim being tested.
+    const cells = await readBoard(page);
+    const values = cells.map((cell) => (cell.value === null ? null : (cell.value as Digit)));
+    const solution = solveBruteForce(Board.fromValues(values));
+    expect(solution, 'the generated puzzle must be solvable').not.toBeNull();
+    const spare = cells.find((cell) => !cell.given && cell.value === null)!;
+    const wrong = ((solution!.values[spare.index]! % 9) + 1) as Digit;
+    await enter(page, spare.index, wrong);
+    await expect(page.getByRole('button', { name: /has something for you/ })).toBeVisible();
+    expect(await heightNow()).toBeCloseTo(atRest, 1);
+
+    // Cleared again before the next state, so each one is measured on its own
+    // rather than on the accumulation of the ones before it.
+    await page.locator(`[data-cell="${spare.index}"]`).click();
+    await page.keyboard.press('Backspace');
+    expect(await heightNow()).toBeCloseTo(atRest, 1);
+
+    // Dead notes on the board: a note, then the peer placement that kills it.
+    // The strike-through is drawn inside a cell whose size the grid fixes, and
+    // the eraser it offers lives in the coach panel rather than in a row of
+    // its own — which is the regression this whole invariant exists for.
+    const start = await readBoard(page);
+    const noted = start.find((cell) => !cell.given && cell.value === null)!;
+    const peer = start.find(
+      (cell) => !cell.given && cell.value === null && sees(noted.index, cell.index),
+    )!;
+    const digit = pickAbsentDigit(start, noted.index);
+    await page.getByRole('button', { name: 'Notes off' }).click();
+    await enter(page, noted.index, digit);
+    await page.getByRole('button', { name: 'Notes on' }).click();
+    await enter(page, peer.index, digit);
+    await expect(page.locator(`[data-cell="${noted.index}"] [data-stale]`)).toHaveCount(1);
+    expect(await heightNow()).toBeCloseTo(atRest, 1);
+
+    // And with the sheet open over the keypad, which is the state that used to
+    // push the board around the most.
+    await openCoach(page);
+    expect(await heightNow()).toBeCloseTo(atRest, 1);
+  });
+});
+
 test.describe('drills', () => {
   test('sets a challenge, and confirms it only when the board shows it', async ({ page }) => {
     await startEasyGame(page);
