@@ -34,6 +34,11 @@ export function useViewportTier(): Tier {
   useEffect(() => {
     const queries = [PHONE, LAPTOP, DESKTOP].map((q) => window.matchMedia(q));
     const sync = () => setTier(read());
+    // Closes the gap between the lazy `useState(read)` initializer (evaluated
+    // at render, before these listeners exist) and the subscription below
+    // (wired up after commit): a viewport change in between would otherwise
+    // be missed entirely rather than merely delayed.
+    sync();
     for (const mql of queries) mql.addEventListener('change', sync);
     return () => {
       for (const mql of queries) mql.removeEventListener('change', sync);
