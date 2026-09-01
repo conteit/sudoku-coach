@@ -8,7 +8,18 @@
  * every screen. This walks that path in the real build.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * The coach rests as a button on a phone; the panel is behind it. Its
+ * accessible name stays "Coach" in every locale (see `coach.open` in both
+ * dictionaries), so the same selector reads it regardless of language.
+ */
+async function openCoach(page: Page) {
+  const fab = page.getByRole('button', { name: /^Coach/ });
+  if (await fab.isVisible()) await fab.click();
+  return page.getByRole('region', { name: 'Coach' });
+}
 
 test('switches language, and keeps it across a restart', async ({ page }) => {
   await page.goto('/');
@@ -30,7 +41,7 @@ test('switches language, and keeps it across a restart', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Questa griglia' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Annulla mossa' })).toBeVisible();
 
-  const coach = page.getByRole('region', { name: 'Coach' });
+  const coach = await openCoach(page);
   await coach.getByRole('button', { name: 'Dove devo guardare?' }).click();
   await expect(coach.getByLabel('Livello di rivelazione 1 su 4')).toBeVisible();
 

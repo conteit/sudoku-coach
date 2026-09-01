@@ -5,7 +5,14 @@
  * a hint that has just named a technique.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+/** The coach rests as a button on a phone; the panel is behind it. */
+async function openCoach(page: Page) {
+  const fab = page.getByRole('button', { name: /^Coach/ });
+  if (await fab.isVisible()) await fab.click();
+  return page.getByRole('region', { name: 'Coach' });
+}
 
 test('reads the rules, the ladder and a technique lesson', async ({ page }) => {
   await page.goto('/');
@@ -34,7 +41,7 @@ test('a named technique links from the coach panel to its lesson', async ({ page
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
 
-  const coach = page.getByRole('region', { name: 'Coach' });
+  const coach = await openCoach(page);
   await coach.getByRole('button', { name: 'Where should I look?' }).click();
 
   // Level 1 names nothing, so there is nothing to link to yet (R7).

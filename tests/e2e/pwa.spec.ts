@@ -11,7 +11,14 @@
  * practices and SEO, where it still has categories to score.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+/** The coach rests as a button on a phone; the panel is behind it. */
+async function openCoach(page: Page) {
+  const fab = page.getByRole('button', { name: /^Coach/ });
+  if (await fab.isVisible()) await fab.click();
+  return page.getByRole('region', { name: 'Coach' });
+}
 
 interface Manifest {
   name?: string;
@@ -85,7 +92,7 @@ test('plays with the network off', async ({ page, context }) => {
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
 
-  const coach = page.getByRole('region', { name: 'Coach' });
+  const coach = await openCoach(page);
   await coach.getByRole('button', { name: 'Where should I look?' }).click();
   await expect(coach.getByLabel('Disclosure level 1 of 4')).toBeVisible();
 
