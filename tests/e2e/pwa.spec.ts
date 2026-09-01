@@ -11,14 +11,8 @@
  * practices and SEO, where it still has categories to score.
  */
 
-import { expect, test, type Page } from '@playwright/test';
-
-/** The coach rests as a button on a phone; the panel is behind it. */
-async function openCoach(page: Page) {
-  const fab = page.getByRole('button', { name: /^Coach/ });
-  if (await fab.isVisible()) await fab.click();
-  return page.getByRole('region', { name: 'Coach' });
-}
+import { expect, test } from '@playwright/test';
+import { openCoach } from './coach';
 
 interface Manifest {
   name?: string;

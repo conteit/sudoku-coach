@@ -10,21 +10,11 @@
 
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { openCoach } from './coach';
 
 /** WCAG 2 A and AA, which is the bar this app has been drawn to. */
 const audit = (page: Page) =>
   new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
-
-/**
- * The coach rests as a button on a phone; the panel is behind it. On a wide
- * viewport the panel is already the static bar and the FAB never renders, so
- * the click is skipped rather than attempted against a hidden element.
- */
-async function openCoach(page: Page) {
-  const fab = page.getByRole('button', { name: /^Coach/ });
-  if (await fab.isVisible()) await fab.click();
-  return page.getByRole('region', { name: 'Coach' });
-}
 
 test('the library screen is clean', async ({ page }) => {
   await page.goto('/');
@@ -81,8 +71,8 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
 
   // Opening the sheet is a new screen state for axe: the scrim behind it and
   // the sheet's own modal role change the focus order from the resting page.
-  const coach = await openCoach(page);
-  await expect(coach).toBeVisible();
+  // `openCoach` already asserts the region is visible before returning.
+  await openCoach(page);
 
   expect((await audit(page).analyze()).violations).toEqual([]);
 });
