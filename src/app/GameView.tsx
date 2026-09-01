@@ -294,7 +294,7 @@ export function GameView({
           className="flex-none"
           onClick={onExit}
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <DifficultyBadge difficulty={game.difficulty} />
         </div>
         <Timer elapsedMs={game.elapsedMs} runningSince={game.runningSince} size="md" />
@@ -304,6 +304,54 @@ export function GameView({
           className="flex-none"
           disabled={solved}
           onClick={() => dispatch({ type: paused ? 'resume' : 'pause' })}
+        />
+        {/*
+          * Lives in the header, not floating over the board's own corner (it
+          * clipped r9c9, eating taps meant for the grid) or anchored above the
+          * keypad on a guessed offset (it overlapped the keypad's top-right
+          * key once the keypad grew taller than the guess). The header is
+          * fixed chrome a phone player already reads for controls: it covers
+          * no board cell and no keypad key, and needs no offset math to avoid
+          * either.
+          *
+          * Placed beside Pause rather than beside the menu: both are actions
+          * taken *during* a move, unlike the menu's rare, out-of-play ones, so
+          * the overflow button stays the rightmost, catch-all item it already
+          * was.
+          *
+          * Unconditional, like every other header child — a coach control
+          * that only appeared once there was something to say would change
+          * the header's own height, and the board would move with it, which
+          * is the defect this branch exists to fix. `hidden` while the sheet
+          * is open only toggles visibility, not presence: `openSheet` above
+          * captures this exact node as the focus-restore target, and a node
+          * that has left the document can't be focused back onto once the
+          * sheet closes.
+          *
+          * `relative` is new here — the badge below is an `after:`
+          * pseudo-element positioned `absolute`, which only ever worked
+          * because the floating button was itself `position: absolute`. A
+          * header child isn't, so it needs its own containing block.
+          */}
+        <IconButton
+          label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
+          icon={<CoachIcon />}
+          className={cx(
+            'relative flex-none sm:hidden',
+            // `!` (important), not the plain utility: `.hidden{display:none}`
+            // sits *before* `.inline-flex{display:inline-flex}` in Tailwind's
+            // generated stylesheet, so on equal specificity the later rule —
+            // IconButton's own base class — always won regardless of the
+            // order these classes appear in `className`. Unnoticed on the old
+            // floating button because the sheet's own backdrop happened to
+            // cover the same corner; in the header, still-visible-and-live
+            // means a second, unhidden "Coach" control sitting right next to
+            // the open dialog.
+            sheetOpen && '!hidden',
+            coach.nudge !== null &&
+              'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
+          )}
+          onClick={openSheet}
         />
         <IconButton
           label={t('game.menu')}
@@ -343,33 +391,6 @@ export function GameView({
                 </Button>
               </div>
             ) : null}
-            {/*
-              * Resting, the coach is one button floating over the board's own
-              * corner — a child of this square box rather than positioned off
-              * some multiple of the keypad's height, so it can never land on
-              * top of the keypad no matter how tall the keypad's content gets.
-              * Speaking, it is a sheet over the keypad instead. Neither state
-              * is a flow child, which is what keeps the board the same size
-              * from the first move to the last.
-              *
-              * Kept mounted and merely `hidden` while the sheet is open,
-              * rather than unmounted — `openSheet` captures this exact node
-              * as the focus-restore target, and a node that has been removed
-              * from the document can't be focused back onto once the sheet
-              * closes.
-              */}
-            <IconButton
-              size="lg"
-              label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
-              icon={<CoachIcon />}
-              className={cx(
-                'absolute right-3 bottom-3 z-20 shadow-lift sm:hidden',
-                sheetOpen && 'hidden',
-                coach.nudge !== null &&
-                  'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
-              )}
-              onClick={openSheet}
-            />
           </div>
         </div>
 

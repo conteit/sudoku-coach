@@ -306,9 +306,11 @@ test.describe('the board never gives up height', () => {
     ).toBeLessThan(SHORT_PHONE.width - 24);
 
     // The coach badge lit. A digit the solution contradicts is a nudge the
-    // trigger machinery raises without a detector pass, and the badge is a
-    // pseudo-element on a button floating over the board's own corner — which
-    // is precisely the claim being tested.
+    // trigger machinery raises without a detector pass, and the badge is an
+    // `after:` pseudo-element on a real flow child of the header now, not
+    // something floating over the board where it could never have moved
+    // anything — this is the case that actually proves lighting it does not
+    // grow the header and push the board down.
     const cells = await readBoard(page);
     const values = cells.map((cell) => (cell.value === null ? null : (cell.value as Digit)));
     const solution = solveBruteForce(Board.fromValues(values));
