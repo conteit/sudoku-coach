@@ -45,7 +45,9 @@ describe('dictionaries', () => {
     // Proper nouns match, and so does a string made only of placeholders —
     // `cell.value` is "{cell}, {digit}" in any language. Everything else must
     // actually have been written.
-    expect(new Set(identical)).toEqual(new Set(['app.name', 'coach.title', 'cell.value']));
+    expect(new Set(identical)).toEqual(
+      new Set(['app.name', 'coach.title', 'coach.open', 'cell.value']),
+    );
   });
 });
 

@@ -13,7 +13,9 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   icon: ReactNode;
   /** Pressed state for toggles; omit for plain actions. */
   pressed?: boolean;
-  size?: 'sm' | 'md';
+  /** `lg` is the floating coach button — standalone, not a row member, so it
+   * does not take `md`'s `flex-1`. */
+  size?: 'sm' | 'md' | 'lg';
   /** Optional caption under the glyph, for the keypad's tool row. */
   caption?: string;
 }
@@ -38,7 +40,11 @@ export function IconButton({
         'inline-flex flex-col items-center justify-center rounded-cell border',
         'transition-[background-color,border-color,color,transform] duration-100 ease-snap',
         'active:translate-y-px disabled:pointer-events-none disabled:opacity-40',
-        size === 'sm' ? 'size-9 text-[1.05rem]' : 'min-h-11 min-w-11 flex-1 py-1.5 text-[1.3rem]',
+        size === 'sm'
+          ? 'size-9 text-[1.05rem]'
+          : size === 'lg'
+            ? 'size-14 text-2xl'
+            : 'min-h-11 min-w-11 flex-1 py-1.5 text-[1.3rem]',
         pressed
           ? 'border-ink bg-ink text-paper'
           : 'border-rule bg-paper-raised text-ink-soft hover:border-rule-strong hover:text-ink',

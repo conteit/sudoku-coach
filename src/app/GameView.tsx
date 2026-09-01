@@ -35,11 +35,13 @@ import { IconButton } from '../ui/primitives/IconButton';
 import { Sheet } from '../ui/primitives/Sheet';
 import {
   ChevronLeftIcon,
-  EraserIcon,
   MoreIcon,
   PauseIcon,
   PlayIcon,
   SettingsIcon,
+  // The coach's own glyph reuses the drill's target rather than drawing a
+  // second icon that would mean the same thing: something to aim at.
+  TargetIcon as CoachIcon,
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
@@ -88,6 +90,10 @@ export function GameView({
   const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
+  // The coach's own open/closed state, not derived from `speaking`: opening
+  // the sheet is how the player asks to be spoken to, and closing it is a
+  // deliberate dismissal — neither should flip because a hint arrived.
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
 
@@ -139,20 +145,17 @@ export function GameView({
   // The coach's spotlight is the hint's, unless the player is pointing at a
   // note the review flagged — that is a more specific thing to be looking at.
   const spotlight = reviewSpotlight.length > 0 ? reviewSpotlight : (coach.hint?.spotlight ?? []);
-  const nudgeCells =
-    coach.nudge === null
-      ? []
-      : coach.nudge.kind === 'contradiction'
-        ? [coach.nudge.cell]
-        : coach.nudge.kind === 'stale_marks'
-          ? coach.nudge.cells
-          : [];
 
   useBoardShortcuts({
     onToggleNotes: () => setPencilMode((on) => !on),
     onUndo: () => dispatch({ type: 'undo' }),
     onRedo: () => dispatch({ type: 'redo' }),
-    onHint: coach.ask,
+    // Asking by keyboard has to open the sheet itself, or "h" fires a hint
+    // into a panel the player cannot see.
+    onHint: () => {
+      setSheetOpen(true);
+      coach.ask();
+    },
     // A dialog is a question; answering it with "u" should not rewind the board
     // behind it. A paused or finished board takes no moves either.
     enabled: confirming === null && !paused && !solved,
@@ -225,24 +228,6 @@ export function GameView({
           </div>
         </div>
 
-        {/* Only when there is something to clear, and nothing else lives on
-            this line: starting over and deleting are rare, and a row of
-            permanent buttons is a row of board on a phone. */}
-        {staleCount > 0 ? (
-          <div className="flex shrink-0 justify-center">
-            <Button
-              variant="secondary"
-              icon={<EraserIcon />}
-              disabled={solved || paused}
-              onClick={() => dispatch({ type: 'clearStaleCandidates' })}
-            >
-              {staleCount === 1
-                ? t('action.clearStaleOne')
-                : t('action.clearStaleCount', { count: staleCount })}
-            </Button>
-          </div>
-        ) : null}
-
         <Keypad
           className="min-h-[11.5rem] shrink-0"
           values={values}
@@ -271,56 +256,71 @@ export function GameView({
         />
       </main>
 
-      {coach.nudge !== null ? (
-        <aside className="mx-4 mb-3 flex items-center gap-3 rounded-cell border border-coach/35 bg-coach-wash px-4 py-3">
-          <p className="min-w-0 flex-1 text-sm text-coach">
-            {coach.nudge.kind === 'contradiction'
-              ? t('coach.nudge.contradiction')
-              : coach.nudge.kind === 'stale_marks'
-                ? t('coach.nudge.staleMarks')
-                : t('coach.nudge.stuck')}
-          </p>
-          {nudgeCells.length > 0 ? (
-            <Button variant="coach" onClick={() => setReviewSpotlight(nudgeCells)}>
-              {t('coach.nudge.show')}
-            </Button>
-          ) : null}
-          <Button variant="ghost" onClick={coach.dismissNudge}>
-            {t('action.dismiss')}
-          </Button>
-        </aside>
+      {/*
+        * Resting, the coach is one button floating over the board's corner. It
+        * used to be a bar in the flow, and a bar is height the square board
+        * gave up for a control the player was not using yet. Speaking, it is a
+        * sheet over the keypad. Neither state is a flow child, which is what
+        * keeps the board the same size from the first move to the last.
+        */}
+      {!sheetOpen ? (
+        <IconButton
+          size="lg"
+          label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
+          icon={<CoachIcon />}
+          // The keypad's floor (min-h-[11.5rem] below) plus <main>'s own
+          // pb-2 (0.5rem) puts its top edge 12rem off the screen bottom;
+          // 13rem leaves a 1rem gap above it. The two numbers are coupled —
+          // raise the keypad's floor and this one has to follow.
+          className={cx(
+            'absolute right-4 bottom-[13rem] z-20 shadow-lift sm:hidden',
+            coach.nudge !== null &&
+              'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
+          )}
+          onClick={() => setSheetOpen(true)}
+        />
       ) : null}
 
-      {/*
-        * Resting, the panel is a bar: a title and the two things you can ask
-        * for. Once it has something to say it overlays the keypad rather than
-        * pushing it off the screen, and scrolls inside itself if the argument
-        * is long. On a wide screen it is simply the panel it always was.
-        */}
+      {sheetOpen ? (
+        <div
+          className="absolute inset-0 z-10 bg-ink/20 sm:hidden"
+          onClick={() => {
+            setSheetOpen(false);
+            coach.dismiss();
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+
       <div
         className={cx(
-          'shrink-0 bg-paper-raised',
-          speaking &&
-            'absolute inset-x-0 bottom-0 z-20 max-h-[72dvh] overflow-y-auto shadow-lift sm:static sm:max-h-none sm:overflow-visible sm:shadow-none',
+          'bg-paper-raised sm:static sm:block sm:max-h-none sm:overflow-visible sm:shadow-none',
+          sheetOpen
+            ? 'absolute inset-x-0 bottom-0 z-20 max-h-[72dvh] overflow-y-auto shadow-lift'
+            : 'hidden',
         )}
       >
-      <CoachPanel
-        hint={coach.hint}
-        techniqueLabel={
-          coach.hint === null ? undefined : getLesson(locale, coach.hint.technique).name
-        }
-        onAsk={coach.ask}
-        onEscalate={coach.escalate}
-        review={coach.review}
-        onReviewCandidates={coach.checkMarks}
-        onSpotlight={setReviewSpotlight}
-        exhausted={coach.exhausted}
-        drill={coach.drill}
-        onDrill={coach.startDrill}
-        onDismissDrill={coach.dismissDrill}
-        onLearn={onLearn}
-        onCollapse={speaking ? coach.dismiss : undefined}
-      />
+        <CoachPanel
+          hint={coach.hint}
+          techniqueLabel={
+            coach.hint === null ? undefined : getLesson(locale, coach.hint.technique).name
+          }
+          onAsk={coach.ask}
+          onEscalate={coach.escalate}
+          review={coach.review}
+          onReviewCandidates={coach.checkMarks}
+          onSpotlight={setReviewSpotlight}
+          exhausted={coach.exhausted}
+          drill={coach.drill}
+          onDrill={coach.startDrill}
+          onDismissDrill={coach.dismissDrill}
+          onLearn={onLearn}
+          onCollapse={speaking ? coach.dismiss : undefined}
+          nudge={coach.nudge}
+          onDismissNudge={coach.dismissNudge}
+          staleCount={staleCount}
+          onClearStale={() => dispatch({ type: 'clearStaleCandidates' })}
+        />
       </div>
 
       {/* Everything about this puzzle that is not a move. Rare actions do not
