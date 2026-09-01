@@ -29,6 +29,7 @@
 import { Board, CELL_COUNT, parseGrid } from '../engine/board';
 import type { Cell, CellIndex, Difficulty, Digit } from '../engine/types';
 import type { CoachExchange, Game, LiveGame, Move, MoveBatch, MoveKind } from './types';
+import { deadNotes } from './deadNotes';
 
 /**
  * Ceiling on a game's move log. A pencil-mark toggle is a move, so an unbounded
@@ -452,7 +453,7 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
     }
 
     case 'clearStaleCandidates': {
-      const board = Board.fromValues(valuesOf(game));
+      const dead = deadNotes(game.cells, game.undoStack);
       const stamp = nextAt(game, action.at);
       const moves: Move[] = [];
       for (let i = 0; i < CELL_COUNT; i++) {
@@ -461,7 +462,7 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
         // One move per dead digit, all sharing the stamp: redo replays each
         // removal exactly, and undo restores the cell from the snapshot they
         // all took before the batch began.
-        for (const digit of board.staleAt(i, cell.candidates)) {
+        for (const digit of dead[i]) {
           moves.push({ kind: 'removeCandidate', cell: i, digit, prev: snapshot(cell), at: stamp });
         }
       }

@@ -465,6 +465,34 @@ describe('clearing dead marks', () => {
 
     expect(marks(game, OPEN)).toEqual([1]);
   });
+
+  it('leaves notes a given contradicts, because no move of the player killed them', () => {
+    // r1c1 (GIVEN) is a given 5 and shares row 1 with r1c3 (OPEN). Noting a 5
+    // there is the player's own error to find; the eraser is bookkeeping about
+    // the player's placements, not a correction of their notes.
+    const game = run(
+      start(),
+      { type: 'toggleCandidate', cell: OPEN, digit: 5, at: 2000 },
+      { type: 'clearStaleCandidates', at: 2001 },
+    );
+
+    expect(marks(game, OPEN)).toEqual([5]);
+  });
+
+  it('clears a note only once a placement after it was written kills it', () => {
+    const cleared = run(
+      start(),
+      { type: 'toggleCandidate', cell: OPEN, digit: 4, at: 2000 },
+      // r1c4 shares row 1 with r1c3, so a 4 there kills the 4 noted in OPEN.
+      { type: 'setValue', cell: 3, digit: 4, at: 2001 },
+      { type: 'clearStaleCandidates', at: 2002 },
+    );
+
+    expect(marks(cleared, OPEN)).toEqual([]);
+
+    const undone = reduce(cleared, { type: 'undo', at: 2003 });
+    expect(marks(undone, OPEN)).toEqual([4]);
+  });
 });
 
 describe('the coach log', () => {
