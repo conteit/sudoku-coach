@@ -7,12 +7,20 @@
 
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
 import { newGame, reduce } from '../state/game';
 import { useGameStore } from '../state/store';
 import type { LiveGame, PlayerProfile } from '../state/types';
 import { GameView } from './GameView';
+
+// Mobile is this file's default context — the sheet, the FAB and the modal
+// behaviours only exist below `sm` (640px). The one wide-screen case sets its
+// own width; `beforeEach` puts every other test back on narrow before it
+// runs, so ordering can't leak one test's width into the next.
+beforeEach(() => {
+  window.innerWidth = 375;
+});
 
 const SOLVED =
   '534678912672195348198342567859761423426853791713924856961537284287419635345286179';
@@ -167,5 +175,30 @@ describe('the coach sheet', () => {
     // `renderGame` starts paused by default — see `makeGame`.
     renderGame({ deadNotes: true });
     expect(screen.queryByRole('button', { name: /clear \d+ dead notes?/i })).not.toBeInTheDocument();
+  });
+
+  it('is announced as a dialog only while it is actually the modal overlay', async () => {
+    const { user } = renderGame();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Coach' }));
+    expect(screen.getByRole('dialog', { name: 'Coach' })).toBeInTheDocument();
+  });
+});
+
+describe('the coach panel on a wide screen', () => {
+  it('does not modalize or trap focus when "h" is pressed', async () => {
+    window.innerWidth = 1024;
+    // The default game starts paused, and a paused board takes no shortcuts
+    // (`useBoardShortcuts`'s own `enabled` guard) — this case is about
+    // whether "h" traps focus, which needs the shortcut to actually fire.
+    const { user } = renderGame({ running: true });
+    await user.keyboard('h');
+    // The desktop bar is static and was always visible — asking for a hint
+    // through it must stay exactly what it was before this task: no dialog
+    // appears, and focus is left wherever it already was rather than being
+    // pulled into the panel.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const panel = screen.getByRole('region', { name: 'Coach' });
+    expect(panel.contains(document.activeElement)).toBe(false);
   });
 });
