@@ -212,28 +212,33 @@ test.describe('one puzzle, end to end', () => {
     await startEasyGame(page);
     const cells = await readBoard(page);
 
-    // Any digit a given already carries is guaranteed to light something up;
-    // the puzzle's own givens are what makes the choice safe rather than
+    // Any given is guaranteed to light something up when selected; the
+    // puzzle's own givens are what makes the choice safe rather than
     // hardcoding a digit that might not appear on this board at all.
-    const digit = cells.find((cell) => cell.given)!.value as Digit;
-    // An empty cell can never itself hold `digit` — so moving the caret there
-    // can only prove the highlight held, rather than landing on a cell that
-    // was always going to read as matched regardless of whether arming it is
-    // sticky at all (a fixed coordinate risks exactly that on the ~4-5% of
-    // boards where it happens to already carry the same digit).
+    const given = cells.find((cell) => cell.given)!;
+    // An empty cell can never itself hold the given's digit — so moving the
+    // caret there can only prove the highlight held, rather than landing on
+    // a cell that was always going to read as matched regardless of whether
+    // arming it is sticky at all (a fixed coordinate risks exactly that on
+    // the ~4-5% of boards where it happens to already carry the same digit).
     const empty = cells.find((cell) => cell.value === null)!;
 
-    // Arming does not need a selected cell at all — the keypad owns this
-    // state now, not the selection (R3).
-    await page.getByRole('button', { name: `Place ${digit}` }).click();
+    // The grid drives the green now, not the keypad (R3): selecting a cell
+    // that holds a digit is the arm/clear decision.
+    await page.locator(`[data-cell="${given.index}"]`).click();
     const lit = page.locator('[role="gridcell"][data-match="true"]');
     await expect(lit.first()).toBeVisible();
     const before = await lit.count();
 
-    // Moving the caret is not a tap that writes anything, so it must leave
-    // the highlight exactly as it was.
+    // Moving the caret onto an empty cell is not an arm/clear decision, so it
+    // must leave the highlight exactly as it was.
     await page.locator(`[data-cell="${empty.index}"]`).click();
     await expect(lit).toHaveCount(before);
+
+    // Selecting the same lit cell again is the other half of the rule: it
+    // clears rather than leaving the green stuck on.
+    await page.locator(`[data-cell="${given.index}"]`).click();
+    await expect(lit).toHaveCount(0);
   });
 
   test('plays a puzzle through to the end', async ({ page }) => {
