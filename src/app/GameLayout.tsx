@@ -1,0 +1,78 @@
+import type { ReactNode } from 'react';
+import type { Tier } from './useViewportTier';
+
+export interface GameLayoutProps {
+  tier: Tier;
+  header: ReactNode;
+  board: ReactNode;
+  keypad: ReactNode;
+  coach: ReactNode;
+  lesson?: ReactNode;
+}
+
+/**
+ * Which regions exist at this width, and how they sit.
+ *
+ * Split out of `GameView` because composing four regions three ways inside a
+ * file that also owns the game's state is how that file stopped being readable.
+ * The rule this enforces is invariant 9: whatever the tier, nothing that comes
+ * and goes during play may change the board's box. Each column's width is a
+ * property of the tier, never of what the coach happens to be saying.
+ */
+export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameLayoutProps) {
+  if (tier === 'phone' || tier === 'tablet') {
+    return (
+      /*
+       * One screen, no page scroll, up to the point the phone cap gives way.
+       * A phone has to show the board, the keypad and a way to reach the
+       * coach at once — scrolling between them turns every hint into a hunt —
+       * so the board is the thing that gives: it takes whatever height the
+       * chrome leaves and stays square.
+       *
+       * `max-w-xl sm:max-w-[40rem]`, not a bare `max-w-[40rem]`: below 640
+       * the `sm:` rule never applies, so the phone keeps the 576px column it
+       * shipped with — raising the cap there would widen a layout that was
+       * already signed off. Above 640 (still one stacked column — the tablet
+       * has no room for a second) the same column gets to use more of the
+       * width it actually has.
+       */
+      <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden sm:h-auto sm:min-h-dvh sm:max-w-[40rem] sm:overflow-visible">
+        {header}
+        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-2">
+          {board}
+          {keypad}
+        </main>
+        {coach}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-[96rem] flex-col">
+      {header}
+      {/* The board comes before the coach in the DOM even though it sits
+          visually between the two asides on a laptop: a screen-reader user
+          should meet the puzzle before the commentary about it. */}
+      <div className="flex flex-1 items-start justify-center gap-6 px-6 pb-6">
+        <main className="flex w-full max-w-[40rem] flex-col gap-3">
+          {board}
+          {keypad}
+        </main>
+        {/* Fixed width, not `flex-1` or `min-w-*`: invariant 9 says nothing
+            that comes and goes during play may resize the board, and a
+            sidebar that grows when a hint arrives — or when the technique
+            index becomes a lesson — resizes the board just as surely as a
+            bar that appears above it on a phone. Each aside's width is a
+            property of the tier alone. */}
+        <aside data-testid="coach-column" className="w-[22rem] shrink-0">
+          {coach}
+        </aside>
+        {tier === 'desktop' && lesson ? (
+          <aside data-testid="lesson-column" className="w-[26rem] shrink-0 overflow-y-auto">
+            {lesson}
+          </aside>
+        ) : null}
+      </div>
+    </div>
+  );
+}

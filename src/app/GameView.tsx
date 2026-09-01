@@ -45,6 +45,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
+import { GameLayout } from './GameLayout';
 import { selectHighlight, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { useCoachSession } from './useCoachSession';
@@ -284,168 +285,164 @@ export function GameView({
     enabled: confirming === null && !paused && !solved && !modalOpen && !menuOpen,
   });
 
-  return (
-    /*
-     * One screen, no page scroll. A phone has to show the board, the keypad
-     * and a way to reach the coach at once — scrolling between them turns
-     * every hint into a hunt — so the board is the thing that gives: it takes
-     * whatever height the chrome leaves and stays square.
-     */
-    <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden sm:h-auto sm:min-h-dvh sm:overflow-visible">
-      <header className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2">
-        <IconButton
-          label={t('action.back')}
-          icon={<ChevronLeftIcon />}
-          className="flex-none"
-          onClick={onExit}
-        />
-        {/* `overflow-hidden` is load-bearing, not decorative: `DifficultyBadge`'s
-            own root is `inline-flex`, which sizes to its own content rather
-            than to this shrunk flex item, so on a narrow header (a long word —
-            worst case, Italian "Difficile" — with five siblings competing for
-            room) the badge painted past this div's edge and into the timer's
-            digits without it. This clips instead of overlapping; it does not
-            make the badge fit. */}
-        <div className="min-w-0 flex-1 overflow-hidden">
-          <DifficultyBadge difficulty={game.difficulty} />
-        </div>
-        <Timer elapsedMs={game.elapsedMs} runningSince={game.runningSince} size="md" />
-        <IconButton
-          label={paused ? t('action.resume') : t('action.pause')}
-          icon={paused ? <PlayIcon /> : <PauseIcon />}
-          className="flex-none"
-          disabled={solved}
-          onClick={() => dispatch({ type: paused ? 'resume' : 'pause' })}
-        />
-        {/*
-          * Lives in the header, not floating over the board's own corner (it
-          * clipped r9c9, eating taps meant for the grid) or anchored above the
-          * keypad on a guessed offset (it overlapped the keypad's top-right
-          * key once the keypad grew taller than the guess). The header is
-          * fixed chrome a phone player already reads for controls: it covers
-          * no board cell and no keypad key, and needs no offset math to avoid
-          * either.
-          *
-          * Placed beside Pause rather than beside the menu: both are actions
-          * taken *during* a move, unlike the menu's rare, out-of-play ones, so
-          * the overflow button stays the rightmost, catch-all item it already
-          * was.
-          *
-          * Unconditional, like every other header child — a coach control
-          * that only appeared once there was something to say would change
-          * the header's own height, and the board would move with it, which
-          * is the defect this branch exists to fix. `hidden` while the sheet
-          * is open only toggles visibility, not presence: `openSheet` above
-          * captures this exact node as the focus-restore target, and a node
-          * that has left the document can't be focused back onto once the
-          * sheet closes.
-          *
-          * `relative` is new here — the badge below is an `after:`
-          * pseudo-element positioned `absolute`, which only ever worked
-          * because the floating button was itself `position: absolute`. A
-          * header child isn't, so it needs its own containing block.
-          */}
-        <IconButton
-          label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
-          icon={<CoachIcon />}
-          className={cx(
-            'relative flex-none sm:hidden',
-            // `!` (important), not the plain utility: `.hidden{display:none}`
-            // sits *before* `.inline-flex{display:inline-flex}` in Tailwind's
-            // generated stylesheet, so on equal specificity the later rule —
-            // IconButton's own base class — always won regardless of the
-            // order these classes appear in `className`. Unnoticed on the old
-            // floating button because the sheet's own backdrop happened to
-            // cover the same corner; in the header, still-visible-and-live
-            // means a second, unhidden "Coach" control sitting right next to
-            // the open dialog.
-            sheetOpen && '!hidden',
-            coach.nudge !== null &&
-              'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
-          )}
-          onClick={openSheet}
-        />
-        <IconButton
-          label={t('game.menu')}
-          icon={<MoreIcon />}
-          className="flex-none"
-          onClick={() => setMenuOpen(true)}
-        />
-      </header>
+  const header = (
+    <header className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2">
+      <IconButton
+        label={t('action.back')}
+        icon={<ChevronLeftIcon />}
+        className="flex-none"
+        onClick={onExit}
+      />
+      {/* `overflow-hidden` is load-bearing, not decorative: `DifficultyBadge`'s
+          own root is `inline-flex`, which sizes to its own content rather
+          than to this shrunk flex item, so on a narrow header (a long word —
+          worst case, Italian "Difficile" — with five siblings competing for
+          room) the badge painted past this div's edge and into the timer's
+          digits without it. This clips instead of overlapping; it does not
+          make the badge fit. */}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <DifficultyBadge difficulty={game.difficulty} />
+      </div>
+      <Timer elapsedMs={game.elapsedMs} runningSince={game.runningSince} size="md" />
+      <IconButton
+        label={paused ? t('action.resume') : t('action.pause')}
+        icon={paused ? <PlayIcon /> : <PauseIcon />}
+        className="flex-none"
+        disabled={solved}
+        onClick={() => dispatch({ type: paused ? 'resume' : 'pause' })}
+      />
+      {/*
+        * Lives in the header, not floating over the board's own corner (it
+        * clipped r9c9, eating taps meant for the grid) or anchored above the
+        * keypad on a guessed offset (it overlapped the keypad's top-right
+        * key once the keypad grew taller than the guess). The header is
+        * fixed chrome a phone player already reads for controls: it covers
+        * no board cell and no keypad key, and needs no offset math to avoid
+        * either.
+        *
+        * Placed beside Pause rather than beside the menu: both are actions
+        * taken *during* a move, unlike the menu's rare, out-of-play ones, so
+        * the overflow button stays the rightmost, catch-all item it already
+        * was.
+        *
+        * Unconditional, like every other header child — a coach control
+        * that only appeared once there was something to say would change
+        * the header's own height, and the board would move with it, which
+        * is the defect this branch exists to fix. `hidden` while the sheet
+        * is open only toggles visibility, not presence: `openSheet` above
+        * captures this exact node as the focus-restore target, and a node
+        * that has left the document can't be focused back onto once the
+        * sheet closes.
+        *
+        * `relative` is new here — the badge below is an `after:`
+        * pseudo-element positioned `absolute`, which only ever worked
+        * because the floating button was itself `position: absolute`. A
+        * header child isn't, so it needs its own containing block.
+        */}
+      <IconButton
+        label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
+        icon={<CoachIcon />}
+        className={cx(
+          'relative flex-none sm:hidden',
+          // `!` (important), not the plain utility: `.hidden{display:none}`
+          // sits *before* `.inline-flex{display:inline-flex}` in Tailwind's
+          // generated stylesheet, so on equal specificity the later rule —
+          // IconButton's own base class — always won regardless of the
+          // order these classes appear in `className`. Unnoticed on the old
+          // floating button because the sheet's own backdrop happened to
+          // cover the same corner; in the header, still-visible-and-live
+          // means a second, unhidden "Coach" control sitting right next to
+          // the open dialog.
+          sheetOpen && '!hidden',
+          coach.nudge !== null &&
+            'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
+        )}
+        onClick={openSheet}
+      />
+      <IconButton
+        label={t('game.menu')}
+        icon={<MoreIcon />}
+        className="flex-none"
+        onClick={() => setMenuOpen(true)}
+      />
+    </header>
+  );
 
-      <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-2">
-        {/*
-          * The board takes the height nobody else claimed and stays square, so
-          * it is the piece that gives when a screen is short. A fixed height
-          * budget was tried and is wrong: the coach panel is a different height
-          * on a phone than on a laptop, and the board has to answer to what is
-          * actually there.
-          */}
-        <div className="flex min-h-0 flex-1 items-center justify-center sm:block sm:flex-none">
-          <div className="relative aspect-square h-full max-w-full sm:h-auto sm:w-full">
-            <SudokuGrid
-            cells={game.cells}
-            selected={selected}
-            onSelect={selectCell}
-            onEnter={enter}
-            onClear={(cell) => dispatch({ type: 'clearCell', cell })}
-            spotlight={spotlight}
-            tintedHouses={coach.hint?.houses ?? []}
-            conflicts={conflicts}
-            staleMarks={stale}
-            highlightDigit={highlightDigit}
-            highlightMatchingNotes={settings.highlightMatchingNotes}
-              className={paused ? 'pointer-events-none blur-md select-none' : undefined}
-            />
-            {paused ? (
-              <div className="absolute inset-0 grid place-items-center bg-paper/80">
-                <Button variant="primary" size="lg" onClick={() => dispatch({ type: 'resume' })}>
-                  {t('action.resume')}
-                </Button>
-              </div>
-            ) : null}
+  const board = (
+    // The board takes the height nobody else claimed and stays square, so it
+    // is the piece that gives when a screen is short. A fixed height budget
+    // was tried and is wrong: the coach panel is a different height on a
+    // phone than on a laptop, and the board has to answer to what is
+    // actually there.
+    <div className="flex min-h-0 flex-1 items-center justify-center sm:block sm:flex-none">
+      <div className="relative aspect-square h-full max-w-full sm:h-auto sm:w-full">
+        <SudokuGrid
+          cells={game.cells}
+          selected={selected}
+          onSelect={selectCell}
+          onEnter={enter}
+          onClear={(cell) => dispatch({ type: 'clearCell', cell })}
+          spotlight={spotlight}
+          tintedHouses={coach.hint?.houses ?? []}
+          conflicts={conflicts}
+          staleMarks={stale}
+          highlightDigit={highlightDigit}
+          highlightMatchingNotes={settings.highlightMatchingNotes}
+          className={paused ? 'pointer-events-none blur-md select-none' : undefined}
+        />
+        {paused ? (
+          <div className="absolute inset-0 grid place-items-center bg-paper/80">
+            <Button variant="primary" size="lg" onClick={() => dispatch({ type: 'resume' })}>
+              {t('action.resume')}
+            </Button>
           </div>
-        </div>
+        ) : null}
+      </div>
+    </div>
+  );
 
-        <Keypad
-          className="min-h-[11.5rem] shrink-0"
-          values={values}
-          pencilMode={pencilMode}
-          onTogglePencil={() => setPencilMode((on) => !on)}
-          onDigit={(digit) => {
-            // The key's single meaning again: a tap that has somewhere to
-            // write writes there, and does nothing else (R3). `enter` itself
-            // no-ops when the cell already holds `digit`. The haptic for a
-            // digit tap is decided here rather than by the keypad itself,
-            // because only this layer knows whether the tap is legal — a
-            // blanket 'tap' would fire even with nothing selected, which is
-            // exactly the no-op 'blocked' exists to feel different from.
-            if (selected === null) {
-              haptic('blocked');
-              return;
-            }
-            haptic('tap');
-            enter(selected, digit);
-          }}
-          onDigitLongPress={(digit) => setHighlightDigit((current) => toggleHighlight(digit, current))}
-          onErase={() => {
-            if (selected !== null) dispatch({ type: 'clearCell', cell: selected });
-          }}
-          onUndo={() => dispatch({ type: 'undo' })}
-          onRedo={() => dispatch({ type: 'redo' })}
-          canUndo={game.undoStack.length > 0}
-          canRedo={game.redoStack.length > 0}
-          // The pad as a whole stays live with nothing selected — a long
-          // press still has to reach a digit with none of its nine placed
-          // yet — but the eraser has nothing to erase, so it needs the gate
-          // the pad no longer applies for it.
-          canErase={selected !== null}
-          disabled={paused || solved}
-          highlighted={highlightDigit}
-          onHaptic={haptic}
-        />
-      </main>
+  const keypad = (
+    <Keypad
+      className="min-h-[11.5rem] shrink-0"
+      values={values}
+      pencilMode={pencilMode}
+      onTogglePencil={() => setPencilMode((on) => !on)}
+      onDigit={(digit) => {
+        // The key's single meaning again: a tap that has somewhere to write
+        // writes there, and does nothing else (R3). `enter` itself no-ops
+        // when the cell already holds `digit`. The haptic for a digit tap is
+        // decided here rather than by the keypad itself, because only this
+        // layer knows whether the tap is legal — a blanket 'tap' would fire
+        // even with nothing selected, which is exactly the no-op 'blocked'
+        // exists to feel different from.
+        if (selected === null) {
+          haptic('blocked');
+          return;
+        }
+        haptic('tap');
+        enter(selected, digit);
+      }}
+      onDigitLongPress={(digit) => setHighlightDigit((current) => toggleHighlight(digit, current))}
+      onErase={() => {
+        if (selected !== null) dispatch({ type: 'clearCell', cell: selected });
+      }}
+      onUndo={() => dispatch({ type: 'undo' })}
+      onRedo={() => dispatch({ type: 'redo' })}
+      canUndo={game.undoStack.length > 0}
+      canRedo={game.redoStack.length > 0}
+      // The pad as a whole stays live with nothing selected — a long press
+      // still has to reach a digit with none of its nine placed yet — but
+      // the eraser has nothing to erase, so it needs the gate the pad no
+      // longer applies for it.
+      canErase={selected !== null}
+      disabled={paused || solved}
+      highlighted={highlightDigit}
+      onHaptic={haptic}
+    />
+  );
 
+  const coachRegion = (
+    <>
       {/* A real, if unreachable-by-Tab, button rather than a decorative div:
           it needs an accessible name and an activation the platform actually
           recognises, or a pointer is the only way to back out of the sheet.
@@ -509,6 +506,22 @@ export function GameView({
           }
         />
       </div>
+    </>
+  );
+
+  return (
+    <>
+      <GameLayout
+        tier={tier}
+        header={header}
+        board={board}
+        keypad={keypad}
+        coach={coachRegion}
+        // Task 4 wires the real technique index / lesson body pairing here;
+        // this task only has to prove the column exists and holds its own
+        // width on a desktop, independent of what ends up inside it.
+        lesson={<></>}
+      />
 
       {/* Everything about this puzzle that is not a move. Rare actions do not
           earn permanent space on a phone, and a menu is where a player looks
@@ -635,6 +648,6 @@ export function GameView({
           )}
         </div>
       </Sheet>
-    </div>
+    </>
   );
 }

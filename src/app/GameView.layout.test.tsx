@@ -15,12 +15,13 @@
 
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
 import { newGame, reduce } from '../state/game';
 import { useGameStore } from '../state/store';
 import type { LiveGame, PlayerProfile } from '../state/types';
 import { GameView } from './GameView';
+import type { Tier } from './useViewportTier';
 
 // Mobile is this file's default context — the sheet, the header's coach
 // trigger and the modal behaviours only exist below `sm` (640px). The one
@@ -29,6 +30,45 @@ import { GameView } from './GameView';
 // into the next.
 beforeEach(() => {
   window.innerWidth = 375;
+});
+
+// `useViewportTier` decides between 'laptop' and 'desktop' by checking two
+// overlapping `min-width` queries at once — desktop matches both. Mirrors
+// `useViewportTier.ts`'s own query strings rather than picking new ones: a
+// stub built from different numbers would prove nothing about the hook this
+// file drives through them.
+const TIER_QUERIES: Record<Tier, string[]> = {
+  phone: ['(max-width: 639.98px)'],
+  tablet: [],
+  laptop: ['(min-width: 1024px)'],
+  desktop: ['(min-width: 1024px)', '(min-width: 1536px)'],
+};
+
+// Captured once, before any test can have replaced it — this is the
+// `tests/setup.ts` stub that reads `window.innerWidth`, which most of this
+// file's tests still drive directly rather than through `tier`.
+const innerWidthMatchMedia = window.matchMedia;
+
+/**
+ * Same shape as `useViewportTier.test.ts`'s own `matchOnly`: pins the exact
+ * query set the hook checks, so a test can choose a tier directly instead of
+ * reasoning about which `innerWidth` would produce it under the shared
+ * `tests/setup.ts` stub.
+ */
+function matchOnly(...matching: string[]) {
+  window.matchMedia = ((query: string) => ({
+    matches: matching.includes(query),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  })) as unknown as typeof window.matchMedia;
+}
+
+// Only tests that ask for a `tier` replace `window.matchMedia`; every other
+// test in this file still relies on the `innerWidth`-driven stub, so a swap
+// left in place by one test would silently misreport the tier for the next.
+afterEach(() => {
+  window.matchMedia = innerWidthMatchMedia;
 });
 
 const SOLVED =
@@ -87,8 +127,9 @@ function makeGame(
  * for anything a click triggers, but nothing here waits on IndexedDB.
  */
 function renderGame(
-  options: { deadNotes?: boolean; nudge?: boolean; running?: boolean } = {},
+  options: { deadNotes?: boolean; nudge?: boolean; running?: boolean; tier?: Tier } = {},
 ) {
+  if (options.tier !== undefined) matchOnly(...TIER_QUERIES[options.tier]);
   const game = makeGame(options);
   useGameStore.setState({ activeGameId: game.id, games: { [game.id]: game }, hydrated: true });
 
@@ -138,6 +179,36 @@ function expectOnlyTheBoardAndKeypadInFlow(): void {
   );
   expect(inFlow.map((child) => child.tagName)).toEqual(['HEADER', 'MAIN']);
 }
+
+describe('the game screen at each tier', () => {
+  it('gives the phone one column and the coach no space in flow', () => {
+    renderGame({ tier: 'phone' });
+    expectOnlyTheBoardAndKeypadInFlow();
+    expect(screen.queryByTestId('coach-column')).toBeNull();
+  });
+
+  it('puts the coach beside the board on a laptop', () => {
+    renderGame({ tier: 'laptop' });
+    expect(screen.getByTestId('coach-column')).toBeTruthy();
+    expect(screen.queryByTestId('lesson-column')).toBeNull();
+  });
+
+  it('adds the lesson column on a desktop', () => {
+    renderGame({ tier: 'desktop' });
+    expect(screen.getByTestId('coach-column')).toBeTruthy();
+    expect(screen.getByTestId('lesson-column')).toBeTruthy();
+  });
+
+  it('keeps the tablet stacked, but lets the board past the phone cap', () => {
+    renderGame({ tier: 'tablet' });
+    expect(screen.queryByTestId('coach-column')).toBeNull();
+    // The cap lives on the root column, not on <main>, and it is raised only
+    // from `sm` up — below 640 the phone keeps the 576px column it shipped with.
+    const root = screen.getByRole('main').parentElement!;
+    expect(root.className).toContain('max-w-xl');
+    expect(root.className).toContain('sm:max-w-[40rem]');
+  });
+});
 
 describe('the game screen', () => {
   it('keeps exactly the board and the keypad in flow', () => {
