@@ -12,7 +12,7 @@
  * given and holds no opinion about whether the player wants them.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board } from '../engine/board';
 import type { CellIndex, Digit, TechniqueId } from '../engine/types';
 import { getLesson } from '../coach/lessons';
@@ -32,7 +32,7 @@ import { Keypad, type HapticPattern } from '../ui/keypad/Keypad';
 import { cx } from '../ui/primitives/cx';
 import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
-import { Sheet } from '../ui/primitives/Sheet';
+import { FOCUSABLE, Sheet } from '../ui/primitives/Sheet';
 import {
   ChevronLeftIcon,
   MoreIcon,
@@ -94,6 +94,11 @@ export function GameView({
   // the sheet is how the player asks to be spoken to, and closing it is a
   // deliberate dismissal — neither should flip because a hint arrived.
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Mirrors `Sheet.tsx`'s own focus bookkeeping: where focus was before the
+  // sheet took it, so closing can hand it back rather than dropping a
+  // keyboard user at the top of the document.
+  const coachPanelRef = useRef<HTMLDivElement>(null);
+  const coachRestoreRef = useRef<HTMLElement | null>(null);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
 
@@ -117,6 +122,79 @@ export function GameView({
     [dispatch],
   );
   const coach = useCoachSession({ game, locale, onCoachLog });
+
+  /**
+   * Opens the sheet. The restore target has to be captured *here*, not in the
+   * effect below: the FAB that was just clicked unmounts the instant
+   * `sheetOpen` flips true (it only renders `!sheetOpen`), so by the time an
+   * effect runs post-commit, `document.activeElement` has already fallen back
+   * to `<body>` and there is nothing left to restore focus to.
+   */
+  const openSheet = useCallback(() => {
+    coachRestoreRef.current = document.activeElement as HTMLElement | null;
+    setSheetOpen(true);
+  }, []);
+
+  /**
+   * The one path every way of closing the sheet has to go through. Consuming
+   * the nudge belongs here rather than on open: dismissing it the moment the
+   * sheet appears would clear the badge before the player has read what it
+   * was pointing at (spec: a nudge is read, not re-solicited).
+   */
+  const closeSheet = useCallback(() => {
+    setSheetOpen(false);
+    coach.dismiss();
+    coach.dismissNudge();
+  }, [coach]);
+
+  /*
+   * Moves focus into the sheet on open and hands it back on close — the
+   * capture happens in `openSheet` above, this just does the moving.
+   * Escape-to-close and a tab trap below are hand-rolled rather than routed
+   * through `Sheet.tsx`: that component portals a full-viewport modal — on
+   * `sm` and up it centres itself as a card, which is exactly the "coach
+   * becomes a modal on desktop" regression this task exists to prevent, and
+   * it always draws its own title bar and close button on top of whatever
+   * `children` is, duplicating the header `CoachPanel` already owns. What's
+   * reused is `Sheet.tsx`'s own focusable-element query (`FOCUSABLE`) and the
+   * same move-in/restore/trap logic, applied to this panel instead of a
+   * portal.
+   */
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const panel = coachPanelRef.current;
+    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? panel)?.focus();
+    return () => coachRestoreRef.current?.focus?.();
+  }, [sheetOpen]);
+
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        closeSheet();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const panel = coachPanelRef.current;
+      if (panel === null) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === panel)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [sheetOpen, closeSheet]);
 
   const haptic = useCallback(
     (pattern: HapticPattern) => {
@@ -153,7 +231,7 @@ export function GameView({
     // Asking by keyboard has to open the sheet itself, or "h" fires a hint
     // into a panel the player cannot see.
     onHint: () => {
-      setSheetOpen(true);
+      openSheet();
       coach.ask();
     },
     // A dialog is a question; answering it with "u" should not rewind the board
@@ -225,6 +303,33 @@ export function GameView({
                 </Button>
               </div>
             ) : null}
+            {/*
+              * Resting, the coach is one button floating over the board's own
+              * corner — a child of this square box rather than positioned off
+              * some multiple of the keypad's height, so it can never land on
+              * top of the keypad no matter how tall the keypad's content gets.
+              * Speaking, it is a sheet over the keypad instead. Neither state
+              * is a flow child, which is what keeps the board the same size
+              * from the first move to the last.
+              *
+              * Kept mounted and merely `hidden` while the sheet is open,
+              * rather than unmounted — `openSheet` captures this exact node
+              * as the focus-restore target, and a node that has been removed
+              * from the document can't be focused back onto once the sheet
+              * closes.
+              */}
+            <IconButton
+              size="lg"
+              label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
+              icon={<CoachIcon />}
+              className={cx(
+                'absolute right-3 bottom-3 z-20 shadow-lift sm:hidden',
+                sheetOpen && 'hidden',
+                coach.nudge !== null &&
+                  'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
+              )}
+              onClick={openSheet}
+            />
           </div>
         </div>
 
@@ -256,43 +361,24 @@ export function GameView({
         />
       </main>
 
-      {/*
-        * Resting, the coach is one button floating over the board's corner. It
-        * used to be a bar in the flow, and a bar is height the square board
-        * gave up for a control the player was not using yet. Speaking, it is a
-        * sheet over the keypad. Neither state is a flow child, which is what
-        * keeps the board the same size from the first move to the last.
-        */}
-      {!sheetOpen ? (
-        <IconButton
-          size="lg"
-          label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
-          icon={<CoachIcon />}
-          // The keypad's floor (min-h-[11.5rem] below) plus <main>'s own
-          // pb-2 (0.5rem) puts its top edge 12rem off the screen bottom;
-          // 13rem leaves a 1rem gap above it. The two numbers are coupled —
-          // raise the keypad's floor and this one has to follow.
-          className={cx(
-            'absolute right-4 bottom-[13rem] z-20 shadow-lift sm:hidden',
-            coach.nudge !== null &&
-              'after:absolute after:top-0 after:right-0 after:size-3 after:rounded-full after:bg-coach',
-          )}
-          onClick={() => setSheetOpen(true)}
-        />
-      ) : null}
-
+      {/* A real, if unreachable-by-Tab, button rather than a decorative div:
+          it needs an accessible name and an activation the platform actually
+          recognises, or a pointer is the only way to back out of the sheet.
+          `tabIndex={-1}` keeps it out of the tab order on purpose — the panel
+          itself is where Tab should land, not the backdrop behind it. */}
       {sheetOpen ? (
-        <div
-          className="absolute inset-0 z-10 bg-ink/20 sm:hidden"
-          onClick={() => {
-            setSheetOpen(false);
-            coach.dismiss();
-          }}
-          aria-hidden="true"
+        <button
+          type="button"
+          aria-label={t('action.close')}
+          tabIndex={-1}
+          onClick={closeSheet}
+          className="absolute inset-0 z-10 cursor-default bg-ink/20 sm:hidden"
         />
       ) : null}
 
       <div
+        ref={coachPanelRef}
+        tabIndex={-1}
         className={cx(
           'bg-paper-raised sm:static sm:block sm:max-h-none sm:overflow-visible sm:shadow-none',
           sheetOpen
@@ -315,11 +401,17 @@ export function GameView({
           onDrill={coach.startDrill}
           onDismissDrill={coach.dismissDrill}
           onLearn={onLearn}
-          onCollapse={speaking ? coach.dismiss : undefined}
+          // Open (mobile), the X has to close the whole sheet — not just
+          // clear the hint underneath it — or it stops the panel dead in its
+          // resting state with no way left to dismiss it. At rest on desktop
+          // there is no sheet to close, only a hint to collapse.
+          onCollapse={sheetOpen ? closeSheet : speaking ? coach.dismiss : undefined}
           nudge={coach.nudge}
           onDismissNudge={coach.dismissNudge}
           staleCount={staleCount}
-          onClearStale={() => dispatch({ type: 'clearStaleCandidates' })}
+          onClearStale={
+            paused || solved ? undefined : () => dispatch({ type: 'clearStaleCandidates' })
+          }
         />
       </div>
 

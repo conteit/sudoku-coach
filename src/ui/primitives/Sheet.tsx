@@ -27,7 +27,13 @@ export interface SheetProps {
   dismissible?: boolean;
 }
 
-const FOCUSABLE =
+/**
+ * Exported rather than kept private: the coach sheet in `GameView` needs the
+ * same tab-trap boundary but cannot use this component wholesale (below) — a
+ * portal centred on the whole viewport would modalize the coach panel on
+ * desktop too, where it has to stay a static, permanent bar.
+ */
+export const FOCUSABLE =
   'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export function Sheet({

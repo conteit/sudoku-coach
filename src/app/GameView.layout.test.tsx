@@ -5,7 +5,7 @@
  * regression the moment `main.children` stops being exactly two.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
@@ -32,13 +32,19 @@ let counter = 0;
  * row, so they are peers by construction — exactly what `deadNotes()` and
  * `contradictionAt()` need, without hand-building an 81-cell board.
  */
-function makeGame(options: { deadNotes?: boolean; nudge?: boolean } = {}): LiveGame {
+function makeGame(
+  options: { deadNotes?: boolean; nudge?: boolean; running?: boolean } = {},
+): LiveGame {
   let game = newGame({
     givens: PUZZLE,
     solution: SOLVED,
     difficulty: 'medium',
     at: 1000,
     id: `layout-test-${counter++}`,
+    // `newGame` starts every game paused unless told otherwise — realistic
+    // for a game just opened, and exactly what the paused-eraser case below
+    // needs without any extra setup.
+    running: options.running,
   });
 
   if (options.deadNotes) {
@@ -62,7 +68,9 @@ function makeGame(options: { deadNotes?: boolean; nudge?: boolean } = {}): LiveG
  * keeps this a layout test rather than a store test: `dispatch` still works
  * for anything a click triggers, but nothing here waits on IndexedDB.
  */
-function renderGame(options: { deadNotes?: boolean; nudge?: boolean } = {}) {
+function renderGame(
+  options: { deadNotes?: boolean; nudge?: boolean; running?: boolean } = {},
+) {
   const game = makeGame(options);
   useGameStore.setState({ activeGameId: game.id, games: { [game.id]: game }, hydrated: true });
 
@@ -95,8 +103,15 @@ describe('the game screen', () => {
     expect(screen.getByRole('main').children).toHaveLength(2);
   });
 
-  it('keeps them in flow when the coach has something to say', () => {
+  it('keeps them in flow when the coach has something to say', async () => {
     renderGame({ nudge: true });
+    // `nudge` is only set once `useCoachSession`'s IDLE_MS (400ms) debounce
+    // fires — asserting immediately would pass whether or not the badge ever
+    // renders, since a synchronous read always finds `coach.nudge === null`.
+    // Waiting for the badge is what makes this case actually exercise the
+    // nudge state rather than merely re-running the plain case under a
+    // different name.
+    await screen.findByRole('button', { name: /has something for you/i });
     expect(screen.getByRole('main').children).toHaveLength(2);
   });
 
@@ -104,5 +119,53 @@ describe('the game screen', () => {
     const { user } = renderGame();
     await user.click(screen.getByRole('button', { name: /coach/i }));
     expect(screen.getByRole('main').children).toHaveLength(2);
+  });
+});
+
+describe('the coach sheet', () => {
+  it('moves focus into the panel on open', async () => {
+    const { user } = renderGame();
+    await user.click(screen.getByRole('button', { name: 'Coach' }));
+    // The X is the first focusable thing in the panel's own header — a
+    // keyboard user who opens the sheet should not have to hunt for
+    // wherever the browser happened to leave focus. Scoped to the panel
+    // itself: the scrim behind it answers to the same "Close" name but is
+    // deliberately excluded from the tab order.
+    const panel = screen.getByRole('region', { name: 'Coach' });
+    expect(within(panel).getByRole('button', { name: 'Close' })).toHaveFocus();
+  });
+
+  it('restores focus to the coach button on close', async () => {
+    const { user } = renderGame();
+    const fab = screen.getByRole('button', { name: 'Coach' });
+    await user.click(fab);
+    await user.keyboard('{Escape}');
+    // The button has to still be the *same node* handed back focus — it is
+    // kept mounted (merely `hidden`) while the sheet is open specifically so
+    // this reference stays live across the round trip.
+    expect(fab).toHaveFocus();
+  });
+
+  it('closes on Escape and consumes the nudge badge on the way out', async () => {
+    const { user } = renderGame({ nudge: true });
+    const fab = await screen.findByRole('button', { name: /has something for you/i });
+    await user.click(fab);
+    await user.keyboard('{Escape}');
+    // Consuming happens on close, not on open (spec: read, not re-solicited)
+    // — so the proof is that the badge is gone *after* Escape, not that it
+    // was never there.
+    expect(screen.getByRole('button', { name: 'Coach' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /has something for you/i })).not.toBeInTheDocument();
+  });
+
+  it("offers the eraser while the board is live, and withholds it while paused", () => {
+    renderGame({ deadNotes: true, running: true });
+    expect(screen.getByRole('button', { name: /clear 1 dead note/i })).toBeInTheDocument();
+  });
+
+  it('withholds the eraser while paused, even though the notes are still dead', () => {
+    // `renderGame` starts paused by default — see `makeGame`.
+    renderGame({ deadNotes: true });
+    expect(screen.queryByRole('button', { name: /clear \d+ dead notes?/i })).not.toBeInTheDocument();
   });
 });
