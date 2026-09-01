@@ -25,7 +25,12 @@ export function TechniqueIndex({ profile, onOpen }: TechniqueIndexProps) {
   const lessons = loadLessons(profile.locale);
 
   return (
-    <section className="border-t border-rule pt-6">
+    // No rule of its own across the top. On Learn this section follows four
+    // others and needs the divider they all share, so `LearnView` draws it —
+    // there the rule separates two things. In the lesson column it is the
+    // first and only thing in the column, and a divider with nothing above it
+    // is a line under the column's own top edge.
+    <section>
       <h2 className="font-display text-xl leading-tight text-ink">
         {t('learn.techniques.title')}
       </h2>

@@ -100,7 +100,13 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
       <Section title={t('learn.coach.title')} body={t('learn.coach.body')} />
       <Section title={t('learn.keys.title')} body={t('learn.keys.body')} />
 
-      <TechniqueIndex profile={profile} onOpen={setOpen} />
+      {/* The divider between this section and the four `Section`s above it is
+          drawn here rather than by `TechniqueIndex`: the index is also the
+          game screen's resting lesson column, where it is the first thing in
+          the column and has nothing to be separated from. */}
+      <div className="border-t border-rule pt-6">
+        <TechniqueIndex profile={profile} onOpen={setOpen} />
+      </div>
 
       <div className="pt-8">
         <Button variant="secondary" size="lg" block onClick={onClose}>
