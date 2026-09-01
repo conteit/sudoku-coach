@@ -191,6 +191,13 @@ function expectOnlyTheBoardAndKeypadInFlow(): void {
   expect(inFlow.map((child) => child.tagName)).toEqual(['HEADER', 'MAIN']);
 }
 
+/** The one live region inside a subtree, which is all a swapping column may have. */
+function liveRegionIn(root: HTMLElement): HTMLElement {
+  const regions = root.querySelectorAll<HTMLElement>('[aria-live]');
+  expect(regions).toHaveLength(1);
+  return regions[0];
+}
+
 describe('the game screen at each tier', () => {
   it('gives the phone one column and the coach no space in flow', () => {
     renderGame({ tier: 'phone' });
@@ -248,10 +255,12 @@ describe('the lesson column', () => {
   // only reads `coach.hint` misses that a level-2 disclosure already
   // happened: the coach says "there is a hidden single here" while the
   // sidebar still shows the index, which reads as a bug rather than as
-  // discipline. `TechniqueIndex`'s heading is an `<h2>`; `LessonBody`'s own
-  // title is an `<h1>` — checking for the `<h1>` (and the absence of the
-  // index's heading) proves the swap happened without hardcoding which
-  // technique this fixed board's first finding turns out to be.
+  // discipline. The proof of the swap is `LessonBody`'s own "What it is"
+  // heading, which no other state of this column renders — that says the
+  // lesson is there without hardcoding which technique this fixed board's
+  // first finding turns out to be. (It used to check for an `<h1>`; the
+  // lesson's title is an `<h2>` in this column now, and the reason is in
+  // `LessonBody`'s `titleAs`.)
   it('names the technique in the sidebar once a drill has named it', async () => {
     const { user } = renderGame({ tier: 'desktop' });
     // `CoachPanel` renders this control twice — an icon-only `sm:hidden`
@@ -265,8 +274,83 @@ describe('the lesson column', () => {
     expect(drillButton).not.toBeNull();
     await user.click(drillButton!);
     const lesson = screen.getByTestId('lesson-column');
-    expect(within(lesson).getByRole('heading', { level: 1 })).toBeTruthy();
+    expect(within(lesson).getByRole('heading', { name: 'What it is' })).toBeTruthy();
     expect(within(lesson).queryByRole('heading', { name: /techniques/i })).toBeNull();
+  });
+
+  // The lesson's title is an `<h1>` on Learn, where the lesson is the
+  // document. Here the document is a game in progress: an `<h1>` in this
+  // column would be the play screen's only top-level heading, and one that
+  // appears and disappears with the disclosure ladder — the outline gaining
+  // and losing its root as the player asks for hints.
+  it('does not make a sidebar the play screen the only h1', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    await user.click(screen.getByText('Set me a challenge').closest('button')!);
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
+  // The worked example is an illustration: its `onSelect` is a no-op, so a
+  // keyboard player who tabs off the keypad and lands in it can neither move
+  // within it nor do anything there. Beside a live board that dead stop sits
+  // in the player's own path.
+  it('keeps the worked example out of the tab order', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(screen.getByText('Set me a challenge').closest('button')!);
+    const lesson = screen.getByTestId('lesson-column');
+    const example = within(lesson).getByRole('grid');
+    expect(example.querySelectorAll('[tabindex="0"]')).toHaveLength(0);
+  });
+});
+
+/*
+ * Announce the change, not the content.
+ *
+ * The column must not swap silently — a player who has just paid for rung 2
+ * should hear that the sidebar answered. But the first attempt put
+ * `aria-live="polite"` on the `<aside>` wrapping the whole lesson, and with
+ * the default `aria-relevant="additions text"` that makes the entire incoming
+ * subtree an addition: title, one-liner, mastery chip, both prose sections,
+ * the figcaption, and `Example`'s 81-cell grid, every cell of which carries
+ * an `aria-label` like "r3c4, empty, notes 1, 4, 9". Several hundred words,
+ * read at a player mid-move, in both directions of the swap. Neither axe nor
+ * any test then in the suite could see it, which is why it survived two
+ * reviews; these three are what would have caught it.
+ */
+describe('the lesson column announces the change, not the lesson', () => {
+  it('says only which column changed and what it is now showing', () => {
+    renderGame({ tier: 'desktop' });
+    const lesson = screen.getByTestId('lesson-column');
+    // The aside itself must be inert: it is the thing that wraps the content.
+    expect(lesson.hasAttribute('aria-live')).toBe(false);
+    expect(liveRegionIn(lesson).textContent).toBe('Lesson: The techniques');
+  });
+
+  it('mutates that one node rather than replacing it', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    const lesson = screen.getByTestId('lesson-column');
+    const before = liveRegionIn(lesson);
+    await user.click(screen.getByText('Set me a challenge').closest('button')!);
+
+    // The same DOM node, or the region is itself an addition on every swap —
+    // and a live region that arrives with its text already in it is exactly
+    // the case a screen reader announces wholesale.
+    const after = liveRegionIn(lesson);
+    expect(after).toBe(before);
+    expect(after.textContent).toMatch(/^Lesson: .+/);
+    expect(after.textContent).not.toBe('Lesson: The techniques');
+  });
+
+  it('never puts the lesson itself inside a live region', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(screen.getByText('Set me a challenge').closest('button')!);
+    // Every live region on the screen, not just this column's: the defect is
+    // "a region wraps something that would be read in full", and the board is
+    // the other 81-cell grid this screen has.
+    for (const region of document.querySelectorAll('[aria-live]')) {
+      expect(region.querySelector('[role="grid"]')).toBeNull();
+      expect(region.querySelector('h1, h2, h3')).toBeNull();
+    }
   });
 });
 

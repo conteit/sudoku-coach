@@ -49,6 +49,8 @@ export const it: Dictionary = {
   'game.menu': 'Questa griglia',
   // Translation to be reviewed by a native speaker, not approved copy.
   'game.lessonAria': 'Lezione',
+  // Translation to be reviewed by a native speaker, not approved copy.
+  'game.lessonAnnounce': 'Lezione: {title}',
 
   'games.title': 'Le tue partite',
   'games.empty': 'Ancora nessuna partita. Iniziane una e la ritrovi qui.',
