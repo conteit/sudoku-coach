@@ -18,4 +18,37 @@ describe('LessonBody', () => {
     // No back button and no outer page div — that chrome stays with LearnView.
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  // The title/mastery-chip header has to stay one flex row whether or not a
+  // caller fills `leading` — it already split into two rows once, and no
+  // other test in this suite would notice if it did again.
+  it('keeps the title/mastery-chip header a single row, with or without a leading control', () => {
+    const { container: withLeading } = renderWithLocale(
+      <LessonBody
+        id="naked_single"
+        locale="en"
+        profile={PROFILE}
+        leading={<button type="button">Back</button>}
+      />,
+    );
+    const headerWithLeading = withLeading.querySelector('header');
+    expect(headerWithLeading).not.toBeNull();
+    expect(headerWithLeading!.className).toBe('flex items-start gap-3 pb-4');
+    expect(Array.from(headerWithLeading!.children).map((child) => child.tagName)).toEqual([
+      'BUTTON',
+      'DIV',
+      'SPAN',
+    ]);
+
+    const { container: withoutLeading } = renderWithLocale(
+      <LessonBody id="naked_single" locale="en" profile={PROFILE} />,
+    );
+    const headerWithoutLeading = withoutLeading.querySelector('header');
+    expect(headerWithoutLeading).not.toBeNull();
+    expect(headerWithoutLeading!.className).toBe('flex items-start gap-3 pb-4');
+    expect(Array.from(headerWithoutLeading!.children).map((child) => child.tagName)).toEqual([
+      'DIV',
+      'SPAN',
+    ]);
+  });
 });
