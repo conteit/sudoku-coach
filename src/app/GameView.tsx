@@ -527,10 +527,26 @@ export function GameView({
    * `leading` back button and `TechniqueIndex`'s `onOpen` are both left
    * unset, because this column has nowhere to go back to and nothing to open
    * — Learn already owns the page these two exist on.
+   *
+   * The gate is the *rule* — has a level-2 disclosure been logged — not the
+   * mechanism that usually carries it. `useCoachSession.startDrill` calls
+   * `coach.hint(finding, 2)` and records that exchange before it ever sets
+   * `drill`, then immediately sets `hint` back to `null` (the panel shows
+   * the challenge banner instead of hint text while one is live). Reading
+   * only `coach.hint` would miss that: the technique was already named, the
+   * log already says so, but the sidebar would still show the index — the
+   * coach saying "there is a hidden single here" while the column beside it
+   * declines to explain what one is. `coach.drill` is the other place a
+   * level-2 naming shows up in this hook's state, so it counts too.
    */
+  const namedTechnique: TechniqueId | null =
+    coach.hint !== null && coach.hint.level >= 2
+      ? coach.hint.technique
+      : (coach.drill?.technique ?? null);
+
   const lessonRegion =
-    coach.hint !== null && coach.hint.level >= 2 ? (
-      <LessonBody id={coach.hint.technique} locale={locale} profile={profile} />
+    namedTechnique !== null ? (
+      <LessonBody id={namedTechnique} locale={locale} profile={profile} />
     ) : (
       <TechniqueIndex profile={profile} />
     );

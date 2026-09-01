@@ -88,6 +88,14 @@ export function GameLayout({ tier, header, board, keypad, coach, lesson }: GameL
           <aside
             data-testid="lesson-column"
             aria-label={t('game.lessonAria')}
+            // The hint text itself has its own `aria-live="polite"` region
+            // in `CoachPanel` (the sentence a level-1 or higher ask
+            // produces); this column's entire job is to reflect the same
+            // disclosure ladder one step further along — from the
+            // technique index to a named lesson — so a screen-reader user
+            // who has just paid for a rung deserves the same announcement
+            // here, not silence while the sidebar quietly swaps under them.
+            aria-live="polite"
             // `overflow-y-auto` does nothing on its own: the row is
             // `items-start` with no height constraint on this aside, so
             // there is no box for it to overflow *out of* — a tall lesson
