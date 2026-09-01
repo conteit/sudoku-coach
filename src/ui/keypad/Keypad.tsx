@@ -15,7 +15,7 @@
  * Presentational: it reads `values` to count, and reports every action up.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Digit } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { IconButton } from '../primitives/IconButton';
@@ -32,6 +32,14 @@ export interface KeypadProps {
   pencilMode: boolean;
   onTogglePencil: () => void;
   onDigit: (digit: Digit) => void;
+  /**
+   * Held past `LONG_PRESS_MS` without releasing. The only way to arm the
+   * green highlight on a digit that has none of its nine placed yet — a tap
+   * only ever enters, so there is no cell for the grid's own arm/clear rule
+   * (R3) to work from. Optional: a host that never wires it just gets a key
+   * whose long-press does nothing, not a broken one.
+   */
+  onDigitLongPress?: (digit: Digit) => void;
   onErase: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -39,8 +47,9 @@ export interface KeypadProps {
   canRedo?: boolean;
   /**
    * There is a cell to erase — i.e. one is selected. The digits deliberately
-   * stay live with nothing selected (a tap arms the green highlight, R3), but
-   * "erase" with no target is a key that can only do nothing.
+   * stay live with nothing selected — a long-press still has to reach a
+   * digit with none of its nine placed yet (R3) — but "erase" with no target
+   * is a key that can only do nothing.
    */
   canErase?: boolean;
   /** The board is paused or already solved — no move is legal right now. */
@@ -51,6 +60,13 @@ export interface KeypadProps {
   onHaptic?: (pattern: HapticPattern) => void;
   className?: string;
 }
+
+/**
+ * Long enough that every ordinary tap — the key's primary, single-purpose
+ * action now — resolves as a tap, short enough that arming a digit that
+ * isn't on the board yet doesn't feel like a broken key.
+ */
+const LONG_PRESS_MS = 500;
 
 /** 9 minus placements, floored at 0 so a contradictory board never goes negative. */
 function remainingCounts(values: readonly (Digit | null)[]): Record<Digit, number> {
@@ -65,6 +81,7 @@ export function Keypad({
   pencilMode,
   onTogglePencil,
   onDigit,
+  onDigitLongPress,
   onErase,
   onUndo,
   onRedo,
@@ -82,6 +99,36 @@ export function Keypad({
   const fire = (pattern: HapticPattern, action: () => void) => {
     onHaptic?.(pattern);
     action();
+  };
+
+  /**
+   * Only one key can be under a pointer at a time, so a single ref tracks the
+   * press in flight rather than one per digit. `fired` is what a click
+   * handler checks to tell a long-press's release from an ordinary tap: a
+   * pointer that was down long enough for the timer to fire still ends in a
+   * `click` on release (that is how buttons work, mouse or touch), and the
+   * long-press already did its thing — the click has to be swallowed, not
+   * treated as a second action.
+   */
+  const press = useRef<{ digit: Digit | null; timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({
+    digit: null,
+    timer: null,
+    fired: false,
+  });
+
+  const startPress = (digit: Digit) => {
+    press.current.digit = digit;
+    press.current.fired = false;
+    press.current.timer = setTimeout(() => {
+      press.current.fired = true;
+      fire('toggle', () => onDigitLongPress?.(digit));
+    }, LONG_PRESS_MS);
+  };
+
+  const endPress = () => {
+    if (press.current.timer === null) return;
+    clearTimeout(press.current.timer);
+    press.current.timer = null;
   };
 
   return (
@@ -105,15 +152,32 @@ export function Keypad({
               key={digit}
               type="button"
               disabled={disabled || done}
-              onClick={() => fire('tap', () => onDigit(digit))}
+              onPointerDown={() => startPress(digit)}
+              onPointerUp={endPress}
+              onPointerLeave={endPress}
+              onPointerCancel={endPress}
+              onClick={() => {
+                // A long-press's release still ends in a click — that is how
+                // buttons work regardless of pointer type — and the press
+                // already did its one thing, so this tap is swallowed rather
+                // than also entering the digit.
+                if (press.current.fired && press.current.digit === digit) {
+                  press.current.fired = false;
+                  return;
+                }
+                fire('tap', () => onDigit(digit));
+              }}
               aria-label={pencilMode ? t('keypad.note', { digit }) : t('keypad.place', { digit })}
-              // The armed digit is a toggle state, so it gets the toggle-button
-              // semantics (aria-pressed) rather than a second label string — a
-              // tap that only arms/clears the highlight still says "Place n" /
-              // "Note n", because that stays true most of the time it fires;
-              // aria-pressed is what tells a screen reader this key also does
-              // something when nothing is entered.
-              aria-pressed={digit === highlighted}
+              // No aria-pressed: the key's own activation — a tap, or Enter/
+              // Space from focus — always enters the digit, never toggles
+              // anything, so a toggle-button role would promise a screen
+              // reader something Enter/Space does not do. What actually
+              // toggles this state is a long-press, which has no keyboard
+              // equivalent at all (by design — the grid's own arm/clear is
+              // fully keyboard-reachable, see `selectHighlight`), so there is
+              // no honest way to expose it as this control's own pressed
+              // state. `data-highlighted` below still carries it for sighted
+              // and visual-regression use.
               data-digit={digit}
               data-complete={done || undefined}
               data-highlighted={digit === highlighted ? 'true' : undefined}

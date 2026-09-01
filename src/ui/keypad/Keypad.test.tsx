@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Digit } from '../../engine/types';
 import { parseGrid } from '../../engine/board';
 import { Keypad } from './Keypad';
@@ -107,9 +107,9 @@ describe('actions', () => {
   it('has nothing to erase until a cell is selected', () => {
     renderKeypad({ canErase: false });
 
-    // The digits stay live with no selection on purpose — a tap arms the
-    // green highlight rather than writing anything (R3) — which is exactly
-    // why the eraser cannot ride along on the pad's own `disabled`.
+    // The digits stay live with no selection on purpose — a long-press still
+    // has to reach a digit with none of its nine placed yet (R3) — which is
+    // exactly why the eraser cannot ride along on the pad's own `disabled`.
     expect(screen.getByRole('button', { name: 'Erase cell' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Place 6' })).toBeEnabled();
   });
@@ -129,11 +129,89 @@ describe('actions', () => {
     const other = screen.getByRole('button', { name: /4/ });
     expect(armed).toHaveAttribute('data-highlighted', 'true');
     expect(other).not.toHaveAttribute('data-highlighted');
-    // aria-pressed carries the armed state to the accessibility tree: the
-    // key's name stays "Place 5" even on a tap that only arms/clears, so
-    // pressed state is the only signal a screen reader gets that this key
-    // has a second meaning.
-    expect(armed).toHaveAttribute('aria-pressed', 'true');
-    expect(other).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('carries no aria-pressed — the key\'s own activation always enters a digit', () => {
+    // A tap or an Enter/Space activation never toggles anything any more —
+    // only a long-press does, and that has no keyboard equivalent at all —
+    // so aria-pressed would promise assistive tech a toggle this control's
+    // own activation does not perform.
+    renderKeypad({ highlighted: 5 });
+
+    expect(screen.getByRole('button', { name: /5/ })).not.toHaveAttribute('aria-pressed');
+    expect(screen.getByRole('button', { name: /4/ })).not.toHaveAttribute('aria-pressed');
+  });
+});
+
+describe('long-press', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('enters the digit on an ordinary tap and never calls the long-press handler', () => {
+    const onDigit = vi.fn();
+    const onDigitLongPress = vi.fn();
+    renderKeypad({ onDigit, onDigitLongPress });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    fireEvent.pointerUp(key);
+    fireEvent.click(key);
+
+    expect(onDigit).toHaveBeenCalledWith(6);
+    expect(onDigitLongPress).not.toHaveBeenCalled();
+  });
+
+  it('toggles the highlight and enters nothing when held past the threshold', () => {
+    const onDigit = vi.fn();
+    const onDigitLongPress = vi.fn();
+    const onHaptic = vi.fn();
+    renderKeypad({ onDigit, onDigitLongPress, onHaptic });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    vi.advanceTimersByTime(500);
+    // The release still ends in a browser `click`, mouse or touch — the key
+    // under test is that it gets swallowed rather than also entering.
+    fireEvent.pointerUp(key);
+    fireEvent.click(key);
+
+    expect(onDigitLongPress).toHaveBeenCalledWith(6);
+    expect(onDigit).not.toHaveBeenCalled();
+    expect(onHaptic).toHaveBeenCalledWith('toggle');
+  });
+
+  it('cancels a held press that releases before the threshold', () => {
+    const onDigitLongPress = vi.fn();
+    renderKeypad({ onDigitLongPress });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    vi.advanceTimersByTime(499);
+    fireEvent.pointerUp(key);
+    vi.advanceTimersByTime(1000);
+
+    expect(onDigitLongPress).not.toHaveBeenCalled();
+  });
+
+  it('cancels a held press when the pointer leaves the key', () => {
+    const onDigitLongPress = vi.fn();
+    renderKeypad({ onDigitLongPress });
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    fireEvent.pointerLeave(key);
+    vi.advanceTimersByTime(500);
+
+    expect(onDigitLongPress).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on a long-press with no handler wired', () => {
+    renderKeypad();
+
+    const key = screen.getByRole('button', { name: 'Place 6' });
+    fireEvent.pointerDown(key);
+    vi.advanceTimersByTime(500);
+    // No assertion beyond "did not throw" — the prop is optional by design.
+    fireEvent.pointerUp(key);
   });
 });

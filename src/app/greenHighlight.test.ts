@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Digit } from '../engine/types';
-import { selectHighlight } from './greenHighlight';
+import { selectHighlight, toggleHighlight } from './greenHighlight';
 
 const FIVE: Digit = 5;
 const THREE: Digit = 3;
@@ -26,5 +26,21 @@ describe('selectHighlight', () => {
 
   it('leaves a lit highlight alone when the selected cell is empty', () => {
     expect(selectHighlight(null, FIVE)).toBe(FIVE);
+  });
+});
+
+describe('toggleHighlight', () => {
+  it('arms an unlit highlight on the toggled digit', () => {
+    expect(toggleHighlight(FIVE, null)).toBe(FIVE);
+  });
+
+  it('re-arms on a different digit without needing to clear first', () => {
+    expect(toggleHighlight(FIVE, THREE)).toBe(FIVE);
+  });
+
+  it('clears when the toggled digit is already armed', () => {
+    // The regression the old keypad-tap guard existed for: toggling the same
+    // digit a second time is the only thing that puts it away.
+    expect(toggleHighlight(FIVE, FIVE)).toBeNull();
   });
 });
