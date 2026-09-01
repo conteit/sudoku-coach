@@ -14,111 +14,21 @@
  */
 
 import { useState } from 'react';
-import { parseGrid } from '../engine/board';
-import { TECHNIQUE_IDS, type CellIndex, type Digit, type TechniqueId } from '../engine/types';
-import { exampleMarks, getLesson, loadLessons } from '../coach/lessons';
-import type { Lesson } from '../coach/types';
-import { useT, type Translate } from '../i18n/locale';
-import type { MessageKey } from '../i18n/types';
-import { masteryOf } from '../state/mastery';
-import type { Locale, MasteryStage, PlayerProfile } from '../state/types';
-import { SudokuGrid, type GridCell } from '../ui/board/SudokuGrid';
+import type { TechniqueId } from '../engine/types';
+import { useT } from '../i18n/locale';
+import type { Locale, PlayerProfile } from '../state/types';
 import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
 import { ChevronLeftIcon } from '../ui/primitives/icons';
-import { cx } from '../ui/primitives/cx';
-
-const MASTERY_KEYS = {
-  unseen: 'mastery.unseen',
-  taught: 'mastery.taught',
-  recognized_with_hint: 'mastery.recognized_with_hint',
-  applied_unaided: 'mastery.applied_unaided',
-} as const satisfies Record<MasteryStage, MessageKey>;
-
-/** How far along a stage reads, so the chip can carry it without extra words. */
-const STAGE_TONE: Record<MasteryStage, string> = {
-  unseen: 'border-rule text-ink-faint',
-  taught: 'border-coach/40 text-coach',
-  recognized_with_hint: 'border-coach/60 text-coach',
-  applied_unaided: 'border-match/50 text-match',
-};
+import { LessonBody } from '../ui/learn/LessonBody';
+import { Section } from '../ui/learn/prose';
+import { TechniqueIndex } from '../ui/learn/TechniqueIndex';
 
 export interface LearnViewProps {
   profile: PlayerProfile;
   /** Opens straight onto one technique — the coach panel links in this way. */
   technique?: TechniqueId | null;
   onClose: () => void;
-}
-
-/** Lesson prose is paragraphs separated by blank lines; nothing more. */
-function Prose({ text }: { text: string }) {
-  return (
-    <>
-      {text.split('\n\n').map((paragraph, i) => (
-        <p key={i} className="mt-3 text-[0.9375rem] leading-relaxed text-ink first:mt-0">
-          {paragraph}
-        </p>
-      ))}
-    </>
-  );
-}
-
-function Section({ title, body }: { title: string; body: string }) {
-  return (
-    <section className="border-t border-rule py-6">
-      <h2 className="font-display mb-3 text-xl leading-tight text-ink">{title}</h2>
-      <Prose text={body} />
-    </section>
-  );
-}
-
-function MasteryChip({ stage, t }: { stage: MasteryStage; t: Translate }) {
-  return (
-    <span
-      className={cx(
-        'shrink-0 rounded-cell border px-2 py-0.5 text-[0.6875rem] font-medium',
-        STAGE_TONE[stage],
-      )}
-    >
-      {t(MASTERY_KEYS[stage])}
-    </span>
-  );
-}
-
-/**
- * The lesson's worked example as a real board.
- *
- * Every filled cell is drawn as a given: in an illustration there is no player
- * entry to distinguish, and the difference in weight would suggest one.
- */
-function Example({ lesson }: { lesson: Lesson }) {
-  const marks = exampleMarks(lesson);
-  const cells: GridCell[] = parseGrid(lesson.example.grid).map((value, index) => ({
-    value,
-    given: value !== null,
-    candidates: (marks.get(index) ?? []) as Digit[],
-  }));
-
-  return (
-    <figure className="mt-4">
-      {/* An illustration, not a board to play: taps would only move a selection
-          nobody asked for. */}
-      <div className="pointer-events-none">
-        <SudokuGrid
-          cells={cells}
-          selected={null}
-          onSelect={() => undefined}
-          spotlight={lesson.example.highlight as CellIndex[]}
-          highlightPeers={false}
-          highlightMatches={false}
-          label={lesson.name}
-        />
-      </div>
-      <figcaption className="mt-2.5 text-sm leading-relaxed text-ink-soft">
-        {lesson.example.caption}
-      </figcaption>
-    </figure>
-  );
 }
 
 function TechniquePage({
@@ -133,44 +43,19 @@ function TechniquePage({
   onBack: () => void;
 }) {
   const t = useT();
-  const lesson = getLesson(locale, id);
 
   return (
     <article>
-      <header className="flex items-start gap-3 pb-4">
+      <header className="pb-4">
         <IconButton
           label={t('action.back')}
           icon={<ChevronLeftIcon />}
           className="flex-none"
           onClick={onBack}
         />
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-2xl leading-tight text-ink">{lesson.name}</h1>
-          <p className="mt-1 text-sm text-ink-soft">{lesson.oneLiner}</p>
-        </div>
-        <MasteryChip stage={masteryOf(profile, id).stage} t={t} />
       </header>
 
-      <section className="border-t border-rule py-5">
-        <h2 className="mb-3 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-          {t('learn.what')}
-        </h2>
-        <Prose text={lesson.what} />
-      </section>
-
-      <section className="border-t border-rule py-5">
-        <h2 className="mb-3 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-          {t('learn.why')}
-        </h2>
-        <Prose text={lesson.why} />
-      </section>
-
-      <section className="border-t border-rule py-5">
-        <h2 className="mb-1 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
-          {t('learn.example')}
-        </h2>
-        <Example lesson={lesson} />
-      </section>
+      <LessonBody id={id} locale={locale} profile={profile} />
     </article>
   );
 }
@@ -178,7 +63,6 @@ function TechniquePage({
 export function LearnView({ profile, technique = null, onClose }: LearnViewProps) {
   const t = useT();
   const [open, setOpen] = useState<TechniqueId | null>(technique);
-  const lessons = loadLessons(profile.locale);
 
   if (open !== null) {
     return (
@@ -213,34 +97,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
       <Section title={t('learn.coach.title')} body={t('learn.coach.body')} />
       <Section title={t('learn.keys.title')} body={t('learn.keys.body')} />
 
-      <section className="border-t border-rule pt-6">
-        <h2 className="font-display text-xl leading-tight text-ink">
-          {t('learn.techniques.title')}
-        </h2>
-        <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-soft">
-          {t('learn.techniques.intro')}
-        </p>
-
-        <ul className="mt-4 divide-y divide-rule border-t border-rule">
-          {TECHNIQUE_IDS.map((id) => (
-            <li key={id}>
-              <button
-                type="button"
-                onClick={() => setOpen(id)}
-                className="flex w-full items-center gap-3 py-3.5 text-left transition-colors duration-100 ease-snap hover:bg-paper-sunk"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-ink">{lessons[id].name}</span>
-                  <span className="mt-0.5 block truncate text-sm text-ink-soft">
-                    {lessons[id].oneLiner}
-                  </span>
-                </span>
-                <MasteryChip stage={masteryOf(profile, id).stage} t={t} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <TechniqueIndex profile={profile} onOpen={setOpen} />
 
       <div className="pt-8">
         <Button variant="secondary" size="lg" block onClick={onClose}>
