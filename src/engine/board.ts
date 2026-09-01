@@ -55,7 +55,7 @@ const HOUSES_OF: readonly (readonly House[])[] = Object.freeze(
   ),
 );
 
-export const PEERS: readonly (readonly CellIndex[])[] = Object.freeze(
+const PEERS: readonly (readonly CellIndex[])[] = Object.freeze(
   Array.from({ length: CELL_COUNT }, (_, cell) => {
     const set = new Set<CellIndex>();
     for (const house of HOUSES_OF[cell]) for (const c of house.cells) set.add(c);
@@ -182,23 +182,6 @@ export class Board implements BoardView {
     const v = this.values[cell];
     if (v === null) return [];
     return PEERS[cell].filter((p) => this.values[p] === v);
-  }
-
-  /**
-   * Digits noted in `cell` that a peer already holds.
-   *
-   * These are dead by the rules alone — no technique, no deduction, just a
-   * digit that cannot go there any more because the player placed it next
-   * door. Kept separate from `trueCandidates` because that answers "what could
-   * go here", and this answers "what did the player's own move just kill".
-   */
-  staleAt(cell: CellIndex, noted: Iterable<Digit>): Digit[] {
-    if (this.values[cell] !== null) return [...noted].sort((a, b) => a - b);
-    const dead: Digit[] = [];
-    for (const digit of noted) {
-      if (PEERS[cell].some((peer) => this.values[peer] === digit)) dead.push(digit);
-    }
-    return dead.sort((a, b) => a - b);
   }
 
   /**

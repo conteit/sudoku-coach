@@ -4,7 +4,6 @@ import {
   Board, BOXES, boxOf, CELL_COUNT, cellAt, cellName, COLS, colOf, formatGrid,
   HOUSES, housesOf, parseGrid, peersOf, ROWS, rowOf, sharesHouse,
 } from './board';
-import type { Digit } from './types';
 
 const SOLVED =
   '534678912672195348198342567859761423426853791713924856961537284287419635345286179';
@@ -170,20 +169,3 @@ describe('conflicts', () => {
   });
 });
 
-describe('staleAt', () => {
-  it('names the noted digits a peer already holds', () => {
-    const board = Board.fromValues(parseGrid(PUZZLE));
-    // r1c1 is a given 5 and r1c5 a given 7, both peers of r1c3.
-    expect(board.staleAt(2, [5, 7, 4] as Digit[])).toEqual([5, 7]);
-  });
-
-  it('says nothing about a digit no peer holds', () => {
-    const board = Board.fromValues(parseGrid(PUZZLE));
-    expect(board.staleAt(2, [4] as Digit[])).toEqual([]);
-  });
-
-  it('calls every mark in a filled cell dead — the cell is decided', () => {
-    const board = Board.fromValues(parseGrid(PUZZLE));
-    expect(board.staleAt(0, [1, 2] as Digit[])).toEqual([1, 2]);
-  });
-});
