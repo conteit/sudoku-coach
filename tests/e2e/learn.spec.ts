@@ -5,14 +5,8 @@
  * a hint that has just named a technique.
  */
 
-import { expect, test, type Page } from '@playwright/test';
-
-/** The coach rests as a button on a phone; the panel is behind it. */
-async function openCoach(page: Page) {
-  const fab = page.getByRole('button', { name: /^Coach/ });
-  if (await fab.isVisible()) await fab.click();
-  return page.getByRole('region', { name: 'Coach' });
-}
+import { expect, test } from '@playwright/test';
+import { openCoach } from './coach';
 
 test('reads the rules, the ladder and a technique lesson', async ({ page }) => {
   await page.goto('/');

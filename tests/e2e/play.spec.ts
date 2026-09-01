@@ -13,6 +13,7 @@
  */
 
 import { expect, test, type Page } from '@playwright/test';
+import { openCoach } from './coach';
 import { Board } from '../../src/engine/board';
 import { firstFinding, solveBruteForce } from '../../src/engine/solver';
 import type { Digit } from '../../src/engine/types';
@@ -84,17 +85,6 @@ async function startEasyGame(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   // Generation runs in a worker and retries until the rating matches.
   await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
-}
-
-/**
- * The coach rests as a button on a phone; the panel is behind it. On a wide
- * viewport the panel is already the static bar and the FAB never renders, so
- * the click is skipped rather than attempted against a hidden element.
- */
-async function openCoach(page: Page) {
-  const fab = page.getByRole('button', { name: /^Coach/ });
-  if (await fab.isVisible()) await fab.click();
-  return page.getByRole('region', { name: 'Coach' });
 }
 
 test.describe('one puzzle, end to end', () => {
@@ -209,10 +199,10 @@ test.describe('one puzzle, end to end', () => {
     await coach.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([]);
 
-    // The sheet is a real modal on a phone (R against a keyboard trap) and
-    // sits over the keypad while open, so the keypad's own Undo has to be
-    // reached the way a player would: close the sheet first. Escape is a
-    // no-op on the desktop bar, where the keypad was never covered.
+    // The sheet is a real modal on a phone and sits over the keypad while
+    // open, so the keypad's own Undo has to be reached the way a player
+    // would: close the sheet first. Escape is a no-op on the desktop bar,
+    // where the keypad was never covered.
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Undo' }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([digit]);
@@ -220,11 +210,18 @@ test.describe('one puzzle, end to end', () => {
 
   test('the green highlight survives moving the caret', async ({ page }) => {
     await startEasyGame(page);
+    const cells = await readBoard(page);
 
     // Any digit a given already carries is guaranteed to light something up;
     // the puzzle's own givens are what makes the choice safe rather than
     // hardcoding a digit that might not appear on this board at all.
-    const digit = (await readBoard(page)).find((cell) => cell.given)!.value as Digit;
+    const digit = cells.find((cell) => cell.given)!.value as Digit;
+    // An empty cell can never itself hold `digit` — so moving the caret there
+    // can only prove the highlight held, rather than landing on a cell that
+    // was always going to read as matched regardless of whether arming it is
+    // sticky at all (a fixed coordinate risks exactly that on the ~4-5% of
+    // boards where it happens to already carry the same digit).
+    const empty = cells.find((cell) => cell.value === null)!;
 
     // Arming does not need a selected cell at all — the keypad owns this
     // state now, not the selection (R3).
@@ -235,7 +232,7 @@ test.describe('one puzzle, end to end', () => {
 
     // Moving the caret is not a tap that writes anything, so it must leave
     // the highlight exactly as it was.
-    await page.getByRole('gridcell', { name: /r5c5/ }).click();
+    await page.locator(`[data-cell="${empty.index}"]`).click();
     await expect(lit).toHaveCount(before);
   });
 
@@ -298,12 +295,19 @@ test.describe('drills', () => {
     // covered the board in the first place.
     await page.keyboard.press('Escape');
 
-    // A wrong move does not satisfy a drill.
+    // A wrong move does not satisfy a drill. Asserted as the challenge text
+    // still standing, not as "applied by you" absent: the detector is behind
+    // a debounce (below), so a fresh negative check resolves at its first
+    // poll, before that debounce could possibly have run, and would pass
+    // exactly the same way if the wrong move had wrongly satisfied it.
+    // `toBeVisible` on the mutually-exclusive text the panel would have
+    // replaced is the one of the two that a same-tick bug could actually
+    // fail.
     const empty = cells.find((cell) => cell.value === null)!;
     const wrong = ((solution!.values[empty.index]! % 9) + 1) as Digit;
     await enter(page, empty.index, wrong);
     coach = await openCoach(page);
-    await expect(coach.getByText(/applied by you/)).toHaveCount(0);
+    await expect(coach.getByText(/There is a .* on this board/)).toBeVisible();
     await page.keyboard.press('Escape');
     await page.locator(`[data-cell="${empty.index}"]`).click();
     await page.keyboard.press('Backspace');
@@ -350,12 +354,9 @@ test.describe('the keyboard', () => {
     expect((await readBoard(page))[empty.index].value).toBeNull();
 
     // 'h' opens the sheet itself on a narrow viewport (it is how a keyboard
-    // player reaches a coach that a mouse would tap the FAB for) — a direct
-    // query here, not `openCoach`, because that helper's own eager
-    // `isVisible()` read on the FAB can land in the instant between the
-    // keypress and React committing `sheetOpen`, where the FAB is still
-    // mid-transition; `toBeVisible`'s own retrying is what the FAB's minimal
-    // fixed-membership guard cannot offer.
+    // player reaches a coach that a mouse would tap the FAB for) — read
+    // directly here rather than through `openCoach`, which clicks the FAB:
+    // this test's whole point is that no pointer input is needed at all.
     await page.keyboard.press('h');
     const coach = page.getByRole('region', { name: 'Coach' });
     await expect(coach.getByLabel('Disclosure level 1 of 4')).toBeVisible();
