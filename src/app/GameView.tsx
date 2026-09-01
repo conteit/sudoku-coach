@@ -17,6 +17,7 @@ import { Board } from '../engine/board';
 import type { CellIndex, Digit, TechniqueId } from '../engine/types';
 import { getLesson } from '../coach/lessons';
 import { recap } from '../coach/recap';
+import { deadNotes } from '../state/deadNotes';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useGameStore } from '../state/store';
 import { formatList } from '../i18n';
@@ -86,20 +87,13 @@ export function GameView({
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
 
   /**
-   * Marks a placed digit has already killed, per cell.
-   *
-   * Shown always rather than only after the move that caused them: they are
-   * dead by the rules, not by a technique, so leaving some of them unmarked
-   * because they died a few moves ago would be arbitrary. What it does *not*
-   * touch is the other half of the note check — a mark that is missing is a
-   * deduction the player still owes, and nothing here hints at it.
+   * The notes one of the player's own placements has killed since they were
+   * written. Deliberately not every note a peer contradicts: striking those
+   * through as they are typed performs the elimination the player came here to
+   * learn. A note written into a square that was already dead stays unmarked —
+   * that one is theirs to find, and "check my notes" is what finds it.
    */
-  const stale = useMemo(() => {
-    const board = Board.fromValues(values);
-    return game.cells.map((cell, index) =>
-      cell.value === null && cell.candidates.size > 0 ? board.staleAt(index, cell.candidates) : [],
-    );
-  }, [game.cells, values]);
+  const stale = useMemo(() => deadNotes(game.cells, game.undoStack), [game.cells, game.undoStack]);
   const staleCount = useMemo(() => stale.reduce((n, digits) => n + digits.length, 0), [stale]);
   const summary = useMemo(() => recap(game.coachLog), [game.coachLog]);
   const conflicts = useMemo(
