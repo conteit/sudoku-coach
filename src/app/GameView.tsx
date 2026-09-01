@@ -56,6 +56,17 @@ const HAPTICS: Record<HapticPattern, number | number[]> = {
   blocked: [12, 40, 12],
 };
 
+/**
+ * Below Tailwind's `sm` (640px), the coach panel is the mobile overlay; at
+ * and above it, it's the static desktop bar. The modal machinery — focus
+ * trap, Escape — must key off the same line the CSS does, or pressing "h" on
+ * a wide screen traps keyboard focus in a panel that visually covers nothing
+ * and cannot be escaped without also discarding the hint just asked for
+ * (WCAG 2.1.2). `.98` mirrors Tailwind's own boundary convention, keeping the
+ * ranges from touching at exactly 640px.
+ */
+const MOBILE_QUERY = '(max-width: 639.98px)';
+
 export interface GameViewProps {
   game: LiveGame;
   settings: PlayerProfile['settings'];
@@ -99,6 +110,16 @@ export function GameView({
   // keyboard user at the top of the document.
   const coachPanelRef = useRef<HTMLDivElement>(null);
   const coachRestoreRef = useRef<HTMLElement | null>(null);
+  // Read once for the first paint (so it's right immediately, not a frame
+  // late) and kept live for anyone who resizes or rotates mid-game.
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const onChange = (): void => setIsNarrow(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
 
@@ -147,6 +168,14 @@ export function GameView({
     coach.dismissNudge();
   }, [coach]);
 
+  /**
+   * Whether the panel is actually presented as the modal overlay right now —
+   * `sheetOpen` alone isn't enough, because `sheetOpen` can be true on a wide
+   * screen too (see `onHint` below): the static desktop bar is never a modal
+   * no matter what this flag says.
+   */
+  const modalOpen = sheetOpen && isNarrow;
+
   /*
    * Moves focus into the sheet on open and hands it back on close — the
    * capture happens in `openSheet` above, this just does the moving.
@@ -158,18 +187,21 @@ export function GameView({
    * `children` is, duplicating the header `CoachPanel` already owns. What's
    * reused is `Sheet.tsx`'s own focusable-element query (`FOCUSABLE`) and the
    * same move-in/restore/trap logic, applied to this panel instead of a
-   * portal.
+   * portal. Both effects are gated on `modalOpen`, not `sheetOpen`: trapping
+   * Tab and hijacking Escape on the static desktop bar — which is visible and
+   * interactive with or without `sheetOpen` — is a keyboard trap with no way
+   * out except discarding whatever the player was just doing.
    */
   useEffect(() => {
-    if (!sheetOpen) return;
+    if (!modalOpen) return;
     const panel = coachPanelRef.current;
     const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? panel)?.focus();
     return () => coachRestoreRef.current?.focus?.();
-  }, [sheetOpen]);
+  }, [modalOpen]);
 
   useEffect(() => {
-    if (!sheetOpen) return;
+    if (!modalOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
@@ -194,7 +226,7 @@ export function GameView({
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [sheetOpen, closeSheet]);
+  }, [modalOpen, closeSheet]);
 
   const haptic = useCallback(
     (pattern: HapticPattern) => {
@@ -228,10 +260,14 @@ export function GameView({
     onToggleNotes: () => setPencilMode((on) => !on),
     onUndo: () => dispatch({ type: 'undo' }),
     onRedo: () => dispatch({ type: 'redo' }),
-    // Asking by keyboard has to open the sheet itself, or "h" fires a hint
-    // into a panel the player cannot see.
+    // On a narrow screen, asking by keyboard has to open the sheet itself, or
+    // "h" fires a hint into a panel the player cannot see. On a wide screen
+    // the panel is already visible and static — it was never behind
+    // anything — so this stays exactly the plain `coach.ask()` it was before
+    // this task: opening a sheet that already shows nothing new would only
+    // add the modal machinery to a control that never needed it.
     onHint: () => {
-      openSheet();
+      if (isNarrow) openSheet();
       coach.ask();
     },
     // A dialog is a question; answering it with "u" should not rewind the board
@@ -366,7 +402,7 @@ export function GameView({
           recognises, or a pointer is the only way to back out of the sheet.
           `tabIndex={-1}` keeps it out of the tab order on purpose — the panel
           itself is where Tab should land, not the backdrop behind it. */}
-      {sheetOpen ? (
+      {modalOpen ? (
         <button
           type="button"
           aria-label={t('action.close')}
@@ -379,6 +415,16 @@ export function GameView({
       <div
         ref={coachPanelRef}
         tabIndex={-1}
+        // Only while it's genuinely the modal overlay: the static desktop
+        // bar is a `region` (from `CoachPanel`'s own labelled `<section>`),
+        // never a `dialog` — announcing it as one would tell a screen reader
+        // to treat a permanently-visible part of the page as something that
+        // opened and will close. `aria-modal="true"` is what tells assistive
+        // tech to stop offering the board and keypad behind it, the same
+        // contract `Sheet.tsx` relies on for its own portal.
+        role={modalOpen ? 'dialog' : undefined}
+        aria-modal={modalOpen ? true : undefined}
+        aria-label={modalOpen ? t('coach.title') : undefined}
         className={cx(
           'bg-paper-raised sm:static sm:block sm:max-h-none sm:overflow-visible sm:shadow-none',
           sheetOpen
