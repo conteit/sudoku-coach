@@ -14,7 +14,7 @@
  */
 
 import type { CellIndex, TechniqueId } from '../../engine/types';
-import type { CandidateReview, Hint } from '../../coach/types';
+import type { CandidateReview, Hint, TeachableTrigger } from '../../coach/types';
 import type { DisclosureLevel } from '../../state/types';
 import { cellName } from '../../engine/board';
 import { Button } from '../primitives/Button';
@@ -23,6 +23,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CloseIcon,
+  EraserIcon,
   TargetIcon,
 } from '../primitives/icons';
 import { IconButton } from '../primitives/IconButton';
@@ -76,6 +77,16 @@ export interface CoachPanelProps {
    * something, and only where it overlays the board's controls.
    */
   onCollapse?: () => void;
+  /**
+   * The most urgent unprompted moment, surfaced inside the sheet rather than
+   * as a surface of its own — the sheet is the only place left that can show
+   * it without taking board height to do it.
+   */
+  nudge?: TeachableTrigger | null;
+  onDismissNudge?: () => void;
+  /** Notes a placement has killed since they were written; drives the eraser. */
+  staleCount?: number;
+  onClearStale?: () => void;
   className?: string;
 }
 
@@ -206,6 +217,10 @@ export function CoachPanel({
   onDismissDrill,
   onLearn,
   onCollapse,
+  nudge,
+  onDismissNudge,
+  staleCount,
+  onClearStale,
   className,
 }: CoachPanelProps) {
   const t = useT();
@@ -239,6 +254,26 @@ export function CoachPanel({
           />
         ) : null}
       </div>
+
+      {/* Outranks even the ladder: a nudge is the coach noticing something on
+          its own, and a player who opened the sheet to see it should not have
+          to scroll past the resting invitation first. No "show me where" here
+          — the sheet that carries this nudge is covering the board it would
+          point at. */}
+      {nudge ? (
+        <div className="mx-4 mt-3 flex items-center gap-3 rounded-cell border border-coach/35 bg-coach-wash px-4 py-3">
+          <p className="min-w-0 flex-1 text-sm text-coach">
+            {nudge.kind === 'contradiction'
+              ? t('coach.nudge.contradiction')
+              : nudge.kind === 'stale_marks'
+                ? t('coach.nudge.staleMarks')
+                : t('coach.nudge.stuck')}
+          </p>
+          <Button variant="ghost" onClick={onDismissNudge}>
+            {t('action.dismiss')}
+          </Button>
+        </div>
+      ) : null}
 
       {/* The ladder is the product in one control, so it stays wherever there is
           room for it. Before the player has taken a rung it is a diagram of
@@ -331,6 +366,16 @@ export function CoachPanel({
         {onReviewCandidates ? (
           <Button variant="ghost" size="lg" icon={<CheckIcon />} onClick={onReviewCandidates}>
             {t('action.checkMarks')}
+          </Button>
+        ) : null}
+        {/* Lives here rather than as a standing row of its own: starting over
+            and deleting are rare enough to earn a permanent line, and this is
+            not that — it is offered exactly while there is something to clear. */}
+        {onClearStale && staleCount ? (
+          <Button variant="ghost" size="lg" icon={<EraserIcon />} onClick={onClearStale}>
+            {staleCount === 1
+              ? t('action.clearStaleOne')
+              : t('action.clearStaleCount', { count: staleCount })}
           </Button>
         ) : null}
         {onLearn && hint && level >= 2 ? (

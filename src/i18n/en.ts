@@ -79,6 +79,8 @@ export const en = {
   'board.givenLocked': 'That cell was given with the puzzle.',
 
   'coach.title': 'Coach',
+  'coach.open': 'Coach',
+  'coach.openWaiting': 'Coach — has something for you',
   'coach.idle': 'Ask when you want a nudge. Nothing is revealed until you ask.',
   'coach.reading': 'Reading the board',
   'coach.nothingFound': 'Nothing on this board yields to a technique yet. Fill in what you can and come back.',
