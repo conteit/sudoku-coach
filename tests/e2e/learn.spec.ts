@@ -7,6 +7,7 @@
 
 import { expect, test } from '@playwright/test';
 import { openCoach } from './coach';
+import { boardGrid } from './board';
 
 test('reads the rules, the ladder and a technique lesson', async ({ page }) => {
   await page.goto('/');
@@ -33,7 +34,7 @@ test('a named technique links from the coach panel to its lesson', async ({ page
   await page.goto('/');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   const coach = await openCoach(page);
   await coach.getByRole('button', { name: 'Where should I look?' }).click();
@@ -57,6 +58,6 @@ test('offers a puzzle chosen for the technique at the edge of mastery', async ({
   await expect(page.getByText(/Naked single, at easy level/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Let the coach choose' }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText('Easy')).toBeVisible();
 });
