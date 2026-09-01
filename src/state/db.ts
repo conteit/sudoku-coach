@@ -153,19 +153,33 @@ export async function listSummaries(
 /* -------------------------------------------------------------------------- */
 
 /**
+ * `stored`, with any settings field it predates filled in from
+ * `DEFAULT_PROFILE`. A profile saved before a field existed simply lacks the
+ * key on disk — it is absent, not `undefined` — so every path that hands a
+ * stored profile to a caller has to apply this once, or `settings` cannot be
+ * trusted to be fully populated the way `PlayerProfile`'s type claims it is.
+ */
+export function withDefaultSettings(stored: PlayerProfile): PlayerProfile {
+  return { ...stored, settings: { ...DEFAULT_PROFILE.settings, ...stored.settings } };
+}
+
+/**
  * The profile always exists as far as callers are concerned: a first run gets
  * the defaults in memory and only writes them when something actually changes,
  * so opening the app never dirties storage.
  */
 export async function loadProfile(conn: SudokuCoachDB = db): Promise<PlayerProfile> {
-  return (await readProfile(conn)) ?? DEFAULT_PROFILE;
+  const stored = await readProfile(conn);
+  return stored === undefined ? DEFAULT_PROFILE : withDefaultSettings(stored);
 }
 
 /**
  * The stored profile, or undefined on a first run. The distinction matters
  * exactly once: a player who has never chosen a language should get the one
  * their browser asks for, and a player who has chosen must never be overridden
- * by it.
+ * by it. Raw as written to disk — a settings field it predates is simply
+ * absent — so a caller that needs `settings` fully populated wants
+ * `loadProfile` (or `withDefaultSettings` directly) instead.
  */
 export const readProfile = (conn: SudokuCoachDB = db): Promise<PlayerProfile | undefined> =>
   conn.profile.get('profile');
