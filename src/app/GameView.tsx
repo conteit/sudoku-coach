@@ -395,6 +395,10 @@ export function GameView({
           onRedo={() => dispatch({ type: 'redo' })}
           canUndo={game.undoStack.length > 0}
           canRedo={game.redoStack.length > 0}
+          // The pad as a whole stays live with nothing selected — a digit tap
+          // arms the highlight — but the eraser has nothing to erase, so it
+          // needs the gate the pad no longer applies for it.
+          canErase={selected !== null}
           disabled={paused || solved}
           highlighted={highlightDigit}
           onHaptic={haptic}

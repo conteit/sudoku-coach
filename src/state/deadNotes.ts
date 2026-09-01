@@ -11,6 +11,15 @@
  * Both timestamps are already in the move log, so the answer is derived rather
  * than stored: it survives undo, redo and a reload with no change to the
  * persisted `Game` shape.
+ *
+ * Two things the log implies, worth saying out loud. `moves` is assumed
+ * ordered ascending by `at` — `nextAt` (`src/state/game.ts`) guarantees it on
+ * append, and nothing else writes the log. And the log is capped at
+ * `MAX_HISTORY` (2000, same file), so once a note's own `addCandidate` move
+ * has been trimmed off the front, that note can never be flagged again: it has
+ * no write time to compare against. That fails safe — the mark simply stays
+ * the player's, unmarked — which is the direction this whole module errs in
+ * anyway.
  */
 
 import type { Cell, CellIndex, Digit } from '../engine/types';

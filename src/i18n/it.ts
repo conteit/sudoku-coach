@@ -103,7 +103,6 @@ export const it: Dictionary = {
   'coach.nudge.contradiction': 'Una delle cifre che hai inserito non può essere giusta.',
   'coach.nudge.staleMarks': 'Una cifra che hai messo lascia annotazioni che non possono più valere.',
   'coach.nudge.stuck': 'Su questa griglia c’è qualcosa che una tecnica riesce ad aprire.',
-  'coach.nudge.show': 'Mostrami dove',
 
   'learn.title': 'Impara',
   'learn.intro': 'Le regole, le tecniche verso cui il coach può indirizzarti e che cosa il coach ti dice — e che cosa no.',

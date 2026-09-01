@@ -102,7 +102,6 @@ export const en = {
   'coach.nudge.contradiction': 'One of the digits you have entered cannot be right.',
   'coach.nudge.staleMarks': 'A digit you placed leaves notes behind that can no longer hold.',
   'coach.nudge.stuck': 'There is something on this board that a technique cracks.',
-  'coach.nudge.show': 'Show me where',
 
   'learn.title': 'Learn',
   'learn.intro': 'The rules, the techniques the coach can point you at, and what the coach will and will not tell you.',
