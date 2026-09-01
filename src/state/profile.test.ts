@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DB_NAME, readProfile, saveProfile, SudokuCoachDB } from './db';
 import { DEFAULT_PROFILE, onTaught } from './mastery';
 import { createProfileStore, type ProfileStoreApi } from './profile';
+import type { PlayerProfile } from './types';
 
 let counter = 0;
 let conn: SudokuCoachDB;
@@ -45,6 +46,29 @@ describe('hydration', () => {
     await store.getState().flush();
 
     expect(await readProfile(conn)).toBeUndefined();
+  });
+
+  it('backfills a settings field a stored profile predates, without disturbing the rest', async () => {
+    // Shaped the way a profile saved before `highlightMatchingNotes` existed
+    // would actually be on disk: the key is simply absent, not `undefined`.
+    const legacy = {
+      ...DEFAULT_PROFILE,
+      settings: {
+        highlightConflicts: false,
+        theme: 'dark',
+        haptics: false,
+      },
+    } as PlayerProfile;
+    await saveProfile(legacy, conn);
+
+    await store.getState().hydrate();
+
+    expect(store.getState().profile.settings).toEqual({
+      highlightConflicts: false,
+      theme: 'dark',
+      haptics: false,
+      highlightMatchingNotes: DEFAULT_PROFILE.settings.highlightMatchingNotes,
+    });
   });
 });
 

@@ -38,7 +38,12 @@ export const DEFAULT_PROFILE: PlayerProfile = {
   id: 'profile',
   mastery: {},
   locale: 'it',
-  settings: { highlightConflicts: true, theme: 'system', haptics: true },
+  settings: {
+    highlightConflicts: true,
+    theme: 'system',
+    haptics: true,
+    highlightMatchingNotes: false,
+  },
 };
 
 const UNSEEN: MasteryEntry = { stage: 'unseen', applications: 0, misses: 0, lastSeenAt: 0 };

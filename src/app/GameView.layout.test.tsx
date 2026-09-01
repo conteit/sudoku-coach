@@ -40,6 +40,7 @@ const SETTINGS: PlayerProfile['settings'] = {
   highlightConflicts: true,
   theme: 'system',
   haptics: false,
+  highlightMatchingNotes: false,
 };
 
 let counter = 0;

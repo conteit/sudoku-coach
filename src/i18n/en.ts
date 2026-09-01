@@ -138,6 +138,7 @@ export const en = {
   'settings.theme.dark': 'Dark',
   'settings.haptics': 'Haptic feedback',
   'settings.highlightConflicts': 'Flag conflicting digits',
+  'settings.highlightMatchingNotes': 'Highlight matching notes too',
 
   'mastery.title': 'Techniques',
   'mastery.unseen': 'Not met yet',
