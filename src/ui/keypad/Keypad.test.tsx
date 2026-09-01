@@ -104,11 +104,18 @@ describe('actions', () => {
     expect(onTogglePencil).toHaveBeenCalledOnce();
   });
 
-  it('goes quiet when no cell is selected, but still allows undo', () => {
+  it('goes quiet while disabled, but still allows undo', () => {
     renderKeypad({ disabled: true });
 
     expect(screen.getByRole('button', { name: 'Place 6' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Erase cell' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled();
+  });
+
+  it('marks the armed digit so the player can see what the green is', () => {
+    renderKeypad({ highlighted: 5 });
+
+    expect(screen.getByRole('button', { name: /5/ })).toHaveAttribute('data-highlighted', 'true');
+    expect(screen.getByRole('button', { name: /4/ })).not.toHaveAttribute('data-highlighted');
   });
 });

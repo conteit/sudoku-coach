@@ -79,6 +79,10 @@ export function GameView({
   const removeGame = useGameStore((state) => state.removeGame);
 
   const [selected, setSelected] = useState<CellIndex | null>(null);
+  // Owned by the keypad, not derived from the selection: a highlight that
+  // dies on the move that makes it useful — scanning the grid for where else
+  // a digit can go — is not a highlight (R3).
+  const [highlightDigit, setHighlightDigit] = useState<Digit | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
   const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -207,6 +211,7 @@ export function GameView({
             tintedHouses={coach.hint?.houses ?? []}
             conflicts={conflicts}
             staleMarks={stale}
+            highlightDigit={highlightDigit}
               className={paused ? 'pointer-events-none blur-md select-none' : undefined}
             />
             {paused ? (
@@ -243,7 +248,13 @@ export function GameView({
           pencilMode={pencilMode}
           onTogglePencil={() => setPencilMode((on) => !on)}
           onDigit={(digit) => {
-            if (selected !== null) enter(selected, digit);
+            const entered = selected !== null && game.cells[selected]?.value !== digit;
+            if (entered) enter(selected as CellIndex, digit);
+            // A tap that wrote something arms the green on what was just written.
+            // A tap that wrote nothing is purely a request about the highlight,
+            // and that is the only tap allowed to turn it off — otherwise
+            // placing the same digit into two cells would blink it away.
+            setHighlightDigit((current) => (!entered && current === digit ? null : digit));
           }}
           onErase={() => {
             if (selected !== null) dispatch({ type: 'clearCell', cell: selected });
@@ -252,7 +263,8 @@ export function GameView({
           onRedo={() => dispatch({ type: 'redo' })}
           canUndo={game.undoStack.length > 0}
           canRedo={game.redoStack.length > 0}
-          disabled={selected === null || paused || solved}
+          disabled={paused || solved}
+          highlighted={highlightDigit}
           onHaptic={haptic}
         />
       </main>

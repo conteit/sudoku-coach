@@ -34,6 +34,7 @@ function Harness({
   onEnter?: (cell: CellIndex, digit: Digit) => void;
   onClear?: (cell: CellIndex) => void;
   highlightMatches?: boolean;
+  highlightDigit?: Digit | null;
 }) {
   const [selected, setSelected] = useState<CellIndex | null>(initialSelected);
   return (
@@ -86,14 +87,14 @@ describe('pencil marks', () => {
 });
 
 describe('same-number highlight', () => {
-  it('highlights every placed occurrence of the selected digit', async () => {
-    const user = userEvent.setup();
+  // The highlight is driven by highlightDigit, not by the selection (R3) — so
+  // these render it directly rather than clicking a cell to derive it.
+  it('highlights every placed occurrence of highlightDigit', () => {
     const values = parseGrid(PUZZLE);
     const fives = values.flatMap((value, index) => (value === 5 ? [index] : []));
     expect(fives.length).toBeGreaterThan(1);
 
-    render(<Harness />);
-    await user.click(cellAt(fives[0]));
+    render(<Harness highlightDigit={5} />);
 
     for (const index of fives) expect(cellAt(index)).toHaveAttribute('data-match', 'true');
 
@@ -101,24 +102,27 @@ describe('same-number highlight', () => {
     expect(highlighted).toHaveLength(fives.length);
   });
 
-  it('highlights a player entry alongside the givens that match it', async () => {
-    const user = userEvent.setup();
+  it('highlights a player entry alongside the givens that match it', () => {
     // r1c3 is empty in the puzzle; the player writes a 5 into it.
-    render(<Harness cells={buildCells({}, { 2: 5 })} />);
-
-    await user.click(cellAt(2));
+    render(<Harness cells={buildCells({}, { 2: 5 })} highlightDigit={5} />);
 
     expect(cellAt(2)).toHaveAttribute('data-match', 'true');
     expect(cellAt(0)).toHaveAttribute('data-match', 'true');
   });
 
-  it('highlights nothing when the selected cell is empty', async () => {
+  it('keeps the same-digit highlight when the selection moves', async () => {
     const user = userEvent.setup();
-    render(<Harness />);
+    render(<Harness initialSelected={0} highlightDigit={5} />);
+    // r1c1 is a given 5; the highlight is on 5 regardless of where the caret is.
+    const before = screen.getByRole('gridcell', { name: /r1c1/ });
+    expect(before).toHaveAttribute('data-match', 'true');
+    await user.click(screen.getByRole('gridcell', { name: /r5c5/ }));
+    expect(screen.getByRole('gridcell', { name: /r1c1/ })).toHaveAttribute('data-match', 'true');
+  });
 
-    await user.click(cellAt(2));
-
-    expect(document.querySelectorAll('[role="gridcell"][data-match="true"]')).toHaveLength(0);
+  it('draws no match layer when highlightDigit is null', () => {
+    render(<Harness initialSelected={0} highlightDigit={null} />);
+    expect(screen.getByRole('gridcell', { name: /r1c1/ })).not.toHaveAttribute('data-match');
   });
 });
 
