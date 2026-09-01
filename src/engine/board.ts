@@ -55,7 +55,7 @@ const HOUSES_OF: readonly (readonly House[])[] = Object.freeze(
   ),
 );
 
-const PEERS: readonly (readonly CellIndex[])[] = Object.freeze(
+export const PEERS: readonly (readonly CellIndex[])[] = Object.freeze(
   Array.from({ length: CELL_COUNT }, (_, cell) => {
     const set = new Set<CellIndex>();
     for (const house of HOUSES_OF[cell]) for (const c of house.cells) set.add(c);
