@@ -11,6 +11,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { openCoach } from './coach';
+import { boardGrid } from './board';
 
 /** WCAG 2 A and AA, which is the bar this app has been drawn to. */
 const audit = (page: Page) =>
@@ -35,7 +36,7 @@ test('the board is clean, with a hint open and notes flagged', async ({ page }) 
   await page.goto('/');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   expect((await audit(page).analyze()).violations).toEqual([]);
 
@@ -68,7 +69,7 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   // Opening the sheet is a new screen state for axe: the scrim behind it and
   // the sheet's own modal role change the focus order from the resting page.
@@ -79,17 +80,20 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
 });
 
 test('puts the board before the coach in the reading order', async ({ page }, testInfo) => {
-  // `GameLayout` only renders a `coach-column` div beside the board from the
-  // laptop tier up; the ordering only actually needs proving once the wide
-  // tier's third column (the lesson) makes it a real reading-order question
-  // rather than a two-item list with one obvious order, so this runs where
-  // all three are on screen at once.
-  test.skip(testInfo.project.name !== 'wide', 'three columns only exist on the wide tier');
+  // `GameLayout` renders a `coach-column` div beside the board from the
+  // laptop tier up (`src/app/GameLayout.tsx`); the DOM order this asserts is
+  // a property of that JSX, not of which tier is current, so it holds from
+  // laptop up rather than only once the desktop tier's third column (the
+  // lesson) is also on screen.
+  test.skip(
+    !['laptop', 'wide'].includes(testInfo.project.name),
+    'the coach column only exists from the laptop tier up',
+  );
 
   await page.goto('/');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   const order = await page.evaluate(() => {
     const grid = document.querySelector('[role="grid"]')!;

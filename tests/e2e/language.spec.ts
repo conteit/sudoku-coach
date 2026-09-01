@@ -10,6 +10,7 @@
 
 import { expect, test } from '@playwright/test';
 import { openCoach } from './coach';
+import { boardGrid } from './board';
 
 test('switches language, and keeps it across a restart', async ({ page }) => {
   await page.goto('/');
@@ -25,7 +26,7 @@ test('switches language, and keeps it across a restart', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Nuova griglia' }).click();
   await page.getByRole('button', { name: 'Facile', exact: true }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   // Chrome, keypad and coach all speak it, not just the parts with a lesson.
   await expect(page.getByRole('button', { name: 'Questa griglia' })).toBeVisible();

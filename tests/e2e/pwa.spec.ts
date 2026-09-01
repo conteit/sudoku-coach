@@ -13,6 +13,7 @@
 
 import { expect, test } from '@playwright/test';
 import { openCoach } from './coach';
+import { boardGrid } from './board';
 
 interface Manifest {
   name?: string;
@@ -84,7 +85,7 @@ test('plays with the network off', async ({ page, context }) => {
   // a whole puzzle has to start and play with no network at all.
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   const coach = await openCoach(page);
   await coach.getByRole('button', { name: 'Where should I look?' }).click();

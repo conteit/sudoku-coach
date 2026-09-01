@@ -14,6 +14,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { openCoach } from './coach';
+import { boardCell, boardGrid } from './board';
 import { Board } from '../../src/engine/board';
 import { firstFinding, solveBruteForce } from '../../src/engine/solver';
 import type { Digit } from '../../src/engine/types';
@@ -26,19 +27,6 @@ interface DomCell {
   value: number | null;
   notes: number[];
 }
-
-/**
- * The interactive board, scoped away from the read-only worked example the
- * wide tier's lesson column shows once a technique is named (a drill, or a
- * level-2+ disclosure): `Example` renders that illustration with the same
- * `SudokuGrid`/`Cell` markup — `role="grid"`, `data-cell` — as the real
- * board, so an unscoped `[data-cell]` query on that tier picks up both and
- * returns 162 cells instead of 81. Only the interactive board lives inside
- * `<main>` in every `GameLayout` tier; the example lives in the `aside`.
- */
-const boardCell = (page: Page, index: number) => page.locator(`main [data-cell="${index}"]`);
-/** Same scoping, for the grid itself rather than one of its cells. */
-const boardGrid = (page: Page) => page.locator('main').getByRole('grid');
 
 /** The board as the player sees it, read back out of the grid. */
 async function readBoard(page: Page): Promise<DomCell[]> {
@@ -388,9 +376,10 @@ test.describe('the board never gives up height', () => {
  * Invariant 9 in its general form, not just the phone case above: whatever
  * the tier, nothing that comes and goes during play may resize the board.
  * Unlike the phone-only describe above, this runs in every project — the
- * tablet's stacked layout, the laptop's board-and-coach pair, and the wide
- * tier's third lesson column are three more places the board could have
- * been made to move, and none of them were exercised by a test before this.
+ * tablet's stacked layout, the laptop's board-and-coach pair, and the
+ * desktop tier's third lesson column are three more places the board could
+ * have been made to move, and none of them were exercised by a test before
+ * this.
  */
 test('the board keeps its box whatever the coach is doing', async ({ page }) => {
   await startEasyGame(page);
@@ -419,7 +408,7 @@ test('the board keeps its box whatever the coach is doing', async ({ page }) => 
  */
 test.describe('the lesson column stays inside the viewport', () => {
   test('never runs its bottom edge past the fold', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'wide', 'the lesson column only exists on the wide tier');
+    test.skip(testInfo.project.name !== 'wide', 'the lesson column only exists on the desktop tier');
 
     await startEasyGame(page);
     const coach = await openCoach(page);
@@ -535,7 +524,7 @@ test.describe('drills', () => {
       'this test applies the finding by placing its digits',
     ).toBeGreaterThan(0);
 
-    // Scoped to the interactive board: on the wide tier the drill's own
+    // Scoped to the interactive board: on the desktop tier the drill's own
     // level-2 naming swaps the lesson column to a worked `Example`, whose
     // illustration spotlights cells on purpose — that is not the board this
     // assertion is about.
