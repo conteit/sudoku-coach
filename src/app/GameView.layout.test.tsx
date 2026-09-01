@@ -13,6 +13,17 @@
  * `tests/e2e/play.spec.ts`, which has a browser that can do layout.
  */
 
+// Must come first: Dexie captures the global `indexedDB` when it is imported,
+// and `./GameView` reaches it transitively (`useCoachSession` and the new
+// lesson column both read `useProfile`, whose store writes through to Dexie
+// on every level-2 disclosure — a real one, not a debounced autosave, per
+// `state/profile.ts`'s own "write-through rather than debounced" doc
+// comment). jsdom has no IndexedDB of its own; without this shim, the first
+// test that reaches a level-2 hint or a drill turns a real write attempt into
+// an unhandled rejection instead of the successful save a browser would give
+// it. Same convention as `state/store.test.ts`, `state/db.test.ts` and
+// `state/profile.test.ts`.
+import 'fake-indexeddb/auto';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -229,6 +240,33 @@ describe('the lesson column', () => {
     await user.click(screen.getByRole('button', { name: /where should i look/i }));
     const lesson = screen.getByTestId('lesson-column');
     expect(within(lesson).getByRole('heading', { name: /techniques/i })).toBeTruthy();
+  });
+
+  // `useCoachSession.startDrill` names the technique — `coach.hint(finding, 2)`,
+  // logged before `drill` is even set — and then sets `hint` back to `null` so
+  // the panel can show the challenge banner instead of hint text. A gate that
+  // only reads `coach.hint` misses that a level-2 disclosure already
+  // happened: the coach says "there is a hidden single here" while the
+  // sidebar still shows the index, which reads as a bug rather than as
+  // discipline. `TechniqueIndex`'s heading is an `<h2>`; `LessonBody`'s own
+  // title is an `<h1>` — checking for the `<h1>` (and the absence of the
+  // index's heading) proves the swap happened without hardcoding which
+  // technique this fixed board's first finding turns out to be.
+  it('names the technique in the sidebar once a drill has named it', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    // `CoachPanel` renders this control twice — an icon-only `sm:hidden`
+    // button for the phone and a spelled-out `hidden sm:block` one for wide
+    // screens, both with the same accessible name — because jsdom applies no
+    // stylesheet, both are visible to `getByRole`. Only the spelled-out one
+    // has "Set me a challenge" as its own text content; the icon-only one
+    // carries the same string solely as an `aria-label`. `getByText` finds
+    // the former without depending on DOM order between the two.
+    const drillButton = screen.getByText('Set me a challenge').closest('button');
+    expect(drillButton).not.toBeNull();
+    await user.click(drillButton!);
+    const lesson = screen.getByTestId('lesson-column');
+    expect(within(lesson).getByRole('heading', { level: 1 })).toBeTruthy();
+    expect(within(lesson).queryByRole('heading', { name: /techniques/i })).toBeNull();
   });
 });
 
