@@ -27,9 +27,22 @@ interface DomCell {
   notes: number[];
 }
 
+/**
+ * The interactive board, scoped away from the read-only worked example the
+ * wide tier's lesson column shows once a technique is named (a drill, or a
+ * level-2+ disclosure): `Example` renders that illustration with the same
+ * `SudokuGrid`/`Cell` markup — `role="grid"`, `data-cell` — as the real
+ * board, so an unscoped `[data-cell]` query on that tier picks up both and
+ * returns 162 cells instead of 81. Only the interactive board lives inside
+ * `<main>` in every `GameLayout` tier; the example lives in the `aside`.
+ */
+const boardCell = (page: Page, index: number) => page.locator(`main [data-cell="${index}"]`);
+/** Same scoping, for the grid itself rather than one of its cells. */
+const boardGrid = (page: Page) => page.locator('main').getByRole('grid');
+
 /** The board as the player sees it, read back out of the grid. */
 async function readBoard(page: Page): Promise<DomCell[]> {
-  return page.locator('[data-cell]').evaluateAll((nodes) =>
+  return page.locator('main [data-cell]').evaluateAll((nodes) =>
     nodes
       .map((node) => {
         const element = node as HTMLElement;
@@ -75,7 +88,7 @@ function pickAbsentDigit(cells: DomCell[], cell: number): number {
 }
 
 async function enter(page: Page, cell: number, digit: number): Promise<void> {
-  await page.locator(`[data-cell="${cell}"]`).click();
+  await boardCell(page, cell).click();
   await page.keyboard.press(String(digit));
 }
 
@@ -84,7 +97,7 @@ async function startEasyGame(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   // Generation runs in a worker and retries until the rating matches.
-  await expect(page.getByRole('grid')).toBeVisible({ timeout: 60_000 });
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 }
 
 test.describe('one puzzle, end to end', () => {
@@ -154,7 +167,7 @@ test.describe('one puzzle, end to end', () => {
     // it, because a game that only survives a graceful exit has not survived.
     await page.waitForTimeout(1500);
     await page.reload();
-    await expect(page.getByRole('grid')).toBeVisible();
+    await expect(boardGrid(page)).toBeVisible();
 
     expect(await readBoard(page)).toEqual(played);
 
@@ -186,8 +199,8 @@ test.describe('one puzzle, end to end', () => {
     await enter(page, peer.index, digit);
 
     // Flagged on the board, and said in words for anyone not reading colour.
-    await expect(page.locator(`[data-cell="${empty.index}"] [data-stale]`)).toHaveCount(1);
-    await expect(page.locator(`[data-cell="${empty.index}"]`)).toHaveAttribute(
+    await expect(boardCell(page, empty.index).locator('[data-stale]')).toHaveCount(1);
+    await expect(boardCell(page, empty.index)).toHaveAttribute(
       'aria-label',
       new RegExp(`Notes ${digit} can no longer be true here`),
     );
@@ -225,19 +238,19 @@ test.describe('one puzzle, end to end', () => {
 
     // The grid drives the green now, not the keypad (R3): selecting a cell
     // that holds a digit is the arm/clear decision.
-    await page.locator(`[data-cell="${given.index}"]`).click();
-    const lit = page.locator('[role="gridcell"][data-match="true"]');
+    await boardCell(page, given.index).click();
+    const lit = page.locator('main [role="gridcell"][data-match="true"]');
     await expect(lit.first()).toBeVisible();
     const before = await lit.count();
 
     // Moving the caret onto an empty cell is not an arm/clear decision, so it
     // must leave the highlight exactly as it was.
-    await page.locator(`[data-cell="${empty.index}"]`).click();
+    await boardCell(page, empty.index).click();
     await expect(lit).toHaveCount(before);
 
     // Selecting the same lit cell again is the other half of the rule: it
     // clears rather than leaving the green stuck on.
-    await page.locator(`[data-cell="${given.index}"]`).click();
+    await boardCell(page, given.index).click();
     await expect(lit).toHaveCount(0);
   });
 
@@ -294,7 +307,7 @@ test.describe('the board never gives up height', () => {
   test('stays the same size in every state a game can be in', async ({ page }) => {
     await page.setViewportSize(SHORT_PHONE);
     await startEasyGame(page);
-    const grid = page.getByRole('grid');
+    const grid = boardGrid(page);
     const heightNow = async (): Promise<number> => {
       const box = await grid.boundingBox();
       expect(box, 'the grid has to be on screen to be measured').not.toBeNull();
@@ -343,7 +356,7 @@ test.describe('the board never gives up height', () => {
 
     // Cleared again before the next state, so each one is measured on its own
     // rather than on the accumulation of the ones before it.
-    await page.locator(`[data-cell="${spare.index}"]`).click();
+    await boardCell(page, spare.index).click();
     await page.keyboard.press('Backspace');
     expect(await heightNow()).toBeCloseTo(atRest, 1);
 
@@ -361,13 +374,80 @@ test.describe('the board never gives up height', () => {
     await enter(page, noted.index, digit);
     await page.getByRole('button', { name: 'Notes on' }).click();
     await enter(page, peer.index, digit);
-    await expect(page.locator(`[data-cell="${noted.index}"] [data-stale]`)).toHaveCount(1);
+    await expect(boardCell(page, noted.index).locator('[data-stale]')).toHaveCount(1);
     expect(await heightNow()).toBeCloseTo(atRest, 1);
 
     // And with the sheet open over the keypad, which is the state that used to
     // push the board around the most.
     await openCoach(page);
     expect(await heightNow()).toBeCloseTo(atRest, 1);
+  });
+});
+
+/*
+ * Invariant 9 in its general form, not just the phone case above: whatever
+ * the tier, nothing that comes and goes during play may resize the board.
+ * Unlike the phone-only describe above, this runs in every project — the
+ * tablet's stacked layout, the laptop's board-and-coach pair, and the wide
+ * tier's third lesson column are three more places the board could have
+ * been made to move, and none of them were exercised by a test before this.
+ */
+test('the board keeps its box whatever the coach is doing', async ({ page }) => {
+  await startEasyGame(page);
+  const grid = boardGrid(page);
+  const atRest = (await grid.boundingBox())!;
+
+  await openCoach(page);
+  const withCoach = (await grid.boundingBox())!;
+  expect(withCoach.width).toBeCloseTo(atRest.width, 1);
+  expect(withCoach.height).toBeCloseTo(atRest.height, 1);
+
+  await page.getByRole('button', { name: /where should i look/i }).click();
+  const withHint = (await grid.boundingBox())!;
+  expect(withHint.width).toBeCloseTo(atRest.width, 1);
+  expect(withHint.height).toBeCloseTo(atRest.height, 1);
+});
+
+/*
+ * The `6rem` header-height budget in `GameLayout`'s lesson column
+ * (`max-h-[calc(100dvh-6rem)]`) was reasoned about, never measured, and
+ * nothing pins it — a header that grows would silently push the column's
+ * bottom edge off screen. This is that pin: a lesson long enough to
+ * genuinely exceed the cap (proven, not assumed, by checking the box is
+ * shorter than its content), with the column's own bottom edge asserted to
+ * stay inside the viewport regardless.
+ */
+test.describe('the lesson column stays inside the viewport', () => {
+  test('never runs its bottom edge past the fold', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'wide', 'the lesson column only exists on the wide tier');
+
+    await startEasyGame(page);
+    const coach = await openCoach(page);
+
+    // Level 2 is where a technique gets named (R7), which is what swaps the
+    // sidebar's `TechniqueIndex` for a full `LessonBody` — what/why/example,
+    // the tallest a lesson gets.
+    await coach.getByRole('button', { name: 'Where should I look?' }).click();
+    await coach.getByRole('button', { name: /Name the technique/ }).click();
+
+    const lesson = page.getByTestId('lesson-column');
+    await expect(lesson).toBeVisible();
+
+    const [scrollHeight, clientHeight] = await lesson.evaluate((el) => [
+      el.scrollHeight,
+      el.clientHeight,
+    ]);
+    expect(
+      scrollHeight,
+      'the lesson must be taller than its box, or the cap below is not being tested at all',
+    ).toBeGreaterThan(clientHeight);
+
+    const box = (await lesson.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(
+      box.y + box.height,
+      "the column's bottom edge must stay inside the viewport",
+    ).toBeLessThanOrEqual(viewport.height);
   });
 });
 
@@ -455,7 +535,11 @@ test.describe('drills', () => {
       'this test applies the finding by placing its digits',
     ).toBeGreaterThan(0);
 
-    const spotlight = page.locator('[data-spotlight]');
+    // Scoped to the interactive board: on the wide tier the drill's own
+    // level-2 naming swaps the lesson column to a worked `Example`, whose
+    // illustration spotlights cells on purpose — that is not the board this
+    // assertion is about.
+    const spotlight = page.locator('main [data-spotlight]');
     // Nothing is spotlighted by a level-2 disclosure: the technique is named,
     // the cells are not (R7).
     await expect(spotlight).toHaveCount(0);
@@ -480,7 +564,7 @@ test.describe('drills', () => {
     coach = await openCoach(page);
     await expect(coach.getByText(/There is a .* on this board/)).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.locator(`[data-cell="${empty.index}"]`).click();
+    await boardCell(page, empty.index).click();
     await page.keyboard.press('Backspace');
 
     // Only the cell(s) the finding itself places, not the rest of the board:
