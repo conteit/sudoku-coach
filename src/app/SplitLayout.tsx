@@ -27,9 +27,12 @@ export interface SplitLayoutProps {
    `GameLayout` is over budget at its narrowest wide tier: a 40rem board beside
    a 22rem coach column already exceeds 1024 once the page padding is counted,
    so every pixel in that gutter comes out of the board, and the board is the
-   thing invariant 9 exists to protect. Here nothing is squeezed — two panes
-   inside 96rem, the wide one `flex-1` — so the gutter can be the 32px that
-   actually reads as two surfaces rather than one wrapped column.
+   thing invariant 9 exists to protect. Here nothing is squeezed — two panes,
+   the wide one `flex-1`, and since this layout dropped its page cap there is
+   no ceiling to compete for either — so the gutter can be the 32px that
+   actually reads as two surfaces rather than one wrapped column. The game
+   screen keeps its 96rem cap for the opposite reason: a board that grew with
+   the monitor would be a metre of sudoku.
 
    The widths differ for the same kind of reason: 22rem holds the coach's
    controls (a four-rung ladder, buttons, an eraser), 20rem holds a list of
@@ -41,7 +44,14 @@ export interface SplitLayoutProps {
    flex item at its min-content width — one long technique name would widen
    this pane and take the difference from the pane beside it. Choosing a
    lesson must not move the list you chose it from. */
-const NARROW = 'w-[20rem] min-w-0 shrink-0';
+/* 20rem, and 24rem from 1536 up. Still a property of the *tier* rather than
+   of the content — which is what invariant 10 actually requires — expressed
+   as a breakpoint rather than as the `tier` prop this component deliberately
+   does not take: `2xl` is the desktop boundary `useViewportTier` uses, and a
+   media query cannot be handed the wrong value by a caller. Above that width
+   a 20rem index beside an unbounded pane reads as a leftover rather than as
+   half of a layout. */
+const NARROW = 'w-[20rem] 2xl:w-[24rem] min-w-0 shrink-0';
 const WIDE = 'min-w-0 flex-1';
 
 /**
@@ -72,7 +82,13 @@ const WIDE = 'min-w-0 flex-1';
  */
 export function SplitLayout({ narrow, left, right }: SplitLayoutProps) {
   return (
-    <div className="mx-auto w-full max-w-[96rem] px-6 pt-6 pb-12">
+    /* No width cap. It used to stop at 96rem, which left a third of a large
+       monitor empty on the two screens that had the most to put there — a
+       list of games and an index of techniques, both of which get better with
+       room. The cap that matters is still enforced, one level down: prose
+       caps at 40rem wherever it is shown (invariant 10), and the callers own
+       that, so widening the page cannot widen a sentence. */
+    <div className="w-full px-6 pt-6 pb-12">
       <div className="flex items-start gap-8">
         <div data-testid="left-pane" className={narrow === 'left' ? NARROW : WIDE}>
           {left}

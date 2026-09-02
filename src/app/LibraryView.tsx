@@ -94,7 +94,9 @@ export function LibraryView({
       {/* Not the split's own children: the header is fixed chrome, not a
           pane. This wrapper only borrows `SplitLayout`'s width cap and side
           padding so the title lines up with the columns beneath it. */}
-      <div className="mx-auto w-full max-w-[96rem] px-6 pt-6">{header}</div>
+      {/* Tracks `SplitLayout`'s own padding so the title lines up with the
+          panes; no cap, for the same reason it has none. */}
+      <div className="w-full px-6 pt-6">{header}</div>
       <SplitLayout
         // The games take the width, not the progress summary: this list is
         // the reason the screen exists, and with `narrow="left"` it would

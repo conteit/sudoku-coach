@@ -153,6 +153,14 @@ only mean something on the device holding that game.
     widen the pane and take the difference from its neighbour. Choosing a
     lesson must not move the list you chose it from. The other pane is
     `flex-1` and tracks the viewport, so it is the one that needs a cap.
+    Neither screen caps its own page width any more: at 96rem a large monitor
+    was a third empty on the two screens with the most to put there, and the
+    cap that protects reading is this one, not that one. The narrow pane grows
+    with the tier instead — 20rem, 24rem from 1536 — written as the `2xl`
+    breakpoint rather than as a prop, so it stays the tier's business and
+    cannot be handed a wrong value. The game screen keeps its 96rem cap for
+    the opposite reason: a board that grew with the monitor would be a metre
+    of sudoku.
     Which side is which is the caller's call — the `narrow` prop — because
     the two screens disagree: Learn's index is narrow beside a wide lesson,
     the library's games are wide beside a narrow progress pane. A screen's
