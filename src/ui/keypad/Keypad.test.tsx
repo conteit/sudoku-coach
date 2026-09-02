@@ -337,8 +337,13 @@ describe('the eraser, while notes are dead', () => {
     renderKeypad({ staleCount: 2, onClearStale: noop });
 
     const key = screen.getByRole('button', { name: 'Clear dead notes' });
-    expect(key.className).toContain('bg-coach-wash');
-    expect(key.className).toContain('text-coach');
+    // The `!` is asserted along with the colour, not incidentally: without
+    // it these lose to `IconButton`'s own `bg-paper-raised` / `text-ink-soft`
+    // depending on the order Tailwind emits the two rules, and the key would
+    // render as the eraser it is meant to stop looking like.
+    expect(key.className).toContain('!bg-coach');
+    expect(key.className).toContain('!text-paper');
+    expect(key.className).not.toContain('bg-coach-wash');
   });
 
   it('clears on a tap, and hands the key back to the eraser', async () => {
