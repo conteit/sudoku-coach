@@ -145,7 +145,11 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
           pane. This wrapper only borrows `SplitLayout`'s width cap and side
           padding so the title lines up with the columns beneath it — same
           convention `LibraryView` uses for its own header. */}
-      <header className="mx-auto flex w-full max-w-[96rem] items-start gap-3 px-6 pt-6">
+      {/* `pb-6` matches the `mb-6` on `LibraryView`'s header: both screens
+          put the same 48px between the chrome and the panes below it. They
+          are built in the same branch from the same primitive and had no
+          reason to differ — this one was simply missing the class. */}
+      <header className="mx-auto flex w-full max-w-[96rem] items-start gap-3 px-6 pt-6 pb-6">
         <IconButton
           label={t('action.back')}
           icon={<ChevronLeftIcon />}
