@@ -8,14 +8,20 @@ export interface GameLayoutProps {
   board: ReactNode;
   keypad: ReactNode;
   coach: ReactNode;
-  lesson: ReactNode;
   /**
-   * What `lesson` is currently showing, in one phrase — a technique's name, or
-   * the index's own title. This is the *only* thing the column announces when
-   * it swaps; see the live region below for why it is a separate prop rather
-   * than something read back out of `lesson`.
+   * The lesson column: what it shows, and what it is called.
+   *
+   * One prop rather than two, because the pair has to agree and nothing but
+   * convention was making it. `title` is what the column announces when it
+   * swaps — one phrase, a technique's name or the index's own title — and it
+   * is carried alongside the content rather than read back out of it: see the
+   * live region below for why the announcement must not be the content.
+   *
+   * A caller building the two separately could hand over a lesson titled by
+   * the index; here the title cannot be updated without touching the body it
+   * describes.
    */
-  lessonTitle: string;
+  lesson: { title: string; body: ReactNode };
 }
 
 /**
@@ -36,7 +42,6 @@ export function GameLayout({
   keypad,
   coach,
   lesson,
-  lessonTitle,
 }: GameLayoutProps) {
   const t = useT();
 
@@ -157,9 +162,9 @@ export function GameLayout({
                 stays where a screen-reader user can go and read it when they
                 choose to. */}
             <span className="sr-only" aria-live="polite">
-              {t('game.lessonAnnounce', { title: lessonTitle })}
+              {t('game.lessonAnnounce', { title: lesson.title })}
             </span>
-            {lesson}
+            {lesson.body}
           </aside>
         ) : null}
       </div>
