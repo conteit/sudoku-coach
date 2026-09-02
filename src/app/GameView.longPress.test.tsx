@@ -12,6 +12,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
 import { newGame } from '../state/game';
+import { DEFAULT_PROFILE } from '../state/mastery';
 import { useGameStore } from '../state/store';
 import type { LiveGame, PlayerProfile } from '../state/types';
 import { GameView } from './GameView';
@@ -23,12 +24,11 @@ const SOLVED =
 const PUZZLE =
   '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79';
 
-const SETTINGS: PlayerProfile['settings'] = {
-  highlightConflicts: true,
-  theme: 'system',
-  haptics: false,
-  highlightMatchingNotes: false,
-};
+// The shipped defaults, minus the haptics jsdom has no vibrate for. Built
+// off `DEFAULT_PROFILE` rather than spelled out, so a new setting arrives
+// here with its documented default instead of breaking every test file that
+// happened to write the old shape out by hand.
+const SETTINGS: PlayerProfile['settings'] = { ...DEFAULT_PROFILE.settings, haptics: false };
 
 let counter = 0;
 

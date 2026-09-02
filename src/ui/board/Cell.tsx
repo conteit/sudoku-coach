@@ -52,6 +52,8 @@ export interface CellProps {
   flags: number;
   /** Digit the selection is about, so pencil marks for it can echo the match. */
   matchDigit: Digit | null;
+  /** Draw a player entry in the entry colour rather than the givens' ink. */
+  colorEntries: boolean;
   /** Roving tabindex: exactly one cell in the grid is 0. */
   tabIndex: number;
   onSelect: (cell: CellIndex) => void;
@@ -89,12 +91,16 @@ function washClass(flags: number): string {
 /**
  * Colour is never the only signal: a given is also 200 weight units heavier
  * than a player entry, which survives greyscale and colour-blind viewing.
+ *
+ * That is also what makes the entry colour safe to switch off — `colorEntries`
+ * takes away the blue, never the weight, so a board with it off still tells
+ * the player which digits are theirs.
  */
-function digitClass(flags: number, given: boolean): string {
+function digitClass(flags: number, given: boolean, colorEntries: boolean): string {
   const weight = given ? 'font-[640]' : 'font-[440]';
   if (has(flags, CELL_CONFLICT)) return `${weight} text-danger`;
   if (has(flags, CELL_MATCH)) return `${weight} text-match`;
-  return `${weight} ${given ? 'text-ink' : 'text-entry'}`;
+  return `${weight} ${given || !colorEntries ? 'text-ink' : 'text-entry'}`;
 }
 
 function describe(
@@ -126,6 +132,7 @@ function CellImpl({
   stale,
   flags,
   matchDigit,
+  colorEntries,
   tabIndex,
   onSelect,
 }: CellProps) {
@@ -156,7 +163,9 @@ function CellImpl({
       )}
     >
       {value !== null ? (
-        <span className={cx('digit text-[6.4cqw]', digitClass(flags, given))}>{value}</span>
+        <span className={cx('digit text-[6.4cqw]', digitClass(flags, given, colorEntries))}>
+          {value}
+        </span>
       ) : (
         // All nine slots are always rendered, empty or not: a pencil mark's
         // position is a property of the digit, not of how many siblings it has

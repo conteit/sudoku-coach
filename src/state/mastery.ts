@@ -43,6 +43,13 @@ export const DEFAULT_PROFILE: PlayerProfile = {
     theme: 'system',
     haptics: true,
     highlightMatchingNotes: false,
+    // The board as it has always drawn itself; these exist to be turned off.
+    highlightMatches: true,
+    highlightPeers: true,
+    markDeadNotes: true,
+    colorEntries: true,
+    // Invariant 1: the app does not edit a player's marks unless asked to.
+    autoClearDeadNotes: false,
   },
 };
 

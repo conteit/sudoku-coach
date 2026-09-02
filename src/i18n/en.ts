@@ -150,6 +150,11 @@ export const en = {
   'settings.haptics': 'Haptic feedback',
   'settings.highlightConflicts': 'Flag conflicting digits',
   'settings.highlightMatchingNotes': 'Highlight matching notes too',
+  'settings.highlightMatches': 'Highlight the same digit',
+  'settings.highlightPeers': 'Shade the row, column and box',
+  'settings.markDeadNotes': 'Flag notes your placements killed',
+  'settings.colorEntries': 'Colour your own digits',
+  'settings.autoClearDeadNotes': 'Clear dead notes automatically',
 
   'mastery.title': 'Techniques',
   'mastery.unseen': 'Not met yet',

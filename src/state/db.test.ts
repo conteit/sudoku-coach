@@ -239,10 +239,15 @@ describe('the player profile', () => {
     await saveProfile(legacy, conn);
 
     expect((await loadProfile(conn)).settings).toEqual({
+      // Every field the stored profile predates comes back at its documented
+      // default, and the three it actually carried are untouched. Written as
+      // a spread rather than a literal so the next setting to be added does
+      // not have to be added here too — the assertion is "defaults fill the
+      // gaps", not "the settings object has exactly these keys today".
+      ...DEFAULT_PROFILE.settings,
       highlightConflicts: false,
       theme: 'dark',
       haptics: false,
-      highlightMatchingNotes: DEFAULT_PROFILE.settings.highlightMatchingNotes,
     });
   });
 });

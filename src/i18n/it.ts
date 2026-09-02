@@ -148,6 +148,11 @@ export const it: Dictionary = {
   'settings.haptics': 'Vibrazione',
   'settings.highlightConflicts': 'Segnala le cifre in conflitto',
   'settings.highlightMatchingNotes': 'Evidenzia anche le annotazioni uguali',
+  'settings.highlightMatches': 'Evidenzia la stessa cifra',
+  'settings.highlightPeers': 'Ombreggia riga, colonna e riquadro',
+  'settings.markDeadNotes': 'Segnala le annotazioni che hai reso morte',
+  'settings.colorEntries': 'Colora le cifre che inserisci',
+  'settings.autoClearDeadNotes': 'Cancella da solo le annotazioni morte',
 
   'mastery.title': 'Tecniche',
   'mastery.unseen': 'Non ancora incontrata',

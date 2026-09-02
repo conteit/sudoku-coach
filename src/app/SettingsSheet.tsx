@@ -96,15 +96,50 @@ export function SettingsSheet({
           render={(theme) => t(THEME_KEYS[theme])}
           onChange={(theme) => onSettings({ theme })}
         />
+        {/* The colour the board draws, one switch per layer. They ship on —
+            this is the board as it has always looked — and exist so a player
+            who finds it noisy can quiet it a layer at a time rather than
+            choosing between all of it and none. The coach's own spotlight is
+            deliberately not here: it is not decoration, it is the hint
+            pointing. */}
         <Toggle
           label={t('settings.highlightConflicts')}
           checked={profile.settings.highlightConflicts}
           onChange={(highlightConflicts) => onSettings({ highlightConflicts })}
         />
         <Toggle
+          label={t('settings.highlightMatches')}
+          checked={profile.settings.highlightMatches}
+          onChange={(highlightMatches) => onSettings({ highlightMatches })}
+        />
+        <Toggle
           label={t('settings.highlightMatchingNotes')}
           checked={profile.settings.highlightMatchingNotes}
           onChange={(highlightMatchingNotes) => onSettings({ highlightMatchingNotes })}
+        />
+        <Toggle
+          label={t('settings.highlightPeers')}
+          checked={profile.settings.highlightPeers}
+          onChange={(highlightPeers) => onSettings({ highlightPeers })}
+        />
+        <Toggle
+          label={t('settings.colorEntries')}
+          checked={profile.settings.colorEntries}
+          onChange={(colorEntries) => onSettings({ colorEntries })}
+        />
+        <Toggle
+          label={t('settings.markDeadNotes')}
+          checked={profile.settings.markDeadNotes}
+          onChange={(markDeadNotes) => onSettings({ markDeadNotes })}
+        />
+        {/* The one switch here that changes what the app *does* rather than
+            how it looks, and the only one that ships off: invariant 1 says
+            the app does not edit a player's marks unless asked, and this is
+            where the asking happens. */}
+        <Toggle
+          label={t('settings.autoClearDeadNotes')}
+          checked={profile.settings.autoClearDeadNotes}
+          onChange={(autoClearDeadNotes) => onSettings({ autoClearDeadNotes })}
         />
         <Toggle
           label={t('settings.haptics')}
