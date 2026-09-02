@@ -475,15 +475,32 @@ describe('the coach sheet', () => {
     expect(screen.queryByRole('button', { name: /has something for you/i })).not.toBeInTheDocument();
   });
 
+  /*
+   * Scoped to the panel, because the keypad's eraser now carries the same
+   * action while notes are dead — two doors, one dispatch. An unscoped query
+   * here would find the pad's key and pass whether or not the panel still
+   * offers anything, which is the failure mode this file has hit before.
+   */
+  const coachPanel = () => within(screen.getByRole('region', { name: 'Coach' }));
+
   it('offers the eraser once a placement has killed a note', () => {
     renderGame({ deadNotes: true, running: true });
-    expect(screen.getByRole('button', { name: /clear 1 dead note/i })).toBeInTheDocument();
+    expect(coachPanel().getByRole('button', { name: /clear 1 dead note/i })).toBeInTheDocument();
   });
 
   it('withholds the eraser while paused, even though the notes are still dead', () => {
     // `renderGame` starts paused by default — see `makeGame`.
     renderGame({ deadNotes: true });
-    expect(screen.queryByRole('button', { name: /clear \d+ dead notes?/i })).not.toBeInTheDocument();
+    expect(
+      coachPanel().queryByRole('button', { name: /clear \d+ dead notes?/i }),
+    ).not.toBeInTheDocument();
+    // The pad's key is the other door, and a paused board takes no moves
+    // through either: it is on screen, and dead.
+    expect(
+      within(screen.getByRole('group', { name: /^Keypad/ })).getByRole('button', {
+        name: /clear \d+ dead notes?/i,
+      }),
+    ).toBeDisabled();
   });
 
   it('is announced as a dialog only while it is actually the modal overlay', async () => {

@@ -300,3 +300,68 @@ describe('long-press', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 });
+
+/**
+ * A note a placement has killed is bookkeeping the player owes the board, and
+ * until this the only way to pay it was to open the coach — a notification, a
+ * sheet and a tap away from a phone player whose thumb is already on the pad.
+ *
+ * So the pad's own eraser carries it: while anything is dead, the key *is*
+ * the clear, and the ordinary erase waits. That is deliberate rather than
+ * incidental — clearing first is the point — and Undo, one key over, is the
+ * right tool for the mis-tap the erase would otherwise fix.
+ */
+describe('the eraser, while notes are dead', () => {
+  it('carries the clear instead, named by what it will do', () => {
+    renderKeypad({ staleCount: 3, onClearStale: noop });
+
+    expect(screen.getByRole('button', { name: 'Clear 3 dead notes' })).toBeInTheDocument();
+    // Not both: one key, one meaning at a time. A pad offering "erase" and
+    // "clear" at once is a pad the player has to read before every tap.
+    expect(screen.queryByRole('button', { name: 'Erase cell' })).toBeNull();
+  });
+
+  it('counts one dead note in the singular', () => {
+    renderKeypad({ staleCount: 1, onClearStale: noop });
+
+    expect(screen.getByRole('button', { name: 'Clear 1 dead note' })).toBeInTheDocument();
+  });
+
+  it('clears on a tap, and hands the key back to the eraser', async () => {
+    const onClearStale = vi.fn();
+    const user = userEvent.setup();
+    const { rerender, props } = renderKeypad({ staleCount: 2, onClearStale });
+
+    await user.click(screen.getByRole('button', { name: 'Clear 2 dead notes' }));
+    expect(onClearStale).toHaveBeenCalledOnce();
+
+    // The host clears the notes; the key goes back to what it was. Nothing
+    // about the mode is remembered — it is a reading of the board.
+    rerender(<Keypad {...props} staleCount={0} onClearStale={onClearStale} />);
+    expect(screen.getByRole('button', { name: 'Erase cell' })).toBeInTheDocument();
+  });
+
+  it('is live with no cell selected — there is something to do either way', () => {
+    // `canErase` asks whether a cell is selected, which is the wrong question
+    // for a key that is about to clear notes all over the board.
+    renderKeypad({ staleCount: 2, onClearStale: noop, canErase: false });
+
+    expect(screen.getByRole('button', { name: 'Clear 2 dead notes' })).toBeEnabled();
+  });
+
+  it('stays dead while the board is paused or solved', () => {
+    // `disabled` means no move is legal right now, and clearing notes is a
+    // move: it goes on the undo stack like any other.
+    renderKeypad({ staleCount: 2, onClearStale: noop, disabled: true });
+
+    expect(screen.getByRole('button', { name: 'Clear 2 dead notes' })).toBeDisabled();
+  });
+
+  it('erases as usual when the host wires no clear at all', () => {
+    // Every other pad control is optional-by-design in the same way: a host
+    // that never wires this gets today's eraser, not a broken key.
+    renderKeypad({ staleCount: 3 });
+
+    expect(screen.getByRole('button', { name: 'Erase cell' })).toBeInTheDocument();
+  });
+});

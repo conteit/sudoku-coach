@@ -194,17 +194,20 @@ test.describe('one puzzle, end to end', () => {
     );
 
     // One press to clear, one undo to get them back: the marks stay the
-    // player's either way. The button lives in the coach panel now, so it is
-    // behind the same header trigger as the rest of the coach on a phone.
-    const coach = await openCoach(page);
-    await coach.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
+    // player's either way. The press is on the keypad's own eraser, which
+    // carries the clear while anything is dead — the near door, reachable
+    // without opening the coach at all. Scoped to the pad on purpose: from
+    // `tablet` up the coach rests as a bar rather than behind a trigger, so
+    // its own copy of this button is on screen too, and an unscoped locator
+    // would pass here while proving nothing about the key this test is for.
+    const keypad = page.getByRole('group', { name: /^Keypad/ });
+    await keypad.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([]);
 
-    // The sheet is a real modal on a phone and sits over the keypad while
-    // open, so the keypad's own Undo has to be reached the way a player
-    // would: close the sheet first. Escape is a no-op on the desktop bar,
-    // where the keypad was never covered.
-    await page.keyboard.press('Escape');
+    // And with the notes gone the key is an eraser again, so the pad is back
+    // to what it was rather than stuck in a mode.
+    await expect(keypad.getByRole('button', { name: 'Erase cell' })).toBeVisible();
+
     await page.getByRole('button', { name: 'Undo' }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([digit]);
   });
