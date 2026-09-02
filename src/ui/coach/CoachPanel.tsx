@@ -67,9 +67,11 @@ export interface CoachPanelProps {
   onDrill?: () => void;
   onDismissDrill?: () => void;
   /**
-   * Opens the full lesson for the technique on screen. Offered only from level
-   * 2, where the technique has been named — below that, the link itself would
-   * disclose what the rung is holding back.
+   * Opens the full lesson for the technique on screen. Offered only once the
+   * technique has been named — below rung 2, the link itself would disclose
+   * what the rung is holding back. A live drill names one too: it is announced
+   * by `coach.drillActive` right here in this panel, and `useCoachSession`
+   * logs the level-2 exchange before it sets the challenge.
    */
   onLearn?: (technique: TechniqueId) => void;
   /**
@@ -226,6 +228,16 @@ export function CoachPanel({
   const t = useT();
   const level = hint?.level ?? 0;
   const next = RUNGS.find((rung) => rung.level === level + 1);
+  /*
+   * Whether a technique is on the table by name, which is what the lesson
+   * link is allowed to key off — the same rule the game screen's lesson
+   * column uses to decide between the index and the lesson (`GameView`'s
+   * `namedTechnique`). The two used to disagree: the column taught the
+   * technique during a drill while this panel, which had just named it in
+   * `coach.drillActive`, offered no way to read about it.
+   */
+  const namedTechnique: TechniqueId | null =
+    hint && level >= 2 ? hint.technique : (drill?.technique ?? null);
 
   return (
     <section
@@ -378,8 +390,8 @@ export function CoachPanel({
               : t('action.clearStaleCount', { count: staleCount })}
           </Button>
         ) : null}
-        {onLearn && hint && level >= 2 ? (
-          <Button variant="ghost" size="lg" onClick={() => onLearn(hint.technique)}>
+        {onLearn && namedTechnique !== null ? (
+          <Button variant="ghost" size="lg" onClick={() => onLearn(namedTechnique)}>
             {t('coach.whatIsThis')}
           </Button>
         ) : null}
