@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import type { TechniqueId } from '../engine/types';
 import { useT } from '../i18n/locale';
-import type { Locale, PlayerProfile } from '../state/types';
+import type { PlayerProfile } from '../state/types';
 import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
 import { ChevronLeftIcon } from '../ui/primitives/icons';
@@ -35,12 +35,10 @@ export interface LearnViewProps {
 
 function TechniquePage({
   id,
-  locale,
   profile,
   onBack,
 }: {
   id: TechniqueId;
-  locale: Locale;
   profile: PlayerProfile;
   onBack: () => void;
 }) {
@@ -50,7 +48,6 @@ function TechniquePage({
     <article>
       <LessonBody
         id={id}
-        locale={locale}
         profile={profile}
         leading={
           <IconButton
@@ -81,7 +78,6 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
         <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-12">
           <TechniquePage
             id={open}
-            locale={profile.locale}
             profile={profile}
             onBack={() => (technique === null ? setOpen(null) : onClose())}
           />
@@ -187,7 +183,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
             {open === null ? (
               intro
             ) : (
-              <LessonBody id={open} locale={profile.locale} profile={profile} titleAs="h2" />
+              <LessonBody id={open} profile={profile} titleAs="h2" />
             )}
           </main>
         }
