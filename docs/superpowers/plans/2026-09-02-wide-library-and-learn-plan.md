@@ -31,11 +31,13 @@
 
 **Interfaces:**
 - Consumes: `Tier` from `src/app/useViewportTier.ts`.
-- Produces: `SplitLayout({ tier, index, content, indexLabel, contentLabel }: { tier: Tier; index: ReactNode; content: ReactNode; indexLabel: string; contentLabel: string }): JSX.Element`. Tasks 3 and 4 both render it.
+- Produces: `SplitLayout({ tier, left, right }: { tier: Tier; left: ReactNode; right: ReactNode }): JSX.Element`. Tasks 3 and 4 both render it.
 
-Below `laptop` it renders `index` then `content` in one column, with no landmarks and no extra wrappers beyond a single container — a phone must get the same DOM it gets today. At `laptop` and `desktop` it renders two panes side by side.
+**It is geometry only.** It renders two panes and nothing else — no landmarks, no headings, no labels. That is deliberate: the two screens do **not** share landmark semantics. In Learn the left pane is navigation and the right is the document; in the library the left pane is the main content and the right is complementary. A component that hardcoded `<nav>` beside `<section>` would be right for one screen and wrong for the other, and the wrong one would ship a lie to a screen-reader user. Each screen supplies its own landmark element inside the pane it owns.
 
-**Why a new component rather than reusing `GameLayout`:** `GameLayout` arranges three regions under invariant 9, where nothing may resize the board mid-play. This arranges two panes on screens that scroll normally. Merging them would make one component with two unrelated reasons to change.
+Below `laptop` it renders `left` then `right` in one column, inside a single container — a phone must get the same DOM it gets today.
+
+**Why not `GameLayout`:** that arranges three regions under invariant 9, where nothing may resize the board mid-play. This arranges two panes on screens that scroll normally. Merging them would make one component with two unrelated reasons to change.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -46,45 +48,40 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { SplitLayout } from './SplitLayout';
 
-const panes = {
-  index: <p>the index</p>,
-  content: <p>the content</p>,
-  indexLabel: 'Techniques',
-  contentLabel: 'Lesson',
-};
+const panes = { left: <p>the left</p>, right: <p>the right</p> };
 
 describe('SplitLayout', () => {
-  it('stacks one column on a phone, with no panes to navigate', () => {
+  it('stacks one column on a phone', () => {
     render(<SplitLayout tier="phone" {...panes} />);
-    expect(screen.getByText('the index')).toBeTruthy();
-    expect(screen.getByText('the content')).toBeTruthy();
-    expect(screen.queryByRole('navigation')).toBeNull();
-    expect(screen.queryByTestId('index-pane')).toBeNull();
+    expect(screen.getByText('the left')).toBeTruthy();
+    expect(screen.getByText('the right')).toBeTruthy();
+    expect(screen.queryByTestId('left-pane')).toBeNull();
   });
 
   it('stacks on a tablet too — two columns there are worse than one', () => {
     render(<SplitLayout tier="tablet" {...panes} />);
-    expect(screen.queryByTestId('index-pane')).toBeNull();
+    expect(screen.queryByTestId('left-pane')).toBeNull();
   });
 
-  it('splits at laptop, index before content in the DOM', () => {
+  it('splits at laptop, left before right in the DOM', () => {
     render(<SplitLayout tier="laptop" {...panes} />);
-    const index = screen.getByTestId('index-pane');
-    const content = screen.getByTestId('content-pane');
-    expect(index.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const left = screen.getByTestId('left-pane');
+    const right = screen.getByTestId('right-pane');
+    expect(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('pins the index pane so its neighbour cannot squeeze it', () => {
+  it('pins the left pane so its neighbour cannot squeeze it', () => {
     render(<SplitLayout tier="desktop" {...panes} />);
-    const cls = screen.getByTestId('index-pane').className;
+    const cls = screen.getByTestId('left-pane').className;
     expect(cls).toContain('shrink-0');
     expect(cls).toContain('min-w-0');
   });
 
-  it('names both panes for a screen reader', () => {
+  it('adds no landmarks of its own — each screen owns its own semantics', () => {
     render(<SplitLayout tier="laptop" {...panes} />);
-    expect(screen.getByRole('navigation', { name: 'Techniques' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Lesson' })).toBeTruthy();
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByRole('complementary')).toBeNull();
   });
 });
 ```
@@ -97,28 +94,36 @@ Expected: FAIL — `Failed to resolve import "./SplitLayout"`.
 - [ ] **Step 3: Implement**
 
 ```tsx
+import type { ReactNode } from 'react';
+import type { Tier } from './useViewportTier';
+
+export interface SplitLayoutProps {
+  tier: Tier;
+  left: ReactNode;
+  right: ReactNode;
+}
+
 /**
- * An index beside what it indexes.
+ * Two panes side by side, above 1024; one column below it.
  *
- * The library and Learn arrived at the same shape — a narrow list of things
- * next to the one thing you are looking at — so the split is written once.
- * It is deliberately not `GameLayout`: that arranges three regions under
- * invariant 9, where nothing may resize the board mid-play, and these are
- * screens that scroll normally. One component with two unrelated reasons to
- * change is how both of them end up wrong.
+ * The library and Learn arrived at the same geometry — a narrow pane beside a
+ * wider one — so it is written once. It carries no landmarks on purpose: the
+ * two screens do not agree about what the panes *are*. Learn's left pane is
+ * navigation and its right pane is the document; the library's left pane is
+ * the main content and its right pane is complementary. Baking either reading
+ * in here would ship the other screen a lie, so each supplies its own element.
+ *
+ * Deliberately not `GameLayout`: that one arranges three regions under the
+ * invariant that nothing may resize the board mid-play. Different problem,
+ * different failure mode, and one component with two unrelated reasons to
+ * change is how both end up wrong.
  */
-export function SplitLayout({ tier, index, content, indexLabel, contentLabel }: SplitLayoutProps) {
+export function SplitLayout({ tier, left, right }: SplitLayoutProps) {
   if (tier === 'phone' || tier === 'tablet') {
-    // One column, and no landmarks: below 1024 these are not two places, they
-    // are one page read top to bottom. `max-w-xl sm:max-w-[48rem]` keeps the
-    // phone's 576px column exactly as it shipped while letting a tablet use
-    // the width it actually has.
-    return (
-      <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-12 sm:max-w-[48rem]">
-        {index}
-        {content}
-      </div>
-    );
+    // `max-w-xl sm:max-w-[48rem]`, not a bare raise: below 640 the `sm:` rule
+    // never applies, so the phone keeps the 576px column it shipped with —
+    // widening a signed-off layout is not what this change is for.
+    return <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-12 sm:max-w-[48rem]">{left}{right}</div>;
   }
 
   return (
@@ -127,19 +132,15 @@ export function SplitLayout({ tier, index, content, indexLabel, contentLabel }: 
         {/* All three of `w-*`, `shrink-0` and `min-w-0`: `w-*` alone stretches
             under a flex parent, and `shrink-0` alone leaves `min-width: auto`,
             which floors a flex item at its min-content width — one long
-            technique name would then widen this pane and take the difference
-            from the content beside it. Selecting a lesson must not move the
-            list you selected it from. */}
-        <nav
-          data-testid="index-pane"
-          aria-label={indexLabel}
-          className="w-[20rem] min-w-0 shrink-0"
-        >
-          {index}
-        </nav>
-        <section data-testid="content-pane" aria-label={contentLabel} className="min-w-0 flex-1">
-          {content}
-        </section>
+            technique name would widen this pane and take the difference from
+            the pane beside it. Choosing a lesson must not move the list you
+            chose it from. */}
+        <div data-testid="left-pane" className="w-[20rem] min-w-0 shrink-0">
+          {left}
+        </div>
+        <div data-testid="right-pane" className="min-w-0 flex-1">
+          {right}
+        </div>
       </div>
     </div>
   );
@@ -157,11 +158,11 @@ Expected: PASS, 5 tests.
 git add src/app/SplitLayout.tsx src/app/SplitLayout.test.tsx
 git commit -m "feat(app): an index beside what it indexes
 
-The library and Learn want the same shape on a wide screen, and writing it
-twice is how the two screens drift apart. Kept separate from GameLayout on
-purpose: that one arranges three regions under the invariant that nothing may
-resize the board mid-play, which is a different problem with a different
-failure mode."
+The library and Learn want the same geometry on a wide screen, and writing it
+twice is how two screens drift apart. It carries no landmarks: the screens
+disagree about what the panes are — Learn's left pane navigates, the
+library's left pane *is* the content — so each supplies its own element
+rather than inheriting one screen's reading of the other."
 ```
 
 ---
@@ -297,7 +298,12 @@ Create `src/app/LibraryView.test.tsx`. Build the `summaries` fixture from the `G
 ```tsx
 it('is one column on a phone, with no progress pane', () => {
   renderLibrary({ tier: 'phone' });
-  expect(screen.queryByTestId('index-pane')).toBeNull();
+  expect(screen.queryByTestId('left-pane')).toBeNull();
+  expect(screen.queryByText(/your progress/i)).toBeNull();
+});
+
+it('adds nothing to a tablet either — the width is what buys the panel', () => {
+  renderLibrary({ tier: 'tablet' });
   expect(screen.queryByText(/your progress/i)).toBeNull();
 });
 
@@ -309,24 +315,76 @@ it('shows progress beside the games on a laptop', () => {
 
 it('keeps the games first in the DOM — they are why the screen exists', () => {
   renderLibrary({ tier: 'laptop' });
-  const games = screen.getByTestId('index-pane');
-  const progress = screen.getByTestId('content-pane');
+  const games = screen.getByTestId('left-pane');
+  const progress = screen.getByTestId('right-pane');
   expect(games.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 ```
 
 `renderLibrary` sets the tier through the shared `matchMedia` stub the way `GameView.layout.test.tsx`'s `renderGame` does — read it and follow it. **Do not add a prop to `LibraryView` so a test can set the tier.**
 
-Note the pane assignment: the **games are the index pane** and progress is the content pane. That reads backwards from the component's names, so if it does, use `SplitLayout`'s props in whichever order puts the games first in the DOM and say in your report which you chose. The rule that matters is that the games come first, because they are why the screen exists.
+Pane assignment: **games left, progress right.** The games come first in the DOM because they are why the screen exists — a screen-reader user should reach their unfinished puzzles before a summary of their mastery. `SplitLayout` carries no landmarks, so this screen supplies its own: the games are wrapped in `<main>`, the progress pane in `<aside aria-label={t('progress.title')}>`.
 
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/app/LibraryView.test.tsx`
-Expected: FAIL — no `index-pane`, no "Your progress".
+Expected: FAIL — no `left-pane`, no "Your progress".
 
 - [ ] **Step 3: Implement**
 
-Keep the header where it is; wrap the two `GameList`s and the `ProgressPanel` in `SplitLayout`, and delete the now-duplicated `mx-auto max-w-xl` from the root — `SplitLayout` owns the cap. Take the tier from `useViewportTier()` and the profile from `useProfile`.
+The `<header>` stays outside the split — it is the screen's title bar, not part of either pane. The root loses its `mx-auto ... max-w-xl px-4 pt-6 pb-10`, because `SplitLayout` owns the cap and the padding now:
+
+```tsx
+export function LibraryView({ summaries, onResume, onNewGame, onOpenSettings, onLearn }: LibraryViewProps) {
+  const t = useT();
+  const tier = useViewportTier();
+  const profile = useProfile((state) => state.profile);
+  const wide = tier === 'laptop' || tier === 'desktop';
+  const inProgress = summaries.filter((game) => game.completedAt === null);
+  const finished = summaries.filter((game) => game.completedAt !== null);
+
+  const games = (
+    <main>
+      <GameList games={inProgress} onResume={onResume} onNewGame={onNewGame} />
+      {finished.length > 0 ? (
+        <GameList
+          className="mt-10"
+          variant="finished"
+          games={finished}
+          onResume={onResume}
+          onNewGame={onNewGame}
+        />
+      ) : null}
+    </main>
+  );
+
+  return (
+    <div className="flex min-h-dvh w-full flex-col">
+      <header className="mx-auto mb-6 flex w-full max-w-[96rem] items-start justify-between gap-3 px-4 pt-6 sm:px-6">
+        {/* unchanged contents: the title, the tagline, the Learn button, the settings icon */}
+      </header>
+      <SplitLayout
+        tier={tier}
+        left={games}
+        right={
+          /* Only above 1024. `SplitLayout` stacks its two panes below that, so
+             passing the panel unconditionally would add a whole new section to
+             the phone's library — a screen that is signed-off work and that
+             this change is not for. The width is what buys the panel; without
+             the width there is nothing to spend. */
+          wide ? (
+            <aside aria-label={t('progress.title')}>
+              <ProgressPanel profile={profile} />
+            </aside>
+          ) : null
+        }
+      />
+    </div>
+  );
+}
+```
+
+Keep the header's existing children exactly as they are — only its wrapper classes change, so it lines up with the split beneath it.
 
 - [ ] **Step 4: Run the suite**
 
@@ -368,29 +426,29 @@ Create `src/app/LearnView.wide.test.tsx`:
 ```tsx
 it('shows the intro beside the index when nothing is selected', () => {
   renderLearn({ tier: 'laptop' });
-  const content = screen.getByTestId('content-pane');
+  const content = screen.getByTestId('right-pane');
   expect(within(content).getByText(/the rules/i)).toBeTruthy();
 });
 
 it('swaps the intro for the lesson without moving the index', async () => {
   const { user } = renderLearn({ tier: 'laptop' });
-  const index = screen.getByTestId('index-pane');
+  const index = screen.getByTestId('left-pane');
   const before = index.className;
   await user.click(within(index).getByRole('button', { name: /naked single/i }));
-  expect(within(screen.getByTestId('content-pane')).getByText(/what it is/i)).toBeTruthy();
-  expect(screen.getByTestId('index-pane').className).toBe(before);
+  expect(within(screen.getByTestId('right-pane')).getByText(/what it is/i)).toBeTruthy();
+  expect(screen.getByTestId('left-pane').className).toBe(before);
 });
 
 it('opens on the technique the coach deep-linked', () => {
   renderLearn({ tier: 'laptop', technique: 'hidden_single' });
-  expect(within(screen.getByTestId('content-pane')).getByText(/what it is/i)).toBeTruthy();
+  expect(within(screen.getByTestId('right-pane')).getByText(/what it is/i)).toBeTruthy();
 });
 
 it('still pushes a page on a phone, with a way back', async () => {
   const { user } = renderLearn({ tier: 'phone' });
   await user.click(screen.getByRole('button', { name: /naked single/i }));
   expect(screen.getByRole('button', { name: /back/i })).toBeTruthy();
-  expect(screen.queryByTestId('index-pane')).toBeNull();
+  expect(screen.queryByTestId('left-pane')).toBeNull();
 });
 ```
 
@@ -399,7 +457,7 @@ Verify every selector against the real copy in `src/i18n/en.ts` before relying o
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/app/LearnView.wide.test.tsx`
-Expected: FAIL — no `content-pane` at any tier.
+Expected: FAIL — no `right-pane` at any tier.
 
 - [ ] **Step 3: Implement**
 
@@ -434,7 +492,7 @@ pane that starts empty is a pane that jumps the moment you use it."
 - Modify: `tests/e2e/learn.spec.ts`, `tests/e2e/a11y.spec.ts`
 
 **Interfaces:**
-- Consumes: the `index-pane` / `content-pane` test ids from Task 1.
+- Consumes: the `left-pane` / `right-pane` test ids from Task 1.
 
 The four Playwright projects already exist (`phone` 412, `tablet` 820, `laptop` 1280, `wide` 1536). Both screens now behave differently across them and nothing asserts it.
 
@@ -447,11 +505,11 @@ test('keeps the index on screen while a lesson opens beside it', async ({ page }
   test.skip(!['laptop', 'wide'].includes(testInfo.project.name), 'one column below 1024');
   await page.goto('/');
   await page.getByRole('button', { name: 'Learn' }).click();
-  const index = page.getByTestId('index-pane');
+  const index = page.getByTestId('left-pane');
   await expect(index).toBeVisible();
   const before = (await index.boundingBox())!;
   await index.getByRole('button', { name: /naked single/i }).click();
-  await expect(page.getByTestId('content-pane').getByRole('heading', { level: 2 }).first()).toBeVisible();
+  await expect(page.getByTestId('right-pane').getByRole('heading', { level: 2 }).first()).toBeVisible();
   const after = (await index.boundingBox())!;
   expect(after.width).toBeCloseTo(before.width, 1);
 });
