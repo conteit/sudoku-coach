@@ -120,6 +120,22 @@ only mean something on the device holding that game.
    assertion in `tests/e2e/play.spec.ts` measures the real thing in all four
    projects, through the level-2 disclosure that swaps the lesson column's
    contents — the one state that actually changes a column's content mid-game.
+10. **Prose caps at 40rem; a pane's width is the tier's, not the content's.**
+    Cousins of invariant 9 — one protects the board's box, this protects the
+    reader's measure and the panes around it. "Use the whole area" cannot mean
+    wider sentences: a lesson stretched across 1536px reads worse than a
+    narrow column, so the width bought above 1024 buys more panes, not a
+    wider one. `SplitLayout` (`src/app/SplitLayout.tsx`) is where the library
+    and Learn split into two panes at that width, and it fixes each pane's
+    width to the tier alone — `w-*`, `shrink-0` and `min-w-0` together,
+    because `shrink-0` alone leaves `min-width: auto`, which floors a flex
+    item at its min-content width, so one long technique name would widen the
+    pane and take the difference from its neighbour. Choosing a lesson must
+    not move the list you chose it from. `SplitLayout` leaves the 40rem prose
+    cap (roughly a 70-character measure) to its callers, consistent with its
+    own refusal to own pane content: Learn wraps its lesson section in
+    `max-w-[40rem]` itself. The game screen splits at the same tiers, for
+    invariant 9's reason, not this one.
 
 ## Difficulty rating
 
