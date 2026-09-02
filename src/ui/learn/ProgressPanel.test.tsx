@@ -35,6 +35,20 @@ describe('ProgressPanel', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  // One panel, not two sibling sections. `TechniqueIndex` is shared with two
+  // screens that host it as a section of their own, where its `h2` is right;
+  // here it sits under this panel's own `h2` and has to step down a level or
+  // the outline gains a section the pane does not have.
+  it('nests the technique list under its own heading', () => {
+    renderWithLocale(<ProgressPanel profile={PROFILE} />);
+
+    const headings = screen.getAllByRole('heading');
+    expect(headings.map((heading) => [heading.tagName, heading.textContent])).toEqual([
+      ['H2', 'Your progress'],
+      ['H3', 'The techniques'],
+    ]);
+  });
+
   it('says so when there is nothing left to meet', () => {
     const mastered = everyTechniqueMastered(PROFILE);
     renderWithLocale(<ProgressPanel profile={mastered} />);

@@ -18,9 +18,32 @@ export interface TechniqueIndexProps {
   profile: PlayerProfile;
   /** Omitted where a row has nowhere to go — it then renders as static text. */
   onOpen?: (id: TechniqueId) => void;
+  /**
+   * The level of the index's own heading, which is a property of the page
+   * hosting it rather than of the index — the same reasoning as
+   * `LessonBody`'s `titleAs`.
+   *
+   * `h2` where the index is a section of the page: Learn, and the game
+   * screen's lesson column. `h3` inside `ProgressPanel`, which has an `h2` of
+   * its own above it — two `h2`s there read as two sibling sections rather
+   * than as one panel with a list in it.
+   */
+  titleAs?: 'h2' | 'h3';
+  /**
+   * Put on the heading, for a host that wants to name a landmark with it
+   * rather than repeat the words. Learn's `<nav>` does exactly that: it used
+   * to carry an `aria-label` spelling out the same string the heading below
+   * it already showed.
+   */
+  titleId?: string;
 }
 
-export function TechniqueIndex({ profile, onOpen }: TechniqueIndexProps) {
+export function TechniqueIndex({
+  profile,
+  onOpen,
+  titleAs: Title = 'h2',
+  titleId,
+}: TechniqueIndexProps) {
   const t = useT();
   const lessons = loadLessons(profile.locale);
 
@@ -31,9 +54,9 @@ export function TechniqueIndex({ profile, onOpen }: TechniqueIndexProps) {
     // first and only thing in the column, and a divider with nothing above it
     // is a line under the column's own top edge.
     <section>
-      <h2 className="font-display text-xl leading-tight text-ink">
+      <Title id={titleId} className="font-display text-xl leading-tight text-ink">
         {t('learn.techniques.title')}
-      </h2>
+      </Title>
       <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-soft">
         {t('learn.techniques.intro')}
       </p>

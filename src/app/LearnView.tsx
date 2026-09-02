@@ -26,6 +26,9 @@ import { TechniqueIndex } from '../ui/learn/TechniqueIndex';
 import { SplitLayout } from './SplitLayout';
 import { useViewportTier } from './useViewportTier';
 
+/** The index's heading, which also names the nav around it on a wide screen. */
+const TECHNIQUES_NAV_TITLE = 'learn-techniques-title';
+
 export interface LearnViewProps {
   profile: PlayerProfile;
   /** Opens straight onto one technique — the coach panel links in this way. */
@@ -160,8 +163,16 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
       <SplitLayout
         narrow="left"
         left={
-          <nav aria-label={t('learn.techniques.title')}>
-            <TechniqueIndex profile={profile} onOpen={setOpen} />
+          // Named by the heading the index already renders, rather than by a
+          // second copy of the same words: an `aria-label` here made the nav
+          // and the visible `h2` under it two independently editable
+          // spellings of one name.
+          <nav aria-labelledby={TECHNIQUES_NAV_TITLE}>
+            <TechniqueIndex
+              profile={profile}
+              onOpen={setOpen}
+              titleId={TECHNIQUES_NAV_TITLE}
+            />
           </nav>
         }
         right={
