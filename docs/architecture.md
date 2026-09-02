@@ -149,6 +149,18 @@ only mean something on the device holding that game.
     both` is what makes the reduced-motion rule degrade honestly: the
     animation collapses to 0.01ms and the board simply *is* gold.
 
+9c. **The commentary scrolls; the board does not.** At `laptop` and above both
+    asides are their own scrollers — `overflow-y-auto` with
+    `overscroll-contain`, capped off the viewport, `sticky` so they stay with
+    a page that scrolls under them (`COLUMN_SCROLL` in
+    `src/app/GameLayout.tsx`). A long hint or a long lesson therefore scrolls
+    inside its column instead of growing the page, and a flick that runs out
+    of column does not carry on into the page. The page still scrolls when
+    the board and keypad genuinely do not fit — a 40rem board plus its keypad
+    is taller than a 720px laptop — because clipping *that* would hide the
+    controls rather than the commentary. `sticky` keeps the columns in flow,
+    so invariant 9's canary still sees them.
+
 10. **Prose caps at 40rem; the narrow pane's width is the tier's, not the
     content's.** Cousins of invariant 9 — one protects the board's box, this
     protects the reader's measure and the panes around it. "Use the whole

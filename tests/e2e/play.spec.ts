@@ -481,6 +481,41 @@ test.describe('the lesson column stays inside the viewport', () => {
       "the column's bottom edge must stay inside the viewport",
     ).toBeLessThanOrEqual(viewport.height);
   });
+
+  test('scrolls on its own, and takes neither the page nor the board with it', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'wide', 'the lesson column only exists on the desktop tier');
+
+    await startEasyGame(page);
+    const coach = await openCoach(page);
+    await coach.getByRole('button', { name: 'Where should I look?' }).click();
+    await coach.getByRole('button', { name: /Name the technique/ }).click();
+
+    const lesson = page.getByTestId('lesson-column');
+    const grid = boardGrid(page);
+    const before = (await grid.boundingBox())!;
+    const pageScrollBefore = await page.evaluate(() => window.scrollY);
+
+    // A real wheel over the column, which is the gesture that used to take
+    // the whole page with it once the column ran out of content.
+    const box = (await lesson.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 400);
+
+    // It moved — otherwise the two assertions below would hold for a column
+    // that simply cannot scroll, and prove nothing.
+    // Polled, not read once: the wheel is dispatched asynchronously and the
+    // scroll lands a frame later.
+    await expect
+      .poll(async () => lesson.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(pageScrollBefore);
+
+    const after = (await grid.boundingBox())!;
+    expect(after.y).toBeCloseTo(before.y, 1);
+    expect(after.height).toBeCloseTo(before.height, 1);
+  });
 });
 
 /*
