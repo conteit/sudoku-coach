@@ -201,7 +201,7 @@ test.describe('one puzzle, end to end', () => {
     // its own copy of this button is on screen too, and an unscoped locator
     // would pass here while proving nothing about the key this test is for.
     const keypad = page.getByRole('group', { name: /^Keypad/ });
-    await keypad.getByRole('button', { name: /Clear \d+ dead notes?/ }).click();
+    await keypad.getByRole('button', { name: /^Clear dead notes$/ }).click();
     expect((await readBoard(page))[empty.index].notes).toEqual([]);
 
     // And with the notes gone the key is an eraser again, so the pad is back

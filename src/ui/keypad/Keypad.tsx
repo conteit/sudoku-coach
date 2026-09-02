@@ -55,14 +55,21 @@ export interface KeypadProps {
   /**
    * How many pencil marks a placement of the player's own has killed.
    *
-   * While there are any, the eraser *is* the clear: the key reads "Clear 3
-   * dead notes" and does that, and the ordinary cell erase waits until they
-   * are gone. Clearing first is the point — the alternative was a coach sheet
-   * two taps away from a thumb that is already here — and Undo, one key over,
-   * is the better answer to the mis-tap the erase would otherwise fix.
+   * Whether there are *any* is what this key reads — the number itself is
+   * never shown. While there are, the eraser is the clear: it wears the
+   * coach's amber, says "Clear dead notes", and does that, and the ordinary
+   * cell erase waits until they are gone. Clearing first is the point — the
+   * alternative was a coach sheet two taps away from a thumb that is already
+   * here — and Undo, one key over, is the better answer to the mis-tap the
+   * erase would otherwise fix.
    *
-   * The count is a reading of the board, not a mode the pad remembers: the
-   * key goes back to erasing the moment the host says the notes are gone.
+   * A count on the key would answer a question nobody asks mid-move: the
+   * number changes nothing about the tap, and a badge makes a control that
+   * is about to erase things read as an unread-message count. The coach
+   * panel still spells it out, where there is room for a sentence.
+   *
+   * Not a mode the pad remembers, either — it is a reading of the board, and
+   * the key goes back to erasing the moment the host says the notes are gone.
    */
   staleCount?: number;
   /** Clears every dead note in one undoable step. Without it the key just erases. */
@@ -325,23 +332,19 @@ export function Keypad({
             rides the glyph, and the accessible name carries it in full. */}
         {clearing ? (
           <IconButton
-            label={
-              staleCount === 1
-                ? t('action.clearStaleOne')
-                : t('action.clearStaleCount', { count: staleCount })
-            }
-            caption={t('keypad.captionErase')}
-            icon={
-              <span className="relative">
-                <EraserIcon />
-                <span
-                  aria-hidden="true"
-                  className="absolute -top-1 -right-2 min-w-4 rounded-full bg-coach px-1 text-[0.625rem] leading-4 font-semibold text-paper tabular-nums"
-                >
-                  {staleCount}
-                </span>
-              </span>
-            }
+            label={t('action.clearStale')}
+            caption={t('keypad.captionStale')}
+            icon={<EraserIcon />}
+            /* The coach's own amber, and the whole key wears it: what has
+               to carry is "this key is not the eraser right now", which is a
+               question about the key rather than about how many notes are
+               dead. A count on the glyph answered a question nobody asks
+               mid-move — the number changes nothing about the tap — and it
+               made a control that is about to erase things look like an
+               unread-message badge. `bg-coach-wash` with `text-coach` is the
+               pairing `Cell` already uses for a spotlit square, so the
+               contrast is one the audit in #46 has already been through. */
+            className="border-coach bg-coach-wash text-coach hover:border-coach hover:text-coach"
             // `canErase` asks whether a cell is selected, which is the wrong
             // question for a key about to clear notes all over the board.
             // `disabled` still applies: clearing goes on the undo stack like
