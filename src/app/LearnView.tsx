@@ -73,9 +73,9 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
   if (tier !== 'laptop' && tier !== 'desktop') {
     // Below `laptop` this is the pre-existing, signed-off phone/tablet
     // layout, untouched: the back-button page push and the stacked body.
-    // `SplitLayout` is reached for only at `laptop` and above — its shared
-    // stacked branch uses different padding and would silently change this
-    // screen's phone layout.
+    // `SplitLayout` is the wide split and nothing else — it is reached for
+    // only at `laptop` and above, and this branch keeps its own padding
+    // rather than borrowing a shared one that would change this screen.
     if (open !== null) {
       return (
         <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-12">
@@ -158,7 +158,6 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
         </div>
       </header>
       <SplitLayout
-        tier={tier}
         left={
           <nav aria-label={t('learn.techniques.title')}>
             <TechniqueIndex profile={profile} onOpen={setOpen} />
