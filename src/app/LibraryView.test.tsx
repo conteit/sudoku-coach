@@ -2,13 +2,16 @@
  * The library's second pane exists only where there is width to spend it.
  * Below `laptop`, `LibraryView` must render exactly what it renders today —
  * that screen is signed-off work, and this task changes where the list sits
- * on a wide viewport, not the phone's layout. The tablet case is the
- * regression guard for that: two columns fit above 640px, but the panel does
- * not appear until `SplitLayout` actually splits, at 1024.
+ * on a wide viewport, not the phone's layout. Phone and tablet each assert
+ * the same three things: the root's exact className, no `main`/`complementary`
+ * landmarks, and no progress pane — not just the panel's absence, because a
+ * tablet-only branch that hides the panel through `SplitLayout`'s own stacked
+ * output (rather than sharing the phone/tablet return) would still shift the
+ * padding, drop `min-h-dvh`, and add a landmark that isn't there today.
  */
 
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { parseGrid, formatGrid } from '../engine/board';
 import type { Difficulty } from '../engine/types';
 import { LocaleProvider } from '../i18n/react';
@@ -53,6 +56,13 @@ const TIER_QUERIES: Record<Tier, string[]> = {
   desktop: ['(min-width: 1024px)', '(min-width: 1536px)'],
 };
 
+// Captured once, before any test can have replaced it — same convention as
+// `GameView.layout.test.tsx`. Every test in this file calls `matchOnly`
+// itself before rendering, so nothing here depends on the restore; it exists
+// so a stub left behind by this file can never leak into a test run after
+// it, which is the same reasoning `GameView.layout.test.tsx:78-83` gives.
+const defaultMatchMedia = window.matchMedia;
+
 function matchOnly(...matching: string[]) {
   window.matchMedia = ((query: string) => ({
     matches: matching.includes(query),
@@ -61,6 +71,10 @@ function matchOnly(...matching: string[]) {
     removeEventListener: () => {},
   })) as unknown as typeof window.matchMedia;
 }
+
+afterEach(() => {
+  window.matchMedia = defaultMatchMedia;
+});
 
 function renderLibrary(options: { tier: Tier; summaries?: readonly GameSummary[] }) {
   matchOnly(...TIER_QUERIES[options.tier]);
@@ -99,7 +113,21 @@ describe('LibraryView', () => {
   });
 
   it('adds nothing to a tablet either — the width is what buys the panel', () => {
-    renderLibrary({ tier: 'tablet' });
+    // Asserts the same three things the phone test does, not just the
+    // panel's absence: a mutant that special-cases tablet through
+    // `SplitLayout`'s own stacked branch (rather than sharing the
+    // phone/tablet return) would still hide the panel — `right` gated to
+    // `null` — while silently changing the root's padding
+    // (`px-4 pt-6 pb-10` → `px-4 pt-4 pb-12`), dropping `min-h-dvh`, and
+    // introducing a `main` landmark that does not exist today. Only
+    // checking for the panel's absence would let all of that through.
+    const { container } = renderLibrary({ tier: 'tablet' });
+    const root = container.firstElementChild;
+    expect(root?.className).toBe(
+      'mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 pt-6 pb-10',
+    );
+    expect(screen.queryByRole('main')).toBeNull();
+    expect(screen.queryByRole('complementary')).toBeNull();
     expect(screen.queryByTestId('left-pane')).toBeNull();
     expect(screen.queryByText(/your progress/i)).toBeNull();
   });
