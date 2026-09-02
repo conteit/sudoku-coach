@@ -10,7 +10,7 @@
 
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PROFILE } from '../state/mastery';
 import { LocaleProvider } from '../i18n/react';
 import { LearnView } from './LearnView';
@@ -46,15 +46,20 @@ afterEach(() => {
   window.matchMedia = defaultMatchMedia;
 });
 
-function renderLearn(options: { tier: Tier; technique?: Parameters<typeof LearnView>[0]['technique'] }) {
+function renderLearn(options: {
+  tier: Tier;
+  technique?: Parameters<typeof LearnView>[0]['technique'];
+  onClose?: () => void;
+}) {
   matchOnly(...TIER_QUERIES[options.tier]);
   const user = userEvent.setup();
+  const onClose = options.onClose ?? vi.fn();
   const result = render(
     <LocaleProvider locale="en">
-      <LearnView profile={PROFILE} technique={options.technique} onClose={() => undefined} />
+      <LearnView profile={PROFILE} technique={options.technique} onClose={onClose} />
     </LocaleProvider>,
   );
-  return { ...result, user };
+  return { ...result, user, onClose };
 }
 
 describe('LearnView — wide viewport', () => {
@@ -69,10 +74,16 @@ describe('LearnView — wide viewport', () => {
   it('swaps the intro for the lesson without moving the index', async () => {
     const { user } = renderLearn({ tier: 'laptop' });
     const index = screen.getByTestId('left-pane');
-    const before = index.className;
     await user.click(within(index).getByRole('button', { name: /naked single/i }));
     expect(within(screen.getByTestId('right-pane')).getByText(/what it is/i)).toBeTruthy();
-    expect(screen.getByTestId('left-pane').className).toBe(before);
+    // Asserts the index's own row survives, not `className` — `SplitLayout`
+    // hardcodes the pane's class regardless of what's inside it, so a
+    // `className` comparison can never fail and proves nothing. This fails
+    // the moment the left pane's content is swapped out for anything else,
+    // which is the thing "does not move the list you chose it from" means.
+    expect(
+      within(screen.getByTestId('left-pane')).getByRole('button', { name: /naked single/i }),
+    ).toBeTruthy();
   });
 
   it('opens on the technique the coach deep-linked', () => {
@@ -91,5 +102,20 @@ describe('LearnView — wide viewport', () => {
     await user.click(screen.getByRole('button', { name: /naked single/i }));
     expect(screen.getByRole('button', { name: /back/i })).toBeTruthy();
     expect(screen.queryByTestId('left-pane')).toBeNull();
+  });
+
+  it('opens straight onto a deep-linked technique on a phone, and backs out to the caller', async () => {
+    // `LearnView.tsx`'s `onBack` is a ternary on the `technique` prop, not on
+    // `open`: reached the index by clicking (the case above), `back` clears
+    // `open` and shows the index again; reached it by deep link, there is no
+    // index screen this render came from, so `back` calls `onClose` instead.
+    // Nothing before this test exercised that second arm at any tier.
+    const { user, onClose } = renderLearn({ tier: 'phone', technique: 'hidden_single' });
+    // No click needed — the lesson is already open, the index never shown.
+    expect(within(screen.getByRole('article')).getByText(/what it is/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /hidden single/i })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { beforeEach } from 'vitest';
 
 // jsdom's own default is 1024 — a plausible screen width, and exactly
 // `useViewportTier`'s inclusive `laptop` boundary. A test that renders a
@@ -11,7 +12,16 @@ import '@testing-library/jest-dom/vitest';
 // cares about a specific tier still says so explicitly (see
 // `LearnView.test.tsx`, `LibraryView.test.tsx`); this only fixes what an
 // *unstubbed* render implicitly assumes.
-window.innerWidth = 375;
+//
+// Reset in a `beforeEach`, not assigned once at module scope: a test file
+// runs many `it`s against one shared `window`, and a test that sets
+// `innerWidth` itself (as several already do, for their own tier) would
+// otherwise leak that width into every test that runs after it in the same
+// file. The files that happen to reset it themselves today are immune by
+// luck, not by design — this makes the default self-healing instead.
+beforeEach(() => {
+  window.innerWidth = 375;
+});
 
 // jsdom implements no rendering engine, so it never had a reason to implement
 // `matchMedia` — but `useViewportTier` needs it to tell the four layouts
