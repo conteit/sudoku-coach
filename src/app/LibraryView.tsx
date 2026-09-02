@@ -93,6 +93,14 @@ export function LibraryView({
           padding so the title lines up with the columns beneath it. */}
       <div className="mx-auto w-full max-w-[96rem] px-6 pt-6">{header}</div>
       <SplitLayout
+        // The games take the width, not the progress summary: this list is
+        // the reason the screen exists, and with `narrow="left"` it would
+        // have been 320px on a laptop against 343px on a phone — crossing
+        // 1024 would have made the primary content *narrower*. `left` is
+        // still the games, so they stay first in the DOM: a screen-reader
+        // user reaches their unfinished puzzles before a summary of what
+        // they have mastered.
+        narrow="right"
         left={<main>{games}</main>}
         right={
           <aside aria-label={t('progress.title')}>

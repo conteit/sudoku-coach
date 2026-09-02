@@ -91,6 +91,20 @@ describe('LearnView — wide viewport', () => {
     expect(within(screen.getByTestId('right-pane')).getByText(/what it is/i)).toBeTruthy();
   });
 
+  it('caps the lesson at 40rem however wide the pane gets', () => {
+    // Invariant 10. This pane is `flex-1`, so at 1536px it is ~1136px wide;
+    // without the cap a lesson would be a ~200-character measure and its
+    // worked 9x9 a ~1000px-tall illustration. Nothing else in the tree
+    // constrains it, so the cap is the only thing standing between the
+    // reader and the whole viewport.
+    renderLearn({ tier: 'desktop' });
+    expect(screen.getByTestId('right-pane').firstElementChild?.className).toContain(
+      'max-w-[40rem]',
+    );
+    expect(screen.getByTestId('right-pane').className).toContain('flex-1');
+    expect(screen.getByTestId('left-pane').className).toContain('w-[20rem]');
+  });
+
   it('does the same at desktop', () => {
     renderLearn({ tier: 'desktop' });
     const content = screen.getByTestId('right-pane');
