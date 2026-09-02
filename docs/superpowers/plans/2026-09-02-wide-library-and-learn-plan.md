@@ -461,11 +461,57 @@ Expected: FAIL — no `right-pane` at any tier.
 
 - [ ] **Step 3: Implement**
 
-Add `const tier = useViewportTier();` and branch: below `laptop`, return exactly what the function returns today. At `laptop` and above, return `SplitLayout` with `TechniqueIndex` (with `onOpen`) as the index and, as the content, `open === null ? <the four Sections> : <LessonBody id={open} … titleAs="h2" />`.
+Add `const tier = useViewportTier();` at the top. **Below `laptop`, return exactly what the function returns today** — both the `open !== null` early return and the stacked body, untouched. Above it, take the split branch:
 
-`LessonBody` takes `titleAs` — in the content pane the screen's `<h1>` is Learn's own title, so the lesson's title is an `h2` there. It also takes `leading`; the wide pane passes nothing, because there is nowhere to go back to when the list is still on screen.
+```tsx
+  const intro = (
+    <>
+      <Section title={t('learn.rules.title')} body={t('learn.rules.body')} />
+      <Section title={t('learn.notes.title')} body={t('learn.notes.body')} />
+      <Section title={t('learn.coach.title')} body={t('learn.coach.body')} />
+      <Section title={t('learn.keys.title')} body={t('learn.keys.body')} />
+    </>
+  );
 
-Cap the prose: the content pane's inner wrapper gets `max-w-[40rem]` so a lesson does not stretch to a 200-character measure in a wide pane.
+  if (tier === 'laptop' || tier === 'desktop') {
+    return (
+      <div className="flex min-h-dvh w-full flex-col">
+        <header className="mx-auto flex w-full max-w-[96rem] items-start gap-3 px-6 pt-6">
+          {/* the same back button, title and intro paragraph the stacked body uses */}
+        </header>
+        <SplitLayout
+          tier={tier}
+          left={
+            <nav aria-label={t('learn.techniques.title')}>
+              <TechniqueIndex profile={profile} onOpen={setOpen} />
+            </nav>
+          }
+          right={
+            /* The pane is never empty: until a technique is chosen it holds the
+               same four sections the stacked layout puts above the list. A pane
+               that starts blank is a pane that jumps the first time it is used,
+               and half a screen of nothing reads as a bug rather than as an
+               invitation.
+
+               `max-w-[40rem]` on the prose, not on the pane: a lesson stretched
+               across a 1536px column is a ~200-character measure, which reads
+               worse than a narrow one. The example grid inside `LessonBody` is
+               free to use the pane's full width — it is not prose. */
+            <section aria-label={t('learn.title')} className="max-w-[40rem]">
+              {open === null ? (
+                intro
+              ) : (
+                <LessonBody id={open} locale={profile.locale} profile={profile} titleAs="h2" />
+              )}
+            </section>
+          }
+        />
+      </div>
+    );
+  }
+```
+
+`LessonBody` takes `titleAs` because the screen's `<h1>` here is Learn's own title, so the lesson's title is an `h2` beneath it. It also takes `leading` for a back button; the wide pane passes nothing, because there is nowhere to go back to while the list is still on screen.
 
 - [ ] **Step 4: Run the suite**
 
@@ -519,7 +565,19 @@ Check the "Learn" button's real accessible name in `src/i18n/en.ts` before relyi
 
 - [ ] **Step 2: Add the wide library case**
 
-In the same file or `tests/e2e/a11y.spec.ts` as fits that file's shape, assert the library's progress pane appears at `laptop`/`wide` and does not at `phone`. Follow whichever file already owns library assertions rather than starting a third.
+No spec file owns the library today — the closest assertions live in `tests/e2e/pwa.spec.ts`, which is about installability rather than layout. Create `tests/e2e/library.spec.ts`, following `learn.spec.ts`'s shape (same imports, same `openCoach`-style helper conventions from `tests/e2e/coach.ts` and `tests/e2e/board.ts`):
+
+```ts
+test('shows progress beside the games once there is room', async ({ page }, testInfo) => {
+  const wide = ['laptop', 'wide'].includes(testInfo.project.name);
+  await page.goto('/');
+  const progress = page.getByRole('complementary', { name: /your progress/i });
+  if (wide) await expect(progress).toBeVisible();
+  else await expect(progress).toHaveCount(0);
+});
+```
+
+Check the real accessible name against `src/i18n/en.ts` before relying on it. Note this case asserts *both* directions in one test rather than skipping on three of four projects — the phone half is the regression guard that the library's signed-off layout gained nothing.
 
 - [ ] **Step 3: axe both screens in their two-pane state**
 
