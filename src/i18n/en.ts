@@ -35,6 +35,7 @@ export const en = {
   'action.confirm': 'Confirm',
   'action.close': 'Close',
   'action.clearStale': 'Clear dead notes',
+  'action.fixNotes': 'Fix them all',
   'action.clearStaleOne': 'Clear 1 dead note',
   'action.clearStaleCount': 'Clear {count} dead notes',
   'action.restart': 'Start over',

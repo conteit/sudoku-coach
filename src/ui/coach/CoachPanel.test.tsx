@@ -243,3 +243,75 @@ describe('the way into the lesson', () => {
     expect(onLearn).toHaveBeenCalledWith('hidden_single');
   });
 });
+
+/*
+ * "Fix them all" applies the report the player is looking at. The panel's own
+ * job is narrow: offer it only when there is something to apply, and hand the
+ * press straight back — what gets fixed is decided by whoever built the
+ * review, not here.
+ */
+describe('applying the note check', () => {
+  it('offers to fix the issues it is showing', async () => {
+    const onFixNotes = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        review={REVIEW}
+        onFixNotes={onFixNotes}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Fix them all' }));
+    expect(onFixNotes).toHaveBeenCalledOnce();
+  });
+
+  it('offers nothing on a clean report', () => {
+    // Nothing to apply, and a button that would do nothing reads as a button
+    // that failed.
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        review={{ issues: [], cleanCells: [1, 2], checkedCells: 2 }}
+        onFixNotes={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
+  });
+
+  it('offers nothing when no check has been run', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onFixNotes={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
+  });
+
+  it('sits under the issues, so "them" has been read before it is offered', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        review={REVIEW}
+        onFixNotes={() => undefined}
+      />,
+    );
+
+    const fix = screen.getByRole('button', { name: 'Fix them all' });
+    const firstIssue = screen.getByRole('button', { name: /Column 7 already has a 9/ });
+    expect(
+      firstIssue.compareDocumentPosition(fix) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});

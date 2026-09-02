@@ -67,6 +67,26 @@ export type GameAction =
    * can be offered without taking a deduction away from the player.
    */
   | { type: 'clearStaleCandidates'; at: number }
+  /**
+   * Applies the note check's own report, in one undoable step.
+   *
+   * The fixes are handed in rather than recomputed here, and that is the
+   * whole safety argument: the reducer can only ever act on the list the
+   * player was actually shown, so a board that moved between the check and
+   * the press cannot smuggle in a correction nobody read. Each issue in that
+   * report already names its digit and the constraint that proves it, so
+   * pressing this discloses nothing new — it saves the typing, which is what
+   * `fillCandidates` got wrong by filling cells nobody had asked about.
+   *
+   * A fix aimed at a cell the player has filled since is dropped rather than
+   * written into a filled cell's hidden marks (invariant 1: the player's own
+   * later move outranks a stale reading).
+   */
+  | {
+      type: 'applyNoteFixes';
+      fixes: readonly { cell: CellIndex; digit: Digit; kind: 'missing' | 'invalid' }[];
+      at: number;
+    }
   | { type: 'reset'; at: number }
   | { type: 'undo'; at: number }
   | { type: 'redo'; at: number }
@@ -465,6 +485,26 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
         for (const digit of dead[i]) {
           moves.push({ kind: 'removeCandidate', cell: i, digit, prev: snapshot(cell), at: stamp });
         }
+      }
+      return commit(game, applyAll(game.cells, moves), moves, stamp);
+    }
+
+    case 'applyNoteFixes': {
+      const stamp = nextAt(game, action.at);
+      const moves: Move[] = [];
+      // One snapshot per cell touched, taken before the batch begins, so a
+      // cell fixed twice (a removal and an addition) still restores whole on
+      // a single undo — the same discipline `clearStaleCandidates` uses.
+      const draft = [...game.cells];
+      for (const fix of action.fixes) {
+        const cell = draft[fix.cell];
+        if (cell === undefined || cell.given || cell.value !== null) continue;
+        const has = cell.candidates.has(fix.digit);
+        if (fix.kind === 'missing' ? has : !has) continue;
+        const kind = fix.kind === 'missing' ? 'addCandidate' : 'removeCandidate';
+        const move: Move = { kind, cell: fix.cell, digit: fix.digit, prev: snapshot(cell), at: stamp };
+        moves.push(move);
+        draft[fix.cell] = applyAll([...draft], [move])[fix.cell];
       }
       return commit(game, applyAll(game.cells, moves), moves, stamp);
     }
