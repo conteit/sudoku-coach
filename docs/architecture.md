@@ -140,6 +140,15 @@ only mean something on the device holding that game.
    assertion in `tests/e2e/play.spec.ts` measures the real thing in all four
    projects, through the level-2 disclosure that swaps the lesson column's
    contents — the one state that actually changes a column's content mid-game.
+9b. **The celebration is transform-only.** The solved board turns each cell
+    over and leaves it gold (`.cell-win` in `src/index.css`, driven by
+    `SudokuGrid`'s `celebrate`). It animates `transform` and
+    `background-color` and nothing else, so invariant 9 holds through it —
+    the board's box is the same box before, during and after. The wave is a
+    per-cell delay on the diagonal (row + column), and `animation-fill-mode:
+    both` is what makes the reduced-motion rule degrade honestly: the
+    animation collapses to 0.01ms and the board simply *is* gold.
+
 10. **Prose caps at 40rem; the narrow pane's width is the tier's, not the
     content's.** Cousins of invariant 9 — one protects the board's box, this
     protects the reader's measure and the panes around it. "Use the whole

@@ -36,6 +36,7 @@ function Harness({
   highlightMatches?: boolean;
   highlightDigit?: Digit | null;
   highlightMatchingNotes?: boolean;
+  celebrate?: boolean;
 }) {
   const [selected, setSelected] = useState<CellIndex | null>(initialSelected);
   return (
@@ -266,5 +267,48 @@ describe('coach and conflict layers', () => {
       />,
     );
     expect(cellAt(30)).toHaveAttribute('data-conflict', 'true');
+  });
+});
+
+
+/**
+ * The finished board turns itself over and comes back gold.
+ *
+ * Asserted through the class and the per-cell delay rather than through
+ * anything visual: jsdom runs no animations and applies no stylesheet, so
+ * what a unit test can honestly hold is *which* cells were told to flip and
+ * *when* each was told to start. The keyframes themselves are one block in
+ * `index.css` with the reduced-motion rule already sitting over them.
+ */
+describe('the win', () => {
+  it('leaves the board alone until there is something to celebrate', () => {
+    render(<Harness />);
+
+    expect(cellAt(0).className).not.toContain('cell-win');
+    expect(cellAt(0).getAttribute('style')).toBeNull();
+  });
+
+  it('flips every cell, on a diagonal wave', () => {
+    render(<Harness celebrate />);
+
+    // r1c1 goes first; the two cells a step along either edge go together,
+    // because the wave is row + column and not reading order.
+    expect(cellAt(0).className).toContain('cell-win');
+    expect(cellAt(0).style.getPropertyValue('--win-delay')).toBe('0ms');
+    expect(cellAt(1).style.getPropertyValue('--win-delay')).toBe('45ms');
+    expect(cellAt(9).style.getPropertyValue('--win-delay')).toBe('45ms');
+    // The far corner is the last of sixteen diagonals.
+    expect(cellAt(80).style.getPropertyValue('--win-delay')).toBe('720ms');
+  });
+
+  it('drops the green while it celebrates', () => {
+    // Green digits and a green wash on gold are two colours arguing over a
+    // third, and a solved board has nothing left to point at.
+    const cells = buildCells({}, { 1: 4 });
+    const { rerender } = render(<Harness cells={cells} highlightDigit={4} />);
+    expect(cellAt(1).getAttribute('data-match')).toBe('true');
+
+    rerender(<Harness cells={cells} highlightDigit={4} celebrate />);
+    expect(cellAt(1).getAttribute('data-match')).toBeNull();
   });
 });

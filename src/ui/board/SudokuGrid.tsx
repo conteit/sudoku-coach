@@ -99,12 +99,32 @@ export interface SudokuGridProps {
    * that survives greyscale anyway.
    */
   colorEntries?: boolean;
+  /**
+   * The puzzle is finished: turn the board over, cell by cell, and leave it
+   * gold. The wave is a diagonal — the delay is row + column — so it reads as
+   * sweeping across the board rather than as 81 cells firing at once.
+   *
+   * Only `transform` and `background-color` animate, so the board's box is
+   * untouched (invariant 9), and the same flag drops the green match layer
+   * and the entry colour for the duration: blue and green digits on gold are
+   * two colours fighting a third, and a solved board has nothing left to
+   * point at anyway.
+   */
+  celebrate?: boolean;
   /** Accessible name for the grid. Defaults to the localized board name. */
   label?: string;
   className?: string;
 }
 
 const ROW_INDEXES = Array.from({ length: SIZE }, (_, r) => r);
+
+/*
+ * The gap between one diagonal of the win wave and the next. Sixteen
+ * diagonals at this step is a hair over 700ms before the last cell starts,
+ * which lands the whole sweep inside the beat before the solved sheet opens
+ * over it — long enough to read as a wave, short enough not to be a wait.
+ */
+const WIN_STEP_MS = 45;
 
 export function SudokuGrid({
   cells,
@@ -122,6 +142,7 @@ export function SudokuGrid({
   highlightDigit = null,
   highlightMatchingNotes = true,
   colorEntries = true,
+  celebrate = false,
   label,
   className,
 }: SudokuGridProps) {
@@ -149,7 +170,10 @@ export function SudokuGrid({
       out[selected] |= CELL_SELECTED;
       if (highlightPeers) for (const peer of peersOf(selected)) out[peer] |= CELL_PEER;
     }
-    if (highlightMatches && highlightDigit !== null) {
+    // Not while the board is celebrating: green digits and a green wash on
+    // gold are two colours arguing over a third, and a finished board has
+    // nothing left to point at.
+    if (highlightMatches && !celebrate && highlightDigit !== null) {
       for (let i = 0; i < cells.length; i++) {
         if (cells[i].value === highlightDigit) out[i] |= CELL_MATCH;
       }
@@ -161,7 +185,17 @@ export function SudokuGrid({
     for (const cell of spotlight ?? []) out[cell] |= CELL_SPOTLIGHT;
     for (const cell of conflicts ?? []) out[cell] |= CELL_CONFLICT;
     return out;
-  }, [cells, selected, highlightDigit, spotlight, tintedHouses, conflicts, highlightPeers, highlightMatches]);
+  }, [
+    cells,
+    selected,
+    highlightDigit,
+    spotlight,
+    tintedHouses,
+    conflicts,
+    highlightPeers,
+    highlightMatches,
+    celebrate,
+  ]);
 
   const move = useCallback(
     (from: CellIndex, dRow: number, dCol: number) => {
@@ -247,6 +281,10 @@ export function SudokuGrid({
       className={cx(
         '@container grid aspect-square w-full grid-cols-9 grid-rows-9',
         'border-2 border-rule-strong bg-paper-raised',
+        // Without a perspective a `rotateY` is an orthographic squash: the
+        // cell narrows and widens again rather than turning over. Harmless
+        // when nothing is animating, so it is not conditional.
+        '[perspective:800px]',
         className,
       )}
     >
@@ -265,8 +303,11 @@ export function SudokuGrid({
                 marks={masks[index]}
                 stale={staleMasks[index]}
                 flags={flags[index]}
-                matchDigit={highlightMatches && highlightMatchingNotes ? highlightDigit : null}
-                colorEntries={colorEntries}
+                matchDigit={
+                  highlightMatches && highlightMatchingNotes && !celebrate ? highlightDigit : null
+                }
+                colorEntries={colorEntries && !celebrate}
+                winDelayMs={celebrate ? (row + col) * WIN_STEP_MS : null}
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
               />

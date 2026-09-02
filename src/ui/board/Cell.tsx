@@ -20,7 +20,7 @@
  * highlight changed, and nothing else.
  */
 
-import { memo } from 'react';
+import { memo, type CSSProperties } from 'react';
 import type { CellIndex, Digit } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { cellName, colOf, rowOf } from '../../engine/board';
@@ -54,6 +54,12 @@ export interface CellProps {
   matchDigit: Digit | null;
   /** Draw a player entry in the entry colour rather than the givens' ink. */
   colorEntries: boolean;
+  /**
+   * The board is solved and this cell is taking its turn in the celebration.
+   * `null` when there is nothing to celebrate; a delay in milliseconds when
+   * there is, which is what makes the flip a wave rather than a flash.
+   */
+  winDelayMs: number | null;
   /** Roving tabindex: exactly one cell in the grid is 0. */
   tabIndex: number;
   onSelect: (cell: CellIndex) => void;
@@ -133,6 +139,7 @@ function CellImpl({
   flags,
   matchDigit,
   colorEntries,
+  winDelayMs,
   tabIndex,
   onSelect,
 }: CellProps) {
@@ -151,6 +158,10 @@ function CellImpl({
       aria-label={describe(t, index, value, given, marks, stale)}
       tabIndex={tabIndex}
       onPointerDown={() => onSelect(index)}
+      // The delay rides a custom property rather than `animationDelay`
+      // directly, so the timing stays the grid's business and the animation
+      // itself stays in the stylesheet with the keyframes it belongs to.
+      style={winDelayMs === null ? undefined : ({ '--win-delay': `${winDelayMs}ms` } as CSSProperties)}
       className={cx(
         'relative grid aspect-square cursor-pointer place-items-center select-none',
         'transition-colors duration-100 ease-snap outline-offset-[-2px]',
@@ -160,6 +171,7 @@ function CellImpl({
         // it sits above the wash so a selected match still reads as selected.
         selected && 'z-10 shadow-[inset_0_0_0_2px_var(--color-ink)]',
         has(flags, CELL_SPOTLIGHT) && !selected && 'shadow-[inset_0_0_0_2px_var(--color-coach)]',
+        winDelayMs !== null && 'cell-win',
       )}
     >
       {value !== null ? (

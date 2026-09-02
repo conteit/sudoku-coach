@@ -459,6 +459,10 @@ export function GameView({
           highlightMatches={settings.highlightMatches}
           highlightMatchingNotes={settings.highlightMatchingNotes}
           colorEntries={settings.colorEntries}
+          // Finishing the puzzle is the one thing on this screen that is
+          // purely a reward, so the board says so itself rather than leaving
+          // it to the sheet that opens over it.
+          celebrate={solved}
           className={paused ? 'pointer-events-none blur-md select-none' : undefined}
         />
         {paused ? (

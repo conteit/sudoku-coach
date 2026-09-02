@@ -261,6 +261,15 @@ test.describe('one puzzle, end to end', () => {
     await expect(page.getByText('Solved', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
 
+    // The board says so itself, and this is the only place it can be checked
+    // for real: jsdom runs no animation, so a unit test can hold which cells
+    // were told to flip but never that any of them ended up gold. `toHaveCSS`
+    // retries, which is what lets it wait out the wave rather than racing it.
+    await expect(boardCell(page, 0)).toHaveCSS('background-color', 'rgb(224, 178, 58)');
+    // The far corner is the last of sixteen diagonals — if the wave were a
+    // flash, or reading order, this cell would not be the one still arriving.
+    await expect(boardCell(page, 80)).toHaveCSS('background-color', 'rgb(224, 178, 58)');
+
     // The recap reports what the coach was asked for. This puzzle was solved
     // from the solution, so the honest answer is "nothing".
     await expect(page.getByText(/without asking the coach anything/)).toBeVisible();
