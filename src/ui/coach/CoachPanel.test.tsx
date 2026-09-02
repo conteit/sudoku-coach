@@ -204,3 +204,42 @@ it('says there is nothing to check when the player has made no notes', () => {
   expect(screen.getByText(/nothing to check/)).toBeInTheDocument();
   expect(screen.queryByText(/exactly right/)).not.toBeInTheDocument();
 });
+
+/*
+ * The lesson link keys off "has a technique been named", not off "is there a
+ * hint". A drill names one — this panel says so itself in `coach.drillActive`
+ * — and the game screen's lesson column already teaches it while one is live.
+ * Before this, the column explained the technique and the panel beside it
+ * offered no way in.
+ */
+describe('the way into the lesson', () => {
+  it('stays shut while the technique is still being paid for', () => {
+    render(
+      <CoachPanel
+        hint={hintAt(1, 'Look at box 4.')}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onLearn={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'What is this technique?' })).toBeNull();
+  });
+
+  it('opens the named technique during a drill, with no hint on screen', async () => {
+    const onLearn = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CoachPanel
+        hint={null}
+        drill={{ technique: 'hidden_single', solved: false, gone: false }}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onLearn={onLearn}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'What is this technique?' }));
+    expect(onLearn).toHaveBeenCalledWith('hidden_single');
+  });
+});
