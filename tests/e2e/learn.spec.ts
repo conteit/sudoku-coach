@@ -59,7 +59,7 @@ test('keeps the index on screen while a lesson opens beside it', async ({ page }
   expect(after.x).toBeCloseTo(before.x, 1);
 });
 
-test('a named technique links from the coach panel to its lesson', async ({ page }) => {
+test('a named technique links from the coach panel to its lesson', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
@@ -72,9 +72,26 @@ test('a named technique links from the coach panel to its lesson', async ({ page
   await expect(coach.getByRole('button', { name: 'What is this technique?' })).toHaveCount(0);
 
   await coach.getByRole('button', { name: /Name the technique/ }).click();
+
+  // Which technique gets named depends on the generated puzzle, not on this
+  // test, so the expected name is read off the coach's own level-2 hint
+  // rather than hard-coded. Every lesson's rung-2 template opens with its
+  // technique's exact display name followed by "in" or "on" (naming the
+  // house/digit it was found in) — checked against every entry in
+  // `src/coach/lessons/en.json` before relying on it here.
+  const hintText = await coach.locator('[aria-live="polite"]').innerText();
+  const technique = hintText.match(/^(.+?)\s(?:in|on)\s/)?.[1];
+  expect(technique, `could not read a technique name out of hint text: "${hintText}"`).toBeTruthy();
+
   await coach.getByRole('button', { name: 'What is this technique?' }).click();
 
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // Unscoped, `level: 1` would find Learn's own page heading at laptop/wide
+  // ("Learn") and pass without ever looking at the lesson — the same bug
+  // the tier check in the first test above exists to catch. Naming the
+  // heading with the technique that was actually named rules that out:
+  // "Learn" can never satisfy it.
+  const level = ['laptop', 'wide'].includes(testInfo.project.name) ? 2 : 1;
+  await expect(page.getByRole('heading', { name: technique!, level })).toBeVisible();
   await expect(page.getByText('Why it works')).toBeVisible();
 });
 
