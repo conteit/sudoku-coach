@@ -28,7 +28,9 @@ export function ProgressPanel({ profile }: { profile: PlayerProfile }) {
           : t('progress.nextUp', { technique: lessons[next].name })}
       </p>
       <div className="mt-4">
-        <TechniqueIndex profile={profile} />
+        {/* `h3`: this panel's own `h2` is above it, and the list is part of
+            the panel rather than a section beside it. */}
+        <TechniqueIndex profile={profile} titleAs="h3" />
       </div>
     </section>
   );

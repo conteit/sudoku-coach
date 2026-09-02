@@ -101,6 +101,15 @@ describe('LearnView — wide viewport', () => {
     renderLearn({ tier: 'laptop' });
     expect(screen.getByRole('main')).toBeTruthy();
     expect(screen.getByRole('navigation', { name: /the techniques/i })).toBeTruthy();
+
+    // Named *by* the heading it contains, not by a second spelling of it: an
+    // `aria-label` here is a copy of the visible `h2` that can drift from it,
+    // and a screen reader then announces the landmark one way and the heading
+    // inside it another.
+    const nav = screen.getByRole('navigation', { name: /the techniques/i });
+    expect(nav.getAttribute('aria-label')).toBeNull();
+    const heading = screen.getByRole('heading', { name: /the techniques/i });
+    expect(nav.getAttribute('aria-labelledby')).toBe(heading.id);
     expect(screen.queryByRole('region', { name: /^learn$/i })).toBeNull();
   });
 
