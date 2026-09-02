@@ -35,6 +35,7 @@ export const it: Dictionary = {
   'action.confirm': 'Conferma',
   'action.close': 'Chiudi',
   'action.clearStale': 'Cancella le annotazioni morte',
+  'action.fixNotes': 'Correggile tutte',
   'action.clearStaleOne': 'Cancella 1 annotazione morta',
   'action.clearStaleCount': 'Cancella {count} annotazioni morte',
   'action.restart': 'Ricomincia',

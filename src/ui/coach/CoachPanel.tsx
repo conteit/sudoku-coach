@@ -86,6 +86,16 @@ export interface CoachPanelProps {
    */
   nudge?: TeachableTrigger | null;
   onDismissNudge?: () => void;
+  /**
+   * Applies every issue the report is showing, in one undoable step.
+   *
+   * Offered only with issues on screen, and it fixes *those* — the report
+   * already names each digit and the constraint that proves it, so this
+   * discloses nothing the player has not just been told. It is the typing it
+   * saves, which is the difference between this and the note-fill that was
+   * removed in #53: that one wrote marks into cells nobody had asked about.
+   */
+  onFixNotes?: () => void;
   /** Notes a placement has killed since they were written; drives the eraser. */
   staleCount?: number;
   onClearStale?: () => void;
@@ -218,6 +228,7 @@ export function CoachPanel({
   onDrill,
   onDismissDrill,
   onLearn,
+  onFixNotes,
   onCollapse,
   nudge,
   onDismissNudge,
@@ -403,6 +414,14 @@ export function CoachPanel({
             {t('coach.notesHeading')}
           </h3>
           <IssueList review={review} onSpotlight={onSpotlight} />
+          {/* Under the list, not above it: the offer to apply them all only
+              makes sense once the player has had the chance to read what
+              "them" is. A clean report has nothing to apply. */}
+          {onFixNotes && review.issues.length > 0 ? (
+            <Button variant="secondary" size="lg" block className="mt-3" onClick={onFixNotes}>
+              {t('action.fixNotes')}
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </section>
