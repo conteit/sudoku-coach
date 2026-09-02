@@ -335,16 +335,26 @@ export function Keypad({
             label={t('action.clearStale')}
             caption={t('keypad.captionStale')}
             icon={<EraserIcon />}
-            /* The coach's own amber, and the whole key wears it: what has
-               to carry is "this key is not the eraser right now", which is a
-               question about the key rather than about how many notes are
-               dead. A count on the glyph answered a question nobody asks
-               mid-move — the number changes nothing about the tap — and it
-               made a control that is about to erase things look like an
-               unread-message badge. `bg-coach-wash` with `text-coach` is the
-               pairing `Cell` already uses for a spotlit square, so the
-               contrast is one the audit in #46 has already been through. */
-            className="border-coach bg-coach-wash text-coach hover:border-coach hover:text-coach"
+            /* The whole key goes amber, filled rather than tinted: what has
+               to carry is "this key is not the eraser right now", and a wash
+               reads as a state the key is in, where a fill reads as a
+               different key. A count on the glyph answered a question nobody
+               asks mid-move — the number changes nothing about the tap — and
+               it made a control that is about to erase things look like an
+               unread-message badge.
+
+               `!` on every colour, and it is load-bearing: `IconButton`'s own
+               `bg-paper-raised` / `text-ink-soft` / `border-rule` are the same
+               properties, so which one wins is the order Tailwind emits them
+               in, not the order they appear here. The header's coach button
+               carries the same marker for the same reason — see `!hidden` in
+               `GameView`.
+
+               `bg-coach` against `text-paper` is the pairing `IconButton`'s
+               own pressed state uses (`bg-ink text-paper`), and it clears AA
+               in both themes: 4.7:1 light (#a35a12 on #faf7f2), 9.2:1 dark
+               (#e8a94a on #14120e). */
+            className="!border-coach !bg-coach !text-paper hover:!border-coach hover:!text-paper"
             // `canErase` asks whether a cell is selected, which is the wrong
             // question for a key about to clear notes all over the board.
             // `disabled` still applies: clearing goes on the undo stack like

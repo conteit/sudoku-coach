@@ -176,7 +176,7 @@ export const en = {
   'keypad.erase': 'Erase cell',
   'keypad.captionNotes': 'Notes',
   'keypad.captionErase': 'Erase',
-  'keypad.captionStale': 'Dead',
+  'keypad.captionStale': 'Conflict',
   'keypad.captionUndo': 'Undo',
   'keypad.captionRedo': 'Redo',
 

@@ -174,7 +174,7 @@ export const it: Dictionary = {
   'keypad.erase': 'Svuota la cella',
   'keypad.captionNotes': 'Note',
   'keypad.captionErase': 'Cancella',
-  'keypad.captionStale': 'Morte',
+  'keypad.captionStale': 'Conflitto',
   'keypad.captionUndo': 'Annulla',
   'keypad.captionRedo': 'Ripeti',
 
