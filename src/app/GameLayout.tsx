@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useT } from '../i18n/locale';
+import { cx } from '../ui/primitives/cx';
 import type { Tier } from './useViewportTier';
 
 export interface GameLayoutProps {
@@ -23,6 +24,23 @@ export interface GameLayoutProps {
    */
   lesson: { title: string; body: ReactNode };
 }
+
+/*
+ * Both asides, at every wide tier: a box of their own to overflow inside, and
+ * a position that survives the page scrolling under them.
+ *
+ * `sticky top-4` rather than a fixed row height, because the page still has
+ * to scroll when the board and keypad genuinely do not fit — a 40rem board
+ * plus its keypad is taller than a 720px laptop, and clipping that would hide
+ * the controls rather than the commentary. This way the page scrolls for the
+ * board alone, and the columns come along instead of sliding off.
+ *
+ * `5rem` off the viewport is the 4rem the sticky offset leaves above plus a
+ * rem below, so a stuck column never runs its own bottom edge past the fold —
+ * the thing `play.spec.ts` measures for real.
+ */
+const COLUMN_SCROLL =
+  'sticky top-4 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain';
 
 /**
  * Which regions exist at this width, and how they sit.
@@ -108,7 +126,25 @@ export function GameLayout({
             screen-reader user two "Coach" entries in the landmark list, the
             outer one with no name to tell it apart from the lesson column
             beside it. */}
-        <div data-testid="coach-column" className="w-[22rem] min-w-0 shrink-0">
+        <div
+          data-testid="coach-column"
+          /* Its own scroller, and it sticks. Two things follow from that,
+             both of them Paolo's: a long hint scrolls *inside* this column
+             instead of growing the page and pushing the board out of view,
+             and when the page does scroll — which it now only does because
+             the board and keypad genuinely do not fit — the column stays
+             where it was rather than sliding away from a board the player is
+             still looking at.
+
+             `overscroll-contain` is what makes "without moving the grid" true
+             on a trackpad: without it, a flick that reaches the end of this
+             column keeps going and takes the page with it.
+
+             The width tokens are untouched, and have to be: invariant 9's
+             canary reads them, and `sticky` keeps the element in flow, so
+             nothing here changes what the board is allowed to be. */
+          className={cx(COLUMN_SCROLL, 'w-[22rem] min-w-0 shrink-0')}
+        >
           {coach}
         </div>
         {tier === 'desktop' ? (
@@ -128,22 +164,14 @@ export function GameLayout({
             // fourteen buttons, and every lesson shown here carries its way
             // back. A tab stop on the container as well would be a second
             // stop that lands on the landmark rather than on anything in it.
-            // `overflow-y-auto` does nothing on its own: the row is
-            // `items-start` with no height constraint on this aside, so
-            // there is no box for it to overflow *out of* — a tall lesson
-            // just grows the row, and the page scrolls instead of the
-            // column. The cap is sized off the viewport alone, not off
-            // `main` or the coach column: those two already have their own
-            // fixed-height budgets (the board's aspect ratio, the coach
-            // bar's own content), and reading either one back into this
-            // element's height would make the lesson column's box a
-            // function of siblings that have nothing to do with it. `6rem`
-            // is the header's own budget (its icon buttons plus `pt-3
-            // pb-2`) plus this row's `pb-6` — generous rather than exact,
-            // since a pixel-perfect match buys nothing a scrollbar doesn't
-            // already cover, and a comment can't stay honest against a
-            // header that is free to change height later.
-            className="max-h-[calc(100dvh-6rem)] w-[26rem] min-w-0 shrink-0 overflow-y-auto"
+            // Same scroller and the same stickiness as the coach column —
+            // see `COLUMN_SCROLL`. The cap is sized off the viewport alone,
+            // never off `main` or the coach column: those two have their own
+            // height budgets (the board's aspect ratio, the coach bar's
+            // content), and reading either back into this element would make
+            // the lesson column's box a function of siblings that have
+            // nothing to do with it.
+            className={cx(COLUMN_SCROLL, 'w-[26rem] min-w-0 shrink-0')}
           >
             {/* Announce the *change*, not the content. The column must not
                 swap silently — a player who has just paid for rung 2 should

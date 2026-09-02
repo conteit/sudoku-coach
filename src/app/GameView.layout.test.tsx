@@ -420,6 +420,33 @@ describe('the lesson column', () => {
     expect(lessonColumn().getByRole('heading', { name: /techniques/i })).toBeTruthy();
   });
 
+  /*
+   * Both asides scroll inside themselves and stay put while the page moves
+   * under them. The class tokens are what a unit test can hold — jsdom lays
+   * nothing out, so the *behaviour* (a wheel over the column leaving the page
+   * and the board where they were) is proven in `play.spec.ts`. Read as a set
+   * rather than as a whole className, so the next class added to a column
+   * does not fail a test about scrolling.
+   */
+  it.each([
+    ['coach-column', 'laptop'],
+    ['coach-column', 'desktop'],
+    ['lesson-column', 'desktop'],
+  ] as const)('gives %s its own scroller at the %s tier', (testId, tier) => {
+    renderGame({ tier });
+
+    const tokens = new Set(screen.getByTestId(testId).classList);
+    expect(tokens.has('overflow-y-auto')).toBe(true);
+    // Without this a flick that runs out of column carries on into the page,
+    // which is exactly the "the board moved under me" this fixes.
+    expect(tokens.has('overscroll-contain')).toBe(true);
+    // Sticky rather than a fixed row height: the page still has to scroll
+    // when the board and keypad genuinely do not fit, and the column should
+    // come along rather than slide off the board being played.
+    expect(tokens.has('sticky')).toBe(true);
+    expect([...tokens].some((token) => token.startsWith('max-h-[calc('))).toBe(true);
+  });
+
   it('does not keep a tab stop of its own now that both states are reachable', () => {
     // The column carried `tabIndex={0}` because neither of its states had a
     // focusable descendant, so a keyboard user could not reach it once it
