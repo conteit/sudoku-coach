@@ -20,6 +20,22 @@ export interface SplitLayoutProps {
   right: ReactNode;
 }
 
+/* 20rem, and the row below gaps at 8 — both looser than `GameLayout`'s 22rem
+   column and gap-6, which is the family's other wide layout. The difference is
+   what each row is spending its width on rather than an oversight.
+
+   `GameLayout` is over budget at its narrowest wide tier: a 40rem board beside
+   a 22rem coach column already exceeds 1024 once the page padding is counted,
+   so every pixel in that gutter comes out of the board, and the board is the
+   thing invariant 9 exists to protect. Here nothing is squeezed — two panes
+   inside 96rem, the wide one `flex-1` — so the gutter can be the 32px that
+   actually reads as two surfaces rather than one wrapped column.
+
+   The widths differ for the same kind of reason: 22rem holds the coach's
+   controls (a four-rung ladder, buttons, an eraser), 20rem holds a list of
+   technique names and a mastery chip. A reading column is not a control panel
+   and does not need the control panel's width. */
+
 /* All three of `w-*`, `shrink-0` and `min-w-0`: `w-*` alone stretches under a
    flex parent, and `shrink-0` alone leaves `min-width: auto`, which floors a
    flex item at its min-content width — one long technique name would widen
