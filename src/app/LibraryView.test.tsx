@@ -10,7 +10,7 @@
  * padding, drop `min-h-dvh`, and add a landmark that isn't there today.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseGrid, formatGrid } from '../engine/board';
 import type { Difficulty } from '../engine/types';
@@ -142,9 +142,13 @@ describe('LibraryView', () => {
   });
 
   it('keeps the games first in the DOM — they are why the screen exists', () => {
+    // Compares the two *contents*, not the two panes. `left-pane` precedes
+    // `right-pane` by construction, so a test phrased that way is true
+    // whichever pane the games are in and cannot fail; these two nodes are
+    // found by role, so swapping the children fails it.
     renderLibrary({ tier: 'laptop' });
-    const games = screen.getByTestId('left-pane');
-    const progress = screen.getByTestId('right-pane');
+    const games = screen.getByRole('main');
+    const progress = screen.getByRole('complementary', { name: /your progress/i });
     expect(games.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -160,8 +164,16 @@ describe('LibraryView', () => {
     // wrong way round the games were 320px on a laptop against 343px on a
     // phone — crossing 1024 made the primary content narrower.
     renderLibrary({ tier: 'desktop' });
-    expect(screen.getByTestId('left-pane').className).toContain('flex-1');
-    expect(screen.getByTestId('right-pane').className).toContain('w-[20rem]');
+    const wide = screen.getByTestId('left-pane');
+    const fixed = screen.getByTestId('right-pane');
+    // `within`, not the pane classes alone: `narrow="right"` with the two
+    // children swapped puts the games back in a 320px pane and hands the
+    // progress prose 1136px, and a test that only reads the panes' classes
+    // passes right through it. The pane assignment is the invariant.
+    expect(within(wide).getByRole('main')).toBeTruthy();
+    expect(within(fixed).getByRole('complementary', { name: /your progress/i })).toBeTruthy();
+    expect(wide.className).toContain('flex-1');
+    expect(fixed.className).toContain('w-[20rem]');
   });
 
   it('keeps the progress pane inside the 40rem prose measure at every tier', () => {
@@ -174,6 +186,9 @@ describe('LibraryView', () => {
     for (const tier of ['laptop', 'desktop'] as const) {
       const { unmount } = renderLibrary({ tier });
       const pane = screen.getByTestId('right-pane');
+      // The panel has to be *in* the pane being measured, or this asserts a
+      // width nothing is reading it at.
+      expect(within(pane).getByText(/your progress/i)).toBeTruthy();
       expect(pane.className).toContain('w-[20rem]');
       expect(pane.className).not.toContain('flex-1');
       unmount();
