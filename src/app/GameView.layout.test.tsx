@@ -583,7 +583,9 @@ describe('the coach sheet', () => {
     // through either: it is on screen, and dead.
     expect(
       within(screen.getByRole('group', { name: /^Keypad/ })).getByRole('button', {
-        name: /clear \d+ dead notes?/i,
+        // The pad's key names no count — the panel's does, which is what
+        // keeps these two queries telling the two doors apart.
+        name: /^clear dead notes$/i,
       }),
     ).toBeDisabled();
   });

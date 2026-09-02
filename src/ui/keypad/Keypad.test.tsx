@@ -315,16 +315,30 @@ describe('the eraser, while notes are dead', () => {
   it('carries the clear instead, named by what it will do', () => {
     renderKeypad({ staleCount: 3, onClearStale: noop });
 
-    expect(screen.getByRole('button', { name: 'Clear 3 dead notes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear dead notes' })).toBeInTheDocument();
     // Not both: one key, one meaning at a time. A pad offering "erase" and
     // "clear" at once is a pad the player has to read before every tap.
     expect(screen.queryByRole('button', { name: 'Erase cell' })).toBeNull();
   });
 
-  it('counts one dead note in the singular', () => {
-    renderKeypad({ staleCount: 1, onClearStale: noop });
+  it('says nothing about how many, at any count', () => {
+    // The number changes nothing about the tap, and on a key that is about
+    // to erase things a badge reads as an unread-message count. The coach
+    // panel is where the count is spelled out.
+    renderKeypad({ staleCount: 7, onClearStale: noop });
 
-    expect(screen.getByRole('button', { name: 'Clear 1 dead note' })).toBeInTheDocument();
+    const key = screen.getByRole('button', { name: 'Clear dead notes' });
+    expect(key.textContent).not.toMatch(/\d/);
+  });
+
+  it('wears the coach amber, since the colour is the only thing that says the mode changed', () => {
+    // With the count gone, the key's own appearance is what distinguishes it
+    // from the eraser it replaced — the glyph is the same one.
+    renderKeypad({ staleCount: 2, onClearStale: noop });
+
+    const key = screen.getByRole('button', { name: 'Clear dead notes' });
+    expect(key.className).toContain('bg-coach-wash');
+    expect(key.className).toContain('text-coach');
   });
 
   it('clears on a tap, and hands the key back to the eraser', async () => {
@@ -332,7 +346,7 @@ describe('the eraser, while notes are dead', () => {
     const user = userEvent.setup();
     const { rerender, props } = renderKeypad({ staleCount: 2, onClearStale });
 
-    await user.click(screen.getByRole('button', { name: 'Clear 2 dead notes' }));
+    await user.click(screen.getByRole('button', { name: 'Clear dead notes' }));
     expect(onClearStale).toHaveBeenCalledOnce();
 
     // The host clears the notes; the key goes back to what it was. Nothing
@@ -346,7 +360,7 @@ describe('the eraser, while notes are dead', () => {
     // for a key that is about to clear notes all over the board.
     renderKeypad({ staleCount: 2, onClearStale: noop, canErase: false });
 
-    expect(screen.getByRole('button', { name: 'Clear 2 dead notes' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Clear dead notes' })).toBeEnabled();
   });
 
   it('stays dead while the board is paused or solved', () => {
@@ -354,7 +368,7 @@ describe('the eraser, while notes are dead', () => {
     // move: it goes on the undo stack like any other.
     renderKeypad({ staleCount: 2, onClearStale: noop, disabled: true });
 
-    expect(screen.getByRole('button', { name: 'Clear 2 dead notes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Clear dead notes' })).toBeDisabled();
   });
 
   it('erases as usual when the host wires no clear at all', () => {
