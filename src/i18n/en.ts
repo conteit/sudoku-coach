@@ -72,6 +72,10 @@ export const en = {
   'games.generationFailed': 'That puzzle could not be built. Try again.',
   'games.settledFor': 'No {requested} puzzle came out in time, so this one is {actual}.',
 
+  'progress.title': 'Your progress',
+  'progress.nextUp': 'Next up: {technique}',
+  'progress.nothingNext': 'You have met every technique the coach teaches.',
+
   'recap.noHints': 'You finished this one without asking the coach anything.',
   'recap.asked': 'You asked the coach about {count} patterns, and went as deep as rung {level} of 4.',
   'recap.named': 'Named this game: {list}.',
