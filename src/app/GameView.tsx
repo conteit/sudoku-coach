@@ -544,21 +544,22 @@ export function GameView({
       ? coach.hint.technique
       : (coach.drill?.technique ?? null);
 
+  // The column's content and the phrase that announces it, built together —
+  // `GameLayout` takes them as one prop so a swap cannot change one without
+  // the other. The phrase is deliberately not read back out of the content:
+  // see the live region in `GameLayout`.
   const lessonRegion =
-    namedTechnique !== null ? (
-      // `h2`, not the `h1` this renders on Learn: here the document is a game
-      // in progress, and the sidebar is not its root.
-      <LessonBody id={namedTechnique} profile={profile} titleAs="h2" />
-    ) : (
-      <TechniqueIndex profile={profile} />
-    );
-
-  // What the column is showing, in one phrase, for its live region to
-  // announce. Deliberately not the column's content: see `GameLayout`.
-  const lessonTitle =
     namedTechnique !== null
-      ? getLesson(locale, namedTechnique).name
-      : t('learn.techniques.title');
+      ? {
+          title: getLesson(locale, namedTechnique).name,
+          // `h2`, not the `h1` this renders on Learn: here the document is a
+          // game in progress, and the sidebar is not its root.
+          body: <LessonBody id={namedTechnique} profile={profile} titleAs="h2" />,
+        }
+      : {
+          title: t('learn.techniques.title'),
+          body: <TechniqueIndex profile={profile} />,
+        };
 
   return (
     <>
@@ -569,7 +570,6 @@ export function GameView({
         keypad={keypad}
         coach={coachRegion}
         lesson={lessonRegion}
-        lessonTitle={lessonTitle}
       />
 
       {/* Everything about this puzzle that is not a move. Rare actions do not
