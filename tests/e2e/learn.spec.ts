@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 import { openCoach } from './coach';
 import { boardGrid } from './board';
 
-test('reads the rules, the ladder and a technique lesson', async ({ page }) => {
+test('reads the rules, the ladder and a technique lesson', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Learn' }).click();
 
@@ -21,13 +21,42 @@ test('reads the rules, the ladder and a technique lesson', async ({ page }) => {
   await expect(techniques).toHaveCount(14);
 
   await page.getByRole('button', { name: /Hidden pair/ }).click();
-  await expect(page.getByRole('heading', { name: 'Hidden pair', level: 1 })).toBeVisible();
+  // At laptop and wide the lesson sits in `SplitLayout`'s right pane, beside
+  // Learn's own `<h1>`, so `LessonBody` renders its title as `h2`
+  // (`titleAs`) — an `h1` there would give the page two document roots.
+  // Below laptop the lesson is still the whole page and the title is `h1`.
+  const level = ['laptop', 'wide'].includes(testInfo.project.name) ? 2 : 1;
+  await expect(page.getByRole('heading', { name: 'Hidden pair', level })).toBeVisible();
   await expect(page.getByText('What it is')).toBeVisible();
   await expect(page.getByText('Why it works')).toBeVisible();
 
   // The worked example is a real board rendered from the lesson's own grid.
   await expect(page.getByRole('grid', { name: 'Hidden pair' })).toBeVisible();
   await expect(page.locator('[data-spotlight]')).toHaveCount(2);
+});
+
+test('keeps the index on screen while a lesson opens beside it', async ({ page }, testInfo) => {
+  test.skip(!['laptop', 'wide'].includes(testInfo.project.name), 'one column below laptop');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Learn' }).click();
+
+  const index = page.getByTestId('left-pane');
+  await expect(index).toBeVisible();
+  const before = (await index.boundingBox())!;
+
+  await index.getByRole('button', { name: /naked single/i }).click();
+
+  // `h2`, not `h1`: see the tier check above — the lesson pane's title sits
+  // beneath Learn's own heading here, so `level: 1` would never resolve.
+  await expect(
+    page.getByTestId('right-pane').getByRole('heading', { level: 2 }).first(),
+  ).toBeVisible();
+
+  // The point of the case: choosing a lesson from the index must not move
+  // the index it was chosen from.
+  const after = (await index.boundingBox())!;
+  expect(after.width).toBeCloseTo(before.width, 1);
+  expect(after.x).toBeCloseTo(before.x, 1);
 });
 
 test('a named technique links from the coach panel to its lesson', async ({ page }) => {

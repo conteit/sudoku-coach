@@ -79,6 +79,42 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
   expect((await audit(page).analyze()).violations).toEqual([]);
 });
 
+test('the library is clean with the progress pane open beside the games', async ({ page }, testInfo) => {
+  // The progress pane (`LibraryView`'s right `SplitLayout` column) only
+  // exists from the laptop tier up; below it `page.goto('/')` alone already
+  // covers the single-pane screen the first library audit above asserts.
+  test.skip(
+    !['laptop', 'wide'].includes(testInfo.project.name),
+    'the progress pane only exists from the laptop tier up',
+  );
+
+  await page.goto('/');
+  // Confirms the two-pane state is actually on screen, so a layout
+  // regression that dropped the pane would fail here rather than let the
+  // audit below pass over a screen it never intended to check.
+  await expect(page.getByRole('complementary', { name: 'Your progress' })).toBeVisible();
+
+  expect((await audit(page).analyze()).violations).toEqual([]);
+});
+
+test('Learn is clean with the index and an open lesson side by side', async ({ page }, testInfo) => {
+  // Same two-pane layout as the library case above, this time `LearnView`'s
+  // `SplitLayout`: the index stays on screen once a lesson opens beside it.
+  test.skip(
+    !['laptop', 'wide'].includes(testInfo.project.name),
+    'the two-pane layout only exists from the laptop tier up',
+  );
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Learn' }).click();
+  await page.getByTestId('left-pane').getByRole('button', { name: /naked single/i }).click();
+
+  await expect(page.getByTestId('left-pane')).toBeVisible();
+  await expect(page.getByTestId('right-pane').getByRole('heading', { level: 2 }).first()).toBeVisible();
+
+  expect((await audit(page).analyze()).violations).toEqual([]);
+});
+
 test('puts the board before the coach in the reading order', async ({ page }, testInfo) => {
   // `GameLayout` renders a `coach-column` div beside the board from the
   // laptop tier up (`src/app/GameLayout.tsx`); the DOM order this asserts is
