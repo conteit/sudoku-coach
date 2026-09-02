@@ -138,8 +138,14 @@ describe('fixing the notes the check found', () => {
 
     // The impossible 5 is gone, and the cell now carries the marks it should.
     expect(cell(2).textContent).not.toContain('5');
+
     // And the report is re-run rather than left describing a board that has
-    // moved: there is nothing left to fix, so nothing left to offer.
+    // moved. Awaited, because the re-check is deliberately deferred a render:
+    // `checkMarks` closes over the board of the render it came from, so it
+    // has to wait for the one holding the fixed board. Asserting the button's
+    // absence synchronously passed on a fast machine and failed on CI — the
+    // wait is the honest reading of a re-check that was never synchronous.
+    expect(await screen.findByText(/notes are exactly right/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
   });
 
