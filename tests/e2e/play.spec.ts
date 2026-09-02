@@ -384,7 +384,7 @@ test.describe('the board never gives up height', () => {
  * have been made to move, and none of them were exercised by a test before
  * this.
  */
-test('the board keeps its box whatever the coach is doing', async ({ page }) => {
+test('the board keeps its box whatever the coach is doing', async ({ page }, testInfo) => {
   await startEasyGame(page);
   const grid = boardGrid(page);
   const atRest = (await grid.boundingBox())!;
@@ -412,6 +412,23 @@ test('the board keeps its box whatever the coach is doing', async ({ page }) => 
   const withLesson = (await grid.boundingBox())!;
   expect(withLesson.width).toBeCloseTo(atRest.width, 1);
   expect(withLesson.height).toBeCloseTo(atRest.height, 1);
+
+  // The third content state: a lesson the player opened themselves. It
+  // arrives by a different route than the coach's — back to the index, then
+  // a row — and the column has to hold its box across both moves, not just
+  // across the swap the coach causes. Desktop only, because the column is.
+  if (testInfo.project.name === 'wide') {
+    const column = page.getByTestId('lesson-column');
+    await column.getByRole('button', { name: 'Back' }).click();
+    const withIndex = (await grid.boundingBox())!;
+    expect(withIndex.width).toBeCloseTo(atRest.width, 1);
+    expect(withIndex.height).toBeCloseTo(atRest.height, 1);
+
+    await column.getByRole('button', { name: /Remote pairs/ }).click();
+    const withBrowsed = (await grid.boundingBox())!;
+    expect(withBrowsed.width).toBeCloseTo(atRest.width, 1);
+    expect(withBrowsed.height).toBeCloseTo(atRest.height, 1);
+  }
 });
 
 /*

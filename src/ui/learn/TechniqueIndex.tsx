@@ -80,6 +80,11 @@ export function TechniqueIndex({
               {onOpen ? (
                 <button
                   type="button"
+                  // Names the row for a host that has to put focus back on it
+                  // — the game screen's column replaces the whole index with
+                  // the lesson, so the row a reader came from is gone while
+                  // they read and has to be found again on the way out.
+                  data-technique={id}
                   onClick={() => onOpen(id)}
                   className="flex w-full items-center gap-3 py-3.5 text-left transition-colors duration-100 ease-snap hover:bg-paper-sunk"
                 >

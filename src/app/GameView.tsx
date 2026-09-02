@@ -61,6 +61,9 @@ const HAPTICS: Record<HapticPattern, number | number[]> = {
   blocked: [12, 40, 12],
 };
 
+/** The column's way back, so a swap can hand focus to it (and back again). */
+const LESSON_BACK_ID = 'lesson-back';
+
 export interface GameViewProps {
   game: LiveGame;
   settings: PlayerProfile['settings'];
@@ -105,6 +108,30 @@ export function GameView({
   // the sheet is how the player asks to be spoken to, and closing it is a
   // deliberate dismissal — neither should flip because a hint arrived.
   const [sheetOpen, setSheetOpen] = useState(false);
+  /*
+   * What the lesson column is showing, at the desktop tier where it exists.
+   *
+   * `auto` is the column's own reading of the game — the coach's lesson once
+   * a technique has been named at level 2, the index before that — and it is
+   * where the column rests. The other two are the player disagreeing with
+   * that reading: `lesson` because they opened one from the index, `index`
+   * because they pressed back out of the coach's.
+   *
+   * The player's disagreement is deliberately not durable. Every fresh
+   * naming resets to `auto` (see the effect below), because a rung the
+   * player just paid for outranks a page they were browsing.
+   */
+  const [columnView, setColumnView] = useState<
+    { kind: 'auto' } | { kind: 'index' } | { kind: 'lesson'; id: TechniqueId }
+  >({ kind: 'auto' });
+  /*
+   * What to focus after the column's next swap, since the swap replaces the
+   * content rather than revealing it: the way back when a lesson opens, and
+   * the row it came from when it closes. Without it a keyboard reader returns
+   * to the top of a fourteen-row list after every lesson.
+   */
+  const columnRef = useRef<HTMLDivElement>(null);
+  const columnFocus = useRef<'back' | TechniqueId | null>(null);
   // Mirrors `Sheet.tsx`'s own focus bookkeeping: where focus was before the
   // sheet took it, so closing can hand it back rather than dropping a
   // keyboard user at the top of the document.
@@ -529,10 +556,9 @@ export function GameView({
    * player's own mastery — the same reading the coach uses to pick a puzzle
    * at the edge of what they know. Level 2 is where the name is paid for;
    * showing the lesson earlier would hand over the rung they have not
-   * climbed. Neither sub-view gets a way to navigate: `LessonBody`'s
-   * `leading` back button and `TechniqueIndex`'s `onOpen` are both left
-   * unset, because this column has nowhere to go back to and nothing to open
-   * — Learn already owns the page these two exist on.
+   * climbed. Reading a lesson the player opens themselves is not that rung:
+   * Learn is browsable from the library at any time, and the ladder is about
+   * hints for *this board*, not about who may read what.
    *
    * The gate is the *rule* — has a level-2 disclosure been logged — not the
    * mechanism that usually carries it. `useCoachSession.startDrill` calls
@@ -550,21 +576,89 @@ export function GameView({
       ? coach.hint.technique
       : (coach.drill?.technique ?? null);
 
+  /*
+   * A naming is the coach answering, and it takes the column back from
+   * whatever was being browsed — the player paid a rung for it and the live
+   * region announces it. Only a *new* naming does: this fires when
+   * `namedTechnique` becomes non-null, not when a dismissed hint sets it back
+   * to null, so dismissing does not yank a lesson out from under a reader.
+   */
+  useEffect(() => {
+    if (namedTechnique !== null) setColumnView({ kind: 'auto' });
+  }, [namedTechnique]);
+
+  // The one technique the column is showing, if it is showing one at all.
+  const shownTechnique: TechniqueId | null =
+    columnView.kind === 'lesson'
+      ? columnView.id
+      : columnView.kind === 'index'
+        ? null
+        : namedTechnique;
+
+  const openLesson = (id: TechniqueId) => {
+    columnFocus.current = 'back';
+    setColumnView({ kind: 'lesson', id });
+  };
+
+  const closeLesson = (from: TechniqueId) => {
+    columnFocus.current = from;
+    setColumnView({ kind: 'index' });
+  };
+
+  useEffect(() => {
+    const target = columnFocus.current;
+    if (target === null) return;
+    columnFocus.current = null;
+    const column = columnRef.current;
+    if (column === null) return;
+    const node =
+      target === 'back'
+        ? column.querySelector<HTMLElement>(`#${LESSON_BACK_ID}`)
+        : column.querySelector<HTMLElement>(`[data-technique="${target}"]`);
+    node?.focus();
+  }, [columnView]);
+
   // The column's content and the phrase that announces it, built together —
   // `GameLayout` takes them as one prop so a swap cannot change one without
   // the other. The phrase is deliberately not read back out of the content:
   // see the live region in `GameLayout`.
   const lessonRegion =
-    namedTechnique !== null
+    shownTechnique !== null
       ? {
-          title: getLesson(locale, namedTechnique).name,
-          // `h2`, not the `h1` this renders on Learn: here the document is a
-          // game in progress, and the sidebar is not its root.
-          body: <LessonBody id={namedTechnique} profile={profile} titleAs="h2" />,
+          title: getLesson(locale, shownTechnique).name,
+          body: (
+            <div ref={columnRef}>
+              {/* `h2`, not the `h1` this renders on Learn: here the document
+                  is a game in progress, and the sidebar is not its root.
+                  The way back is the same `leading` slot Learn's own
+                  technique page puts its back button in — and it is offered
+                  from the coach's lesson too, so a level-2 hint no longer
+                  pins the column to one technique for the rest of the
+                  game. */}
+              <LessonBody
+                id={shownTechnique}
+                profile={profile}
+                titleAs="h2"
+                leading={
+                  <IconButton
+                    id={LESSON_BACK_ID}
+                    label={t('action.back')}
+                    icon={<ChevronLeftIcon />}
+                    className="flex-none"
+                    onClick={() => closeLesson(shownTechnique)}
+                  />
+                }
+              />
+            </div>
+          ),
         }
       : {
           title: t('learn.techniques.title'),
-          body: <TechniqueIndex profile={profile} />,
+          body: (
+            <div ref={columnRef}>
+              <TechniqueIndex profile={profile} onOpen={openLesson} />
+            </div>
+          ),
         };
 
   return (

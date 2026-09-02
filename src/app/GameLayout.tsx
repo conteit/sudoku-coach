@@ -120,22 +120,14 @@ export function GameLayout({
           <aside
             data-testid="lesson-column"
             aria-label={t('game.lessonAria')}
-            // The index state — the one this column rests in — has nothing
-            // focusable in it at all: `TechniqueIndex`'s `onOpen` is left
-            // unset here (see below), so its rows render as static text. So
-            // once the column scrolls, a keyboard user has no descendant to
-            // land on that would let them reach the rest of it. `tabIndex={0}`
-            // puts the scroll container itself in the tab order as the
-            // fallback. It stays needed in the lesson state too: `LessonBody`
-            // renders a worked-example grid, but that grid is an illustration
-            // — `Example` takes its cells out of the tab order for exactly
-            // that reason — so the column has no focusable descendant there
-            // either. `aria-label` above is still what gets announced when it
-            // takes focus, so this doesn't add a second name for the one this
-            // aside already has. (The coach column's own scrollable sheet
-            // doesn't need this: `CoachPanel` always renders real buttons,
-            // so it already has focusable content to land on.)
-            tabIndex={0}
+            // No `tabIndex` of its own. It carried one while neither of its
+            // states had a focusable descendant — static index rows, and a
+            // lesson whose only grid is an illustration `Example` keeps out
+            // of the tab order — which left a keyboard user unable to reach
+            // a scrolled column. Both states are reachable now: the index is
+            // fourteen buttons, and every lesson shown here carries its way
+            // back. A tab stop on the container as well would be a second
+            // stop that lands on the landmark rather than on anything in it.
             // `overflow-y-auto` does nothing on its own: the row is
             // `items-start` with no height constraint on this aside, so
             // there is no box for it to overflow *out of* — a tall lesson
