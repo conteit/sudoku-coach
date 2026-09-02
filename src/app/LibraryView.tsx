@@ -40,6 +40,9 @@ export function LibraryView({
   const inProgress = summaries.filter((game) => game.completedAt === null);
   const finished = summaries.filter((game) => game.completedAt !== null);
 
+  // `mb-6` is the phone layout's, unchanged; on a wide viewport it is also
+  // what `LearnView`'s header spaces itself by, so the two screens put the
+  // same gap between the chrome and the panes.
   const header = (
     <header className="mb-6 flex items-start justify-between gap-3">
       <div>
