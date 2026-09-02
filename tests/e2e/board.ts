@@ -6,9 +6,15 @@
  * technique — renders its illustration with the same `SudokuGrid`/`Cell`
  * markup as the real board (`role="grid"`, `data-cell`). An unscoped query
  * once a technique has been named would return both boards: 162 cells
- * instead of 81, or two grids instead of one. Only the interactive board
- * lives inside `<main>` in every `GameLayout` tier; a worked example lives
- * in the lesson aside or in `LearnView`, never in `main`.
+ * instead of 81, or two grids instead of one. Within the game screen the
+ * interactive board is the only grid inside `<main>` — the lesson column's
+ * worked example sits outside it, in `GameLayout`'s aside.
+ *
+ * That scoping is the game screen's alone. Learn's lesson pane is itself a
+ * `<main>` from the laptop tier up, so a worked example there *is* inside a
+ * `main`; every caller below is on the game screen, and the two screens are
+ * mutually exclusive, so nothing here is ambiguous today. A spec that opens
+ * Learn and reaches for `boardGrid` would match the illustration.
  */
 import type { Page } from '@playwright/test';
 
