@@ -61,6 +61,9 @@ const HAPTICS: Record<HapticPattern, number | number[]> = {
   blocked: [12, 40, 12],
 };
 
+/** One frozen empty reading, so turning the flag off does not rebuild 81 arrays. */
+const NO_STALE: readonly (readonly Digit[])[] = [];
+
 /** The column's way back, so a swap can hand focus to it (and back again). */
 const LESSON_BACK_ID = 'lesson-back';
 
@@ -156,7 +159,19 @@ export function GameView({
    * that one is theirs to find, and "check my notes" is what finds it.
    */
   const stale = useMemo(() => deadNotes(game.cells, game.undoStack), [game.cells, game.undoStack]);
-  const staleCount = useMemo(() => stale.reduce((n, digits) => n + digits.length, 0), [stale]);
+  /*
+   * What the player has asked to *see* of that, which is all any control here
+   * may act on. With `markDeadNotes` off the board strikes nothing through,
+   * and the two eraser affordances go with it: a key offering to clear
+   * something the board never marked is a control with no visible referent.
+   * "Check my notes" still finds them — that path was always the one meant
+   * to, and it says so in words rather than in colour.
+   */
+  const flaggedStale = settings.markDeadNotes ? stale : NO_STALE;
+  const staleCount = useMemo(
+    () => flaggedStale.reduce((n, digits) => n + digits.length, 0),
+    [flaggedStale],
+  );
   const summary = useMemo(() => recap(game.coachLog), [game.coachLog]);
   const conflicts = useMemo(
     () => (settings.highlightConflicts ? Board.fromValues(values).conflicts() : []),
@@ -268,8 +283,26 @@ export function GameView({
           ? { type: 'toggleCandidate', cell, digit }
           : { type: 'setValue', cell, digit },
       );
+      /*
+       * Auto-clear is dispatched here, as a consequence of the placement,
+       * rather than by an effect watching the board. An effect would fire on
+       * every render that found dead notes — including the render right after
+       * an *undo* restored them, which would make undo unusable: the notes
+       * would come back and be swept again before the player saw them. Tying
+       * it to the move that killed them means it can only ever happen once,
+       * for the reason the player caused.
+       *
+       * Its own move, deliberately (Paolo's call): one undo puts the notes
+       * back and leaves the digit, so what the setting did on the player's
+       * behalf is visible and reversible on its own. `clearStaleCandidates`
+       * no-ops when nothing is dead — `commit` returns the game untouched on
+       * an empty batch — so this costs a scan and nothing else.
+       */
+      if (!pencilMode && settings.autoClearDeadNotes) {
+        dispatch({ type: 'clearStaleCandidates' });
+      }
     },
-    [dispatch, pencilMode],
+    [dispatch, pencilMode, settings.autoClearDeadNotes],
   );
 
   /**
@@ -420,9 +453,12 @@ export function GameView({
           spotlight={spotlight}
           tintedHouses={coach.hint?.houses ?? []}
           conflicts={conflicts}
-          staleMarks={stale}
+          staleMarks={flaggedStale}
           highlightDigit={highlightDigit}
+          highlightPeers={settings.highlightPeers}
+          highlightMatches={settings.highlightMatches}
           highlightMatchingNotes={settings.highlightMatchingNotes}
+          colorEntries={settings.colorEntries}
           className={paused ? 'pointer-events-none blur-md select-none' : undefined}
         />
         {paused ? (

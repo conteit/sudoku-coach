@@ -93,6 +93,12 @@ export interface SudokuGridProps {
    * coach exists to make the player find for themselves.
    */
   highlightMatchingNotes?: boolean;
+  /**
+   * Draw the player's own entries in the entry colour. A player setting: off
+   * takes away the blue and leaves the weight difference, which is the signal
+   * that survives greyscale anyway.
+   */
+  colorEntries?: boolean;
   /** Accessible name for the grid. Defaults to the localized board name. */
   label?: string;
   className?: string;
@@ -115,6 +121,7 @@ export function SudokuGrid({
   highlightMatches = true,
   highlightDigit = null,
   highlightMatchingNotes = true,
+  colorEntries = true,
   label,
   className,
 }: SudokuGridProps) {
@@ -259,6 +266,7 @@ export function SudokuGrid({
                 stale={staleMasks[index]}
                 flags={flags[index]}
                 matchDigit={highlightMatches && highlightMatchingNotes ? highlightDigit : null}
+                colorEntries={colorEntries}
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
               />

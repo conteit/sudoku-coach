@@ -80,6 +80,15 @@ only mean something on the device holding that game.
 1. **User candidates are user-owned.** The engine computes true candidates on
    demand for checking. It never silently edits a player's pencil marks. Every
    mark change is a `Move` the player caused or explicitly requested.
+
+   `settings.autoClearDeadNotes` is the "explicitly requested" branch, and it
+   is off by default. With it on, a placement that kills notes is followed by
+   a `clearStaleCandidates` **as its own move**, so one undo restores the
+   notes and leaves the digit — what the app did on the player's behalf stays
+   visible and separately reversible. It is dispatched from the placement
+   handler, never from an effect watching the board: an effect would fire
+   again on the render after an undo restored the notes, and sweep them back
+   out before the player saw them.
 2. **The solution string never leaves the engine.** It exists to verify
    uniqueness and to detect contradictions. It is never read to produce hint
    text, and never serialized to the coach in full (spec §5.6).
@@ -105,6 +114,17 @@ only mean something on the device holding that game.
    into a square a peer already held stays unmarked — striking that one as it
    is typed would perform the elimination the player came here to learn. It is
    theirs to find, and "check my notes" is what finds it.
+
+   `settings.markDeadNotes` turns the *flag* off, and when it is off nothing
+   offers to act on it either — not the strike-through, not the keypad's amber
+   key, not the coach panel's eraser. A control that clears something the
+   board never marked has no visible referent. The colour settings beside it
+   (`highlightMatches`, `highlightPeers`, `colorEntries`) work the same way:
+   each takes away a layer of colour and nothing else, and none of them can
+   take away a signal that is the *only* one carrying a fact — a player entry
+   keeps its lighter weight with `colorEntries` off, which is what survives
+   greyscale anyway. The coach's spotlight has no switch: it is not
+   decoration, it is the hint pointing.
 9. **The board never gives up its box.** No content that appears or
    disappears during play — a nudge, a badge, an aside that exists only at
    a wider tier — may resize the board, at any viewport: it is drawn over
