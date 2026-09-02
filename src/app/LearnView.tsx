@@ -148,7 +148,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
           put the same 48px between the chrome and the panes below it. They
           are built in the same branch from the same primitive and had no
           reason to differ — this one was simply missing the class. */}
-      <header className="mx-auto flex w-full max-w-[96rem] items-start gap-3 px-6 pt-6 pb-6">
+      <header className="flex w-full items-start gap-3 px-6 pt-6 pb-6">
         <IconButton
           label={t('action.back')}
           icon={<ChevronLeftIcon />}

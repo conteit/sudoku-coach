@@ -92,7 +92,78 @@ function headerGapPx(container: HTMLElement): number {
   );
 }
 
+/** Every element from the pane row up to the screen's own root. */
+function ancestorsOfPanes(container: HTMLElement): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  let node = screen.getByTestId('left-pane').parentElement;
+  while (node !== null && container.contains(node)) {
+    out.push(node);
+    node = node.parentElement;
+  }
+  return out;
+}
+
 describe('the wide screens', () => {
+  /*
+   * The page used to stop at 96rem, which left a third of a large monitor
+   * empty on the two screens with the most to put there. Paolo asked for the
+   * width; the cap that protects reading is the 40rem prose one, which lives
+   * with the callers and is asserted separately in `LearnView.wide.test.tsx`.
+   *
+   * Asserted by walking the ancestors rather than by reading one known
+   * element's class, because the cap could come back on any of them — the
+   * screen root, the split's wrapper, the row — and a test pinned to the one
+   * that happens to carry it today would miss the other two.
+   */
+  it('put no ceiling on the width of the panes', () => {
+    matchOnly(...TIER_QUERIES.desktop);
+    const library = render(
+      <LocaleProvider locale="en">
+        <LibraryView
+          summaries={[SUMMARY]}
+          onResume={() => undefined}
+          onNewGame={() => undefined}
+          onOpenSettings={() => undefined}
+          onLearn={() => undefined}
+        />
+      </LocaleProvider>,
+    );
+    for (const node of ancestorsOfPanes(library.container)) {
+      expect(node.className).not.toMatch(/\bmax-w-/);
+    }
+    library.unmount();
+
+    matchOnly(...TIER_QUERIES.desktop);
+    const learn = render(
+      <LocaleProvider locale="en">
+        <LearnView profile={{ ...DEFAULT_PROFILE, locale: 'en' }} onClose={() => undefined} />
+      </LocaleProvider>,
+    );
+    for (const node of ancestorsOfPanes(learn.container)) {
+      expect(node.className).not.toMatch(/\bmax-w-/);
+    }
+    // The header is chrome outside the panes, and it lines up with them —
+    // a cap left there would put the title in a different place from the
+    // list underneath it.
+    expect(learn.container.querySelector('header')!.className).not.toMatch(/\bmax-w-/);
+  });
+
+  it('give the narrow pane more room above 1536, by tier and not by content', () => {
+    // Invariant 10 says the narrow pane's width is the tier's business. This
+    // is that, expressed as the breakpoint `useViewportTier` calls `desktop`
+    // rather than as a prop a caller could get wrong.
+    matchOnly(...TIER_QUERIES.desktop);
+    render(
+      <LocaleProvider locale="en">
+        <LearnView profile={{ ...DEFAULT_PROFILE, locale: 'en' }} onClose={() => undefined} />
+      </LocaleProvider>,
+    );
+
+    const narrow = screen.getByTestId('left-pane');
+    expect(narrow.className).toContain('w-[20rem]');
+    expect(narrow.className).toContain('2xl:w-[24rem]');
+  });
+
   it('put the same gap between their header and their panes', () => {
     matchOnly(...TIER_QUERIES.laptop);
     const library = render(
