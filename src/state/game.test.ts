@@ -626,3 +626,74 @@ describe('undo/redo round trip', () => {
     );
   });
 });
+
+/**
+ * "Fix them all" on the note-check report.
+ *
+ * The report already spells each issue out — the digit and the constraint
+ * that proves it — so applying them adds no information the player has not
+ * been shown. What it saves is the typing, and it is the player who presses:
+ * the reducer is handed exactly the list the report displayed, never a fresh
+ * reading of the board, so it can only ever act on what was on screen.
+ */
+describe('applying the note check', () => {
+  it('adds the missing marks and removes the invalid ones in one step', () => {
+    const game = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'addCandidate', cell: OPEN, digit: 9, at: 2001 },
+      {
+        type: 'applyNoteFixes',
+        fixes: [
+          { cell: OPEN, digit: 9, kind: 'invalid' },
+          { cell: OPEN, digit: 6, kind: 'missing' },
+        ],
+        at: 2002,
+      },
+    );
+
+    expect(marks(game, OPEN)).toEqual([4, 6]);
+  });
+
+  it('takes one undo to put every mark back the way it was', () => {
+    const fixed = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 9, at: 2000 },
+      { type: 'addCandidate', cell: 5, digit: 3, at: 2001 },
+      {
+        type: 'applyNoteFixes',
+        fixes: [
+          { cell: OPEN, digit: 9, kind: 'invalid' },
+          { cell: OPEN, digit: 4, kind: 'missing' },
+          { cell: 5, digit: 3, kind: 'invalid' },
+        ],
+        at: 2002,
+      },
+    );
+    expect(marks(fixed, OPEN)).toEqual([4]);
+    expect(marks(fixed, 5)).toEqual([]);
+
+    const undone = reduce(fixed, { type: 'undo', at: 2003 });
+    expect(marks(undone, OPEN)).toEqual([9]);
+    expect(marks(undone, 5)).toEqual([3]);
+  });
+
+  it('is a no-op with nothing to fix, so an empty report cannot cost an undo', () => {
+    const game = reduce(start(), { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 });
+    expect(reduce(game, { type: 'applyNoteFixes', fixes: [], at: 2001 })).toBe(game);
+  });
+
+  it('never writes a mark into a cell that already holds a digit', () => {
+    // The report is a reading of a moment; the board can move between the
+    // check and the press. A fix aimed at a cell the player has since filled
+    // has to be dropped, not written into a filled cell's hidden mark set.
+    const game = run(
+      start(),
+      { type: 'setValue', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'applyNoteFixes', fixes: [{ cell: OPEN, digit: 6, kind: 'missing' }], at: 2001 },
+    );
+
+    expect(game.cells[OPEN].value).toBe(4);
+    expect(marks(game, OPEN)).toEqual([]);
+  });
+});

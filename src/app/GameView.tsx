@@ -184,6 +184,22 @@ export function GameView({
   );
   const coach = useCoachSession({ game, locale, onCoachLog });
 
+  /*
+   * A report describes the board at the moment it was run, so applying it
+   * leaves the panel showing a reading that is no longer true. Re-running the
+   * check is the honest answer — "these are fixed" rather than a list of
+   * issues that are not there any more — but it cannot happen in the click
+   * handler: `checkMarks` closes over the `game` of the render it came from,
+   * which is the board *before* the dispatch. The flag makes the re-check
+   * wait for the render that has the new board in it.
+   */
+  const recheckAfterFix = useRef(false);
+  useEffect(() => {
+    if (!recheckAfterFix.current) return;
+    recheckAfterFix.current = false;
+    coach.checkMarks();
+  }, [coach]);
+
   /**
    * Opens the sheet. The restore target has to be captured *here*, synchronously
    * in the click handler, not in an effect: the panel's own focus-move effect
@@ -574,6 +590,25 @@ export function GameView({
           onDrill={coach.startDrill}
           onDismissDrill={coach.dismissDrill}
           onLearn={onLearn}
+          onFixNotes={
+            paused || solved
+              ? undefined
+              : () => {
+                  // Exactly the issues on screen, mapped straight from the
+                  // report the player is reading — the reducer is never
+                  // handed a fresh reading of the board, so nothing can be
+                  // corrected that was not displayed.
+                  dispatch({
+                    type: 'applyNoteFixes',
+                    fixes: coach.review?.issues.map(({ cell, digit, kind }) => ({
+                      cell,
+                      digit,
+                      kind,
+                    })) ?? [],
+                  });
+                  recheckAfterFix.current = true;
+                }
+          }
           // Open (mobile), the X has to close the whole sheet — not just
           // clear the hint underneath it — or it stops the panel dead in its
           // resting state with no way left to dismiss it. At rest on desktop
