@@ -29,6 +29,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
 import { newGame, reduce } from '../state/game';
+import { useProfile } from '../state/profile';
 import { useGameStore } from '../state/store';
 import type { LiveGame, PlayerProfile } from '../state/types';
 import { GameView } from './GameView';
@@ -143,6 +144,13 @@ function renderGame(
   if (options.tier !== undefined) matchOnly(...TIER_QUERIES[options.tier]);
   const game = makeGame(options);
   useGameStore.setState({ activeGameId: game.id, games: { [game.id]: game }, hydrated: true });
+  // The lesson column reads its content in the *profile's* locale, not the
+  // provider's — `LessonBody` and `TechniqueIndex` both take it from
+  // `profile.locale`, which is the whole point of that prop. `DEFAULT_PROFILE`
+  // is Italian, so without this the chrome around the column is English while
+  // the technique names inside it are not, and a test naming a technique in
+  // English would be asserting against a tree that never had it.
+  useProfile.setState((state) => ({ profile: { ...state.profile, locale: 'en' } }));
 
   render(
     <LocaleProvider locale="en">
@@ -343,6 +351,83 @@ describe('the lesson column', () => {
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     await user.click(screen.getByText('Set me a challenge').closest('button')!);
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
+  /*
+   * Browsing the column. The index used to be a reading of where the player
+   * stands and nothing more — `onOpen` unset, rows as static text — because
+   * the column "had nowhere to go back to". With an index to return to that
+   * stops being true, and a level-2 hint no longer locks the player out of
+   * the other thirteen techniques for the rest of the game.
+   *
+   * `Simple colouring` is browsed on purpose: it is far enough down the
+   * catalog that this fixed board's own first finding is never it, so a
+   * coach-named lesson and a browsed one can be told apart without asserting
+   * which technique the board happens to hold.
+   */
+  const lessonColumn = () => within(screen.getByTestId('lesson-column'));
+
+  it('opens a technique from the index, with a way back', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(lessonColumn().getByRole('button', { name: /Simple colouring/ }));
+
+    expect(lessonColumn().getByRole('heading', { name: 'Simple colouring' })).toBeTruthy();
+    expect(lessonColumn().getByRole('heading', { name: 'What it is' })).toBeTruthy();
+    expect(lessonColumn().queryByRole('heading', { name: /techniques/i })).toBeNull();
+  });
+
+  it('puts focus on the way back, since the rows it replaced are gone', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(lessonColumn().getByRole('button', { name: /Simple colouring/ }));
+
+    expect(document.activeElement).toBe(lessonColumn().getByRole('button', { name: 'Back' }));
+  });
+
+  it('goes back to the index, and to the row that opened the lesson', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(lessonColumn().getByRole('button', { name: /Simple colouring/ }));
+    await user.click(lessonColumn().getByRole('button', { name: 'Back' }));
+
+    expect(lessonColumn().getByRole('heading', { name: /techniques/i })).toBeTruthy();
+    // Focus follows the content back, or a keyboard player returns to the
+    // top of a fourteen-row list every time they read one.
+    expect(document.activeElement).toBe(
+      lessonColumn().getByRole('button', { name: /Simple colouring/ }),
+    );
+  });
+
+  it('lets the coach take the column back from whatever was being browsed', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(lessonColumn().getByRole('button', { name: /Simple colouring/ }));
+    expect(lessonColumn().getByRole('heading', { name: 'Simple colouring' })).toBeTruthy();
+
+    // The player just paid a rung for this one, and the column's live region
+    // announces it. Browsing must not be able to suppress that.
+    await user.click(screen.getByText('Set me a challenge').closest('button')!);
+
+    expect(lessonColumn().getByRole('heading', { name: 'What it is' })).toBeTruthy();
+    expect(lessonColumn().queryByRole('heading', { name: 'Simple colouring' })).toBeNull();
+  });
+
+  it('offers the way back from the lesson the coach named too', async () => {
+    const { user } = renderGame({ tier: 'desktop' });
+    await user.click(screen.getByText('Set me a challenge').closest('button')!);
+    await user.click(lessonColumn().getByRole('button', { name: 'Back' }));
+
+    // The named technique is still named — the panel keeps saying so — but
+    // the column is no longer pinned to it, which is what makes the other
+    // thirteen reachable mid-game.
+    expect(lessonColumn().getByRole('heading', { name: /techniques/i })).toBeTruthy();
+  });
+
+  it('does not keep a tab stop of its own now that both states are reachable', () => {
+    // The column carried `tabIndex={0}` because neither of its states had a
+    // focusable descendant, so a keyboard user could not reach it once it
+    // scrolled. The index is fourteen buttons now and the lesson has its way
+    // back, so the fallback is a second, unnecessary stop on a labelled
+    // landmark.
+    renderGame({ tier: 'desktop' });
+    expect(screen.getByTestId('lesson-column')).not.toHaveAttribute('tabindex');
   });
 
   // The worked example is an illustration: its `onSelect` is a no-op, so a
