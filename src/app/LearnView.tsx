@@ -165,10 +165,14 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
           </nav>
         }
         right={
-          // `max-w-[40rem]` caps the prose, not the pane: a lesson stretched
-          // across a 1536px column is a ~200-character measure, which reads
-          // worse than a narrow one. The example grid inside `LessonBody` is
-          // not prose and is free to use the pane's full width.
+          // `max-w-[40rem]` sits on this `<section>`, not on `SplitLayout`'s
+          // pane, so the cap is this screen's own call and `SplitLayout`
+          // stays reusable by a screen that wants its right pane full width.
+          // It caps the whole lesson, `Example`'s worked grid included: a
+          // lesson stretched across a 1536px column would be a ~200-character
+          // prose measure, and an uncapped 9x9 at that width would be a
+          // ~1000px-tall illustration — both worse than reading the lesson,
+          // grid included, at one fixed measure.
           <section aria-label={t('learn.title')} className="max-w-[40rem]">
             {open === null ? (
               intro
