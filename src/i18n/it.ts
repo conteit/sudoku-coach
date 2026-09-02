@@ -113,6 +113,7 @@ export const it: Dictionary = {
   'coach.nudge.stuck': 'Su questa griglia c’è qualcosa che una tecnica riesce ad aprire.',
 
   'learn.title': 'Impara',
+  'learn.backToIndex': 'Torna a Impara',
   'learn.intro': 'Le regole, le tecniche verso cui il coach può indirizzarti e che cosa il coach ti dice — e che cosa no.',
   'learn.rules.title': 'Come funziona il sudoku',
   'learn.rules.body': 'Un sudoku è una griglia 9x9 divisa in nove riquadri 3x3. Alcune celle sono già piene — sono gli indizi iniziali — le altre sono tue.\n\nUna regola sola, applicata in tre modi: ogni riga, ogni colonna e ogni riquadro contiene ciascuna cifra da 1 a 9 esattamente una volta. Una cifra che compare già nella riga, nella colonna o nel riquadro di una cella non può stare in quella cella.\n\nUn sudoku ben fatto ha una sola soluzione e non richiede mai di tirare a indovinare. Ogni cifra che inserisci si può ricavare ragionando su quelle che ci sono già: le tecniche qui sotto sono esattamente questo, pezzi di quel ragionamento con un nome e una forma ripetibile.',

@@ -194,7 +194,29 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
             {open === null ? (
               intro
             ) : (
-              <LessonBody id={open} profile={profile} titleAs="h2" />
+              <LessonBody
+                id={open}
+                profile={profile}
+                titleAs="h2"
+                // A way back to the page itself. The index beside it can open
+                // another technique, but nothing could return this pane to
+                // the rules and the coach's contract it opened on — the one
+                // part of Learn that is not a technique, and the part a
+                // player is most likely to want a second look at.
+                leading={
+                  <IconButton
+                    // Not plain "Back", which is what the page header beside
+                    // it already says — and that one leaves Learn altogether.
+                    // Two controls on screen at once, both named "Back",
+                    // going to different places, is a coin toss for anyone
+                    // reading the accessible name instead of the layout.
+                    label={t('learn.backToIndex')}
+                    icon={<ChevronLeftIcon />}
+                    className="flex-none"
+                    onClick={() => setOpen(null)}
+                  />
+                }
+              />
             )}
           </main>
         }

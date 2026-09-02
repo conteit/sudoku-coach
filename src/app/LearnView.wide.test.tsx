@@ -153,3 +153,51 @@ describe('LearnView — wide viewport', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
+
+
+/*
+ * Opening a technique used to be one-way on a wide viewport: the index beside
+ * the lesson could open another one, but nothing returned the pane to the
+ * rules, the note conventions and the coach's contract it opened on — the one
+ * part of Learn that is not a technique, and the part a player is most likely
+ * to want a second look at.
+ */
+describe('the way back to Learn itself', () => {
+  it('does not add a second control called "Back"', () => {
+    // The page header's own back button leaves Learn entirely. A lesson
+    // control with the same name, on screen at the same time, going
+    // somewhere else, is a coin toss for anyone reading names rather than
+    // looking at the layout.
+    const { unmount } = renderLearn({ tier: 'laptop', technique: 'naked_single' });
+
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Back to Learn' })).toBeTruthy();
+    unmount();
+  });
+
+  it('returns the pane to the intro, with the index still beside it', async () => {
+    const { user } = renderLearn({ tier: 'laptop' });
+
+    await user.click(screen.getByRole('button', { name: /Naked single/ }));
+    expect(screen.getByRole('heading', { name: 'What it is' })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Back to Learn' }));
+
+    // The intro is back — `learn.rules.title` is its first section — and the
+    // lesson is gone rather than merely scrolled past.
+    expect(screen.getByRole('heading', { name: 'How sudoku works' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'What it is' })).toBeNull();
+    // The index never left: this is a pane changing, not a page.
+    expect(screen.getByRole('navigation', { name: /the techniques/i })).toBeTruthy();
+  });
+
+  it('can open another technique straight after going back', async () => {
+    const { user } = renderLearn({ tier: 'laptop' });
+
+    await user.click(screen.getByRole('button', { name: /Naked single/ }));
+    await user.click(screen.getByRole('button', { name: 'Back to Learn' }));
+    await user.click(screen.getByRole('button', { name: /Hidden single/ }));
+
+    expect(screen.getByRole('heading', { name: 'Hidden single' })).toBeTruthy();
+  });
+});
