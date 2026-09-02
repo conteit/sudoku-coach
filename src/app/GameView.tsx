@@ -547,14 +547,8 @@ export function GameView({
   const lessonRegion =
     namedTechnique !== null ? (
       // `h2`, not the `h1` this renders on Learn: here the document is a game
-      // in progress, and the sidebar is not its root. The worked example loses
-      // its tab stop for the same reason — see `GameLayout`'s lesson column.
-      <LessonBody
-        id={namedTechnique}
-        profile={profile}
-        titleAs="h2"
-        exampleFocusable={false}
-      />
+      // in progress, and the sidebar is not its root.
+      <LessonBody id={namedTechnique} profile={profile} titleAs="h2" />
     ) : (
       <TechniqueIndex profile={profile} />
     );

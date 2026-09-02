@@ -45,12 +45,6 @@ export interface LessonBodyProps {
    * ladder — the outline would gain and lose its root as hints are asked for.
    */
   titleAs?: 'h1' | 'h2';
-  /**
-   * Passed through to the worked example. See `Example`'s own `focusable`:
-   * the illustration is a dead tab stop, and beside a live board it sits in
-   * the player's path off the keypad.
-   */
-  exampleFocusable?: boolean;
 }
 
 export function LessonBody({
@@ -58,7 +52,6 @@ export function LessonBody({
   profile,
   leading,
   titleAs: Title = 'h1',
-  exampleFocusable = true,
 }: LessonBodyProps) {
   const t = useT();
   const lesson = getLesson(profile.locale, id);
@@ -92,7 +85,7 @@ export function LessonBody({
         <h2 className="mb-1 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
           {t('learn.example')}
         </h2>
-        <Example lesson={lesson} focusable={exampleFocusable} />
+        <Example lesson={lesson} />
       </section>
     </>
   );

@@ -19,6 +19,18 @@ describe('LessonBody', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  // The example is an illustration in both of the places a lesson is shown,
+  // so it never takes a tab stop in either. It used to take one on Learn,
+  // where it led a keyboard reader into a 81-cell grid widget with no move to
+  // make in it.
+  it('keeps the worked example out of the tab order', () => {
+    renderWithLocale(<LessonBody id="naked_single" profile={PROFILE} />);
+
+    const grid = screen.getByRole('grid', { name: 'Naked single' });
+    expect(grid.querySelector('[tabindex="0"]')).toBeNull();
+    expect(grid.getAttribute('tabindex')).toBeNull();
+  });
+
   // The locale is the profile's — the prop that could disagree with it is
   // gone, and this is what proves the remaining path actually reads it.
   it('reads the lesson in the profile\'s locale', () => {

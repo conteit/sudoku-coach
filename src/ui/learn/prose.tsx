@@ -73,21 +73,7 @@ export function MasteryChip({ stage, t }: { stage: MasteryStage; t: Translate })
  * Every filled cell is drawn as a given: in an illustration there is no player
  * entry to distinguish, and the difference in weight would suggest one.
  */
-export function Example({
-  lesson,
-  focusable = true,
-}: {
-  lesson: Lesson;
-  /**
-   * Whether the illustration keeps its cell in the tab order.
-   *
-   * True on the Learn page, where the example is the page's own content and a
-   * tab stop on it costs nothing. False in the game screen's lesson column,
-   * where the tab order leads a keyboard player from the keypad onward and
-   * must not deposit them inside a board they cannot play.
-   */
-  focusable?: boolean;
-}) {
+export function Example({ lesson }: { lesson: Lesson }) {
   const marks = exampleMarks(lesson);
   const cells: GridCell[] = parseGrid(lesson.example.grid).map((value, index) => ({
     value,
@@ -107,7 +93,15 @@ export function Example({
           spotlight={lesson.example.highlight as CellIndex[]}
           highlightPeers={false}
           highlightMatches={false}
-          focusable={focusable}
+          /* Never in the tab order, wherever it is shown. The grid is
+             `pointer-events-none` and answers no key: a tab stop on it is a
+             stop that leads nowhere, whether the page around it is Learn or a
+             game. It used to be focusable on Learn on the grounds that a stop
+             there "costs nothing" — it costs a keyboard reader a roving-cell
+             widget with no move to make. The illustration keeps its accessible
+             name and its cell labels, so it is still readable in browse mode;
+             it is only the tab order it leaves. */
+          focusable={false}
           label={lesson.name}
         />
       </div>
