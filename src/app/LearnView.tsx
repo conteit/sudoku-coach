@@ -165,21 +165,27 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
           </nav>
         }
         right={
-          // `max-w-[40rem]` sits on this `<section>`, not on `SplitLayout`'s
-          // pane, so the cap is this screen's own call and `SplitLayout`
-          // stays reusable by a screen that wants its right pane full width.
-          // It caps the whole lesson, `Example`'s worked grid included: a
-          // lesson stretched across a 1536px column would be a ~200-character
-          // prose measure, and an uncapped 9x9 at that width would be a
-          // ~1000px-tall illustration — both worse than reading the lesson,
-          // grid included, at one fixed measure.
-          <section aria-label={t('learn.title')} className="max-w-[40rem]">
+          // `<main>`, not a labelled `<section>`: this pane *is* the page's
+          // content, and a generic `region` is what a screen reader announces
+          // when nothing claims the primary landmark. The label went with it
+          // — it repeated the page's own `<h1>`, and once a lesson was open it
+          // announced "Learn" over what was actually the hidden-pair page.
+          //
+          // `max-w-[40rem]` sits here, not on `SplitLayout`'s pane, so the cap
+          // is this screen's own call and `SplitLayout` stays reusable by a
+          // screen that wants its wide pane full width. It caps the whole
+          // lesson, `Example`'s worked grid included: a lesson stretched
+          // across a 1536px column would be a ~200-character prose measure,
+          // and an uncapped 9x9 at that width would be a ~1000px-tall
+          // illustration — both worse than reading the lesson, grid included,
+          // at one fixed measure.
+          <main className="max-w-[40rem]">
             {open === null ? (
               intro
             ) : (
               <LessonBody id={open} locale={profile.locale} profile={profile} titleAs="h2" />
             )}
-          </section>
+          </main>
         }
       />
     </div>
