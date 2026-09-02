@@ -6,7 +6,7 @@
  * that drifted would be the one teaching the player the wrong thing.
  */
 
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { getLesson } from '../../coach/lessons';
 import { useT } from '../../i18n/locale';
 import { masteryOf } from '../../state/mastery';
@@ -47,7 +47,18 @@ export interface LessonBodyProps {
   titleAs?: 'h1' | 'h2';
 }
 
-export function LessonBody({
+/**
+ * Memoised for the game screen's lesson column, where this renders beside a
+ * live board: without it, selecting a cell re-ran `parseGrid` and
+ * `exampleMarks` and re-rendered an 81-cell illustration on every keystroke of
+ * a game that has its own board to draw. The props are an id, a locale-bearing
+ * profile and two display choices — all stable across a move — so the
+ * comparison is cheap and it holds.
+ *
+ * A caller that passes `leading` (Learn's back button, built inline) defeats
+ * it, which is correct: that host re-renders only when the page changes.
+ */
+export const LessonBody = memo(function LessonBody({
   id,
   profile,
   leading,
@@ -89,4 +100,4 @@ export function LessonBody({
       </section>
     </>
   );
-}
+});
