@@ -153,4 +153,30 @@ describe('LibraryView', () => {
     expect(screen.getByRole('main')).toBeTruthy();
     expect(screen.getByRole('complementary', { name: /your progress/i })).toBeTruthy();
   });
+
+  it('spends the width on the games, not on the progress summary', () => {
+    // The list is why this screen exists, so it takes the width the tier
+    // buys; the progress pane is the fixed 20rem one. With these two the
+    // wrong way round the games were 320px on a laptop against 343px on a
+    // phone — crossing 1024 made the primary content narrower.
+    renderLibrary({ tier: 'desktop' });
+    expect(screen.getByTestId('left-pane').className).toContain('flex-1');
+    expect(screen.getByTestId('right-pane').className).toContain('w-[20rem]');
+  });
+
+  it('keeps the progress pane inside the 40rem prose measure at every tier', () => {
+    // Invariant 10, enforced where it actually binds. `ProgressPanel` renders
+    // `learn.techniques.intro` — a real two-sentence paragraph — and in a
+    // 1136px pane that would be a ~150-character measure. It carries no
+    // `max-w-[40rem]` of its own because it does not need one: the pane it
+    // sits in is 20rem, half the cap, so a `max-w` there would be a class
+    // that can never apply. This asserts the thing that does the capping.
+    for (const tier of ['laptop', 'desktop'] as const) {
+      const { unmount } = renderLibrary({ tier });
+      const pane = screen.getByTestId('right-pane');
+      expect(pane.className).toContain('w-[20rem]');
+      expect(pane.className).not.toContain('flex-1');
+      unmount();
+    }
+  });
 });

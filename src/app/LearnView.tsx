@@ -158,6 +158,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
         </div>
       </header>
       <SplitLayout
+        narrow="left"
         left={
           <nav aria-label={t('learn.techniques.title')}>
             <TechniqueIndex profile={profile} onOpen={setOpen} />

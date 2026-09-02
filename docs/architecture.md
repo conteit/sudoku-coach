@@ -120,22 +120,33 @@ only mean something on the device holding that game.
    assertion in `tests/e2e/play.spec.ts` measures the real thing in all four
    projects, through the level-2 disclosure that swaps the lesson column's
    contents — the one state that actually changes a column's content mid-game.
-10. **Prose caps at 40rem; a pane's width is the tier's, not the content's.**
-    Cousins of invariant 9 — one protects the board's box, this protects the
-    reader's measure and the panes around it. "Use the whole area" cannot mean
-    wider sentences: a lesson stretched across 1536px reads worse than a
-    narrow column, so the width bought above 1024 buys more panes, not a
-    wider one. `SplitLayout` (`src/app/SplitLayout.tsx`) is where the library
-    and Learn split into two panes at that width, and it fixes each pane's
-    width to the tier alone — `w-*`, `shrink-0` and `min-w-0` together,
-    because `shrink-0` alone leaves `min-width: auto`, which floors a flex
-    item at its min-content width, so one long technique name would widen the
-    pane and take the difference from its neighbour. Choosing a lesson must
-    not move the list you chose it from. `SplitLayout` leaves the 40rem prose
-    cap (roughly a 70-character measure) to its callers, consistent with its
-    own refusal to own pane content: Learn wraps its lesson section in
-    `max-w-[40rem]` itself. The game screen splits at the same tiers, for
-    invariant 9's reason, not this one.
+10. **Prose caps at 40rem; the narrow pane's width is the tier's, not the
+    content's.** Cousins of invariant 9 — one protects the board's box, this
+    protects the reader's measure and the panes around it. "Use the whole
+    area" cannot mean wider sentences: a lesson stretched across 1536px reads
+    worse than a narrow column, so the width bought above 1024 buys more
+    panes, not a wider one. `SplitLayout` (`src/app/SplitLayout.tsx`) is where
+    the library and Learn split into two panes at that width. It fixes the
+    *narrow* pane's width to the tier alone — `w-*`, `shrink-0` and `min-w-0`
+    together, because `shrink-0` alone leaves `min-width: auto`, which floors
+    a flex item at its min-content width, so one long technique name would
+    widen the pane and take the difference from its neighbour. Choosing a
+    lesson must not move the list you chose it from. The other pane is
+    `flex-1` and tracks the viewport, so it is the one that needs a cap.
+    Which side is which is the caller's call — the `narrow` prop — because
+    the two screens disagree: Learn's index is narrow beside a wide lesson,
+    the library's games are wide beside a narrow progress pane. A screen's
+    main content belongs in the wide pane; the library's list is why that
+    screen exists, and in the narrow one it would have been 320px on a laptop
+    against 343px on a phone. `SplitLayout` leaves the 40rem prose cap
+    (roughly a 70-character measure) to its callers, consistent with its own
+    refusal to own pane content: Learn wraps its lesson in `max-w-[40rem]`
+    itself, asserted in `LearnView.wide.test.tsx`. Content in a *narrow* pane
+    needs no cap — 20rem is half of it — which is why `ProgressPanel` carries
+    none; `LibraryView.test.tsx` pins it to the narrow pane instead, so the
+    measure stays bounded by something that is actually load-bearing. The
+    game screen splits at the same tiers, for invariant 9's reason, not this
+    one.
 
 ## Difficulty rating
 
