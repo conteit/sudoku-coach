@@ -80,7 +80,7 @@ export const it: Dictionary = {
 
   'coach.title': 'Coach',
   'coach.open': 'Coach',
-  'coach.openWaiting': 'Coach — ha qualcosa per te',
+  'coach.openWaiting': 'Coach ha un suggerimento',
   'coach.idle': 'Chiedi pure quando vuoi una spinta. Finché non lo chiedi, non ti viene svelato nulla.',
   'coach.reading': 'Sto leggendo la griglia',
   'coach.nothingFound':
