@@ -1,14 +1,19 @@
 import type { ReactNode } from 'react';
-import type { Tier } from './useViewportTier';
 
 export interface SplitLayoutProps {
-  tier: Tier;
   left: ReactNode;
   right: ReactNode;
 }
 
 /**
- * Two panes side by side, above 1024; one column below it.
+ * The wide split: two panes side by side, above 1024.
+ *
+ * It has no narrow branch on purpose. Both callers decide at the tier before
+ * they get here — below 1024 each returns its own signed-off single column,
+ * with its own padding — so a stacked branch here would be unreachable code
+ * carrying one screen's geometry, which the *next* screen would silently
+ * inherit by passing a narrow tier. Owning only the wide case means the
+ * component cannot be wrong about a case it does not handle.
  *
  * The library and Learn arrived at the same geometry — a narrow pane beside a
  * wider one — so it is written once. It carries no landmarks on purpose: the
@@ -22,14 +27,7 @@ export interface SplitLayoutProps {
  * different failure mode, and one component with two unrelated reasons to
  * change is how both end up wrong.
  */
-export function SplitLayout({ tier, left, right }: SplitLayoutProps) {
-  if (tier === 'phone' || tier === 'tablet') {
-    // `max-w-xl sm:max-w-[48rem]`, not a bare raise: below 640 the `sm:` rule
-    // never applies, so the phone keeps the 576px column it shipped with —
-    // widening a signed-off layout is not what this change is for.
-    return <div className="mx-auto w-full max-w-xl px-4 pt-4 pb-12 sm:max-w-[48rem]">{left}{right}</div>;
-  }
-
+export function SplitLayout({ left, right }: SplitLayoutProps) {
   return (
     <div className="mx-auto w-full max-w-[96rem] px-6 pt-6 pb-12">
       <div className="flex items-start gap-8">

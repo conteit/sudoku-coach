@@ -93,7 +93,6 @@ export function LibraryView({
           padding so the title lines up with the columns beneath it. */}
       <div className="mx-auto w-full max-w-[96rem] px-6 pt-6">{header}</div>
       <SplitLayout
-        tier={tier}
         left={<main>{games}</main>}
         right={
           <aside aria-label={t('progress.title')}>

@@ -5,8 +5,8 @@
  * on a wide viewport, not the phone's layout. Phone and tablet each assert
  * the same three things: the root's exact className, no `main`/`complementary`
  * landmarks, and no progress pane — not just the panel's absence, because a
- * tablet-only branch that hides the panel through `SplitLayout`'s own stacked
- * output (rather than sharing the phone/tablet return) would still shift the
+ * tablet-only branch that hides the panel by routing through `SplitLayout`
+ * (rather than sharing the phone/tablet return) would still shift the
  * padding, drop `min-h-dvh`, and add a landmark that isn't there today.
  */
 
@@ -101,8 +101,8 @@ describe('LibraryView', () => {
   it('renders the phone screen exactly as it does today — same root, no landmarks', () => {
     // The regression guard for the controller ruling: below `laptop`,
     // `LibraryView` must return its pre-existing markup untouched rather than
-    // routing through `SplitLayout`'s stacked branch, which uses different
-    // padding and drops `min-h-dvh`.
+    // routing through `SplitLayout`, which uses different padding and drops
+    // `min-h-dvh`.
     const { container } = renderLibrary({ tier: 'phone' });
     const root = container.firstElementChild;
     expect(root?.className).toBe(
@@ -115,8 +115,8 @@ describe('LibraryView', () => {
   it('adds nothing to a tablet either — the width is what buys the panel', () => {
     // Asserts the same three things the phone test does, not just the
     // panel's absence: a mutant that special-cases tablet through
-    // `SplitLayout`'s own stacked branch (rather than sharing the
-    // phone/tablet return) would still hide the panel — `right` gated to
+    // `SplitLayout` (rather than sharing the phone/tablet return) would
+    // still hide the panel — `right` gated to
     // `null` — while silently changing the root's padding
     // (`px-4 pt-6 pb-10` → `px-4 pt-4 pb-12`), dropping `min-h-dvh`, and
     // introducing a `main` landmark that does not exist today. Only
