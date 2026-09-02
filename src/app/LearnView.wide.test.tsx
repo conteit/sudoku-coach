@@ -91,6 +91,19 @@ describe('LearnView — wide viewport', () => {
     expect(within(screen.getByTestId('right-pane')).getByText(/what it is/i)).toBeTruthy();
   });
 
+  it('gives the lesson a main landmark and the index a labelled nav', () => {
+    // Learn is the one screen that is entirely document content, and it was
+    // the only one with no primary landmark — its lesson pane announced as a
+    // generic `region` named "Learn", which is the page's own `<h1>` and,
+    // once a lesson is open, the wrong title for what is in the pane. The
+    // e2e axe pass is no evidence here: `landmark-one-main` and `region` are
+    // best-practice rules, outside the wcag2a/aa tags `audit()` scopes to.
+    renderLearn({ tier: 'laptop' });
+    expect(screen.getByRole('main')).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: /the techniques/i })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: /^learn$/i })).toBeNull();
+  });
+
   it('caps the lesson at 40rem however wide the pane gets', () => {
     // Invariant 10. This pane is `flex-1`, so at 1536px it is ~1136px wide;
     // without the cap a lesson would be a ~200-character measure and its
@@ -98,9 +111,7 @@ describe('LearnView — wide viewport', () => {
     // constrains it, so the cap is the only thing standing between the
     // reader and the whole viewport.
     renderLearn({ tier: 'desktop' });
-    expect(screen.getByTestId('right-pane').firstElementChild?.className).toContain(
-      'max-w-[40rem]',
-    );
+    expect(screen.getByRole('main').className).toContain('max-w-[40rem]');
     expect(screen.getByTestId('right-pane').className).toContain('flex-1');
     expect(screen.getByTestId('left-pane').className).toContain('w-[20rem]');
   });
