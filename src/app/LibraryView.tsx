@@ -49,15 +49,21 @@ export function LibraryView({
         <h1 className="font-display text-3xl leading-none text-ink">{t('app.name')}</h1>
         <p className="mt-1.5 text-sm text-ink-soft">{t('app.tagline')}</p>
       </div>
-      <Button variant="ghost" className="flex-none" onClick={onLearn}>
-        {t('learn.title')}
-      </Button>
-      <IconButton
-        label={t('settings.title')}
-        icon={<SettingsIcon />}
-        className="flex-none"
-        onClick={onOpenSettings}
-      />
+      {/* One cluster, not two loose siblings: with three children under
+          `justify-between` the free space fell *between* Learn and Settings,
+          which left Learn adrift in the middle of the header instead of
+          reading as one of the two ways out of this screen. Grouped, the
+          title holds the left and both controls sit together on the right. */}
+      <div className="flex flex-none items-center gap-2">
+        <Button variant="ghost" onClick={onLearn}>
+          {t('learn.title')}
+        </Button>
+        <IconButton
+          label={t('settings.title')}
+          icon={<SettingsIcon />}
+          onClick={onOpenSettings}
+        />
+      </div>
     </header>
   );
 

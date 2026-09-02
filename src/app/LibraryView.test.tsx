@@ -91,6 +91,36 @@ function renderLibrary(options: { tier: Tier; summaries?: readonly GameSummary[]
   );
 }
 
+describe('the header', () => {
+  // Three children under `justify-between` put the free space *between* the
+  // two controls, so Learn floated in the middle of the header rather than
+  // reading as one of the two ways out of this screen. Asserted through the
+  // DOM grouping rather than through classes: what has to hold is that the
+  // two controls travel together and sit after the title, which is what
+  // produces the alignment.
+  it('keeps Learn and Settings together, after the title', () => {
+    renderLibrary({ tier: 'phone' });
+
+    const learn = screen.getByRole('button', { name: 'Learn' });
+    const settings = screen.getByRole('button', { name: 'Settings' });
+    expect(learn.parentElement).toBe(settings.parentElement);
+
+    const header = learn.closest('header');
+    expect(header).not.toBeNull();
+    expect(header!.children).toHaveLength(2);
+    expect(header!.lastElementChild).toBe(learn.parentElement);
+    // And the title is the half that keeps the left.
+    expect(header!.firstElementChild!.contains(learn)).toBe(false);
+  });
+
+  it('groups them the same way on a wide viewport', () => {
+    renderLibrary({ tier: 'desktop' });
+
+    const learn = screen.getByRole('button', { name: 'Learn' });
+    expect(learn.parentElement).toBe(screen.getByRole('button', { name: 'Settings' }).parentElement);
+  });
+});
+
 describe('LibraryView', () => {
   it('is one column on a phone, with no progress pane', () => {
     renderLibrary({ tier: 'phone' });

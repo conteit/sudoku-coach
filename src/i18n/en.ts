@@ -115,6 +115,7 @@ export const en = {
   'coach.nudge.stuck': 'There is something on this board that a technique cracks.',
 
   'learn.title': 'Learn',
+  'learn.backToIndex': 'Back to Learn',
   'learn.intro': 'The rules, the techniques the coach can point you at, and what the coach will and will not tell you.',
   'learn.rules.title': 'How sudoku works',
   'learn.rules.body': 'A sudoku is a 9x9 grid divided into nine 3x3 boxes. Some cells come filled in — the givens — and the rest are yours.\n\nOne rule, applied three ways: every row, every column and every box holds each of the digits 1 to 9 exactly once. A digit that already appears in a cell\u2019s row, its column or its box cannot go in that cell.\n\nA proper sudoku has exactly one solution and never needs guessing. Every digit you place can be reached by reasoning from the ones already there, which is what the techniques below are: named, repeatable pieces of that reasoning.',
