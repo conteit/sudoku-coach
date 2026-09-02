@@ -10,13 +10,20 @@ import type { ReactNode } from 'react';
 import { getLesson } from '../../coach/lessons';
 import { useT } from '../../i18n/locale';
 import { masteryOf } from '../../state/mastery';
-import type { Locale, PlayerProfile } from '../../state/types';
+import type { PlayerProfile } from '../../state/types';
 import type { TechniqueId } from '../../engine/types';
 import { Example, MasteryChip, Prose } from './prose';
 
 export interface LessonBodyProps {
   id: TechniqueId;
-  locale: Locale;
+  /**
+   * The player, for their mastery of this technique — and for the locale the
+   * lesson is read in, which is a property of the same player rather than a
+   * second thing a caller could get wrong. `TechniqueIndex`, the other half of
+   * this module, already derived it this way; a module that disagrees with
+   * itself about where the locale comes from will eventually be asked to
+   * render an Italian index beside an English lesson.
+   */
   profile: PlayerProfile;
   /**
    * A control that belongs in the same header row as the title, owned by
@@ -48,14 +55,13 @@ export interface LessonBodyProps {
 
 export function LessonBody({
   id,
-  locale,
   profile,
   leading,
   titleAs: Title = 'h1',
   exampleFocusable = true,
 }: LessonBodyProps) {
   const t = useT();
-  const lesson = getLesson(locale, id);
+  const lesson = getLesson(profile.locale, id);
 
   return (
     <>

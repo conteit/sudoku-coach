@@ -8,7 +8,7 @@ const PROFILE = { ...DEFAULT_PROFILE, locale: 'en' } as const;
 
 describe('LessonBody', () => {
   it('renders the lesson prose, worked example and mastery state, with no page chrome', () => {
-    renderWithLocale(<LessonBody id="naked_single" locale="en" profile={PROFILE} />);
+    renderWithLocale(<LessonBody id="naked_single" profile={PROFILE} />);
 
     expect(screen.getByRole('heading', { name: 'Naked single' })).toBeInTheDocument();
     expect(screen.getByText('A cell with a single candidate left.')).toBeInTheDocument();
@@ -19,6 +19,17 @@ describe('LessonBody', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  // The locale is the profile's — the prop that could disagree with it is
+  // gone, and this is what proves the remaining path actually reads it.
+  it('reads the lesson in the profile\'s locale', () => {
+    renderWithLocale(
+      <LessonBody id="naked_single" profile={{ ...PROFILE, locale: 'it' }} />,
+      'it',
+    );
+
+    expect(screen.getByRole('heading', { name: 'Singolo nudo' })).toBeInTheDocument();
+  });
+
   // The title/mastery-chip header has to stay one flex row whether or not a
   // caller fills `leading` — it already split into two rows once, and no
   // other test in this suite would notice if it did again.
@@ -26,7 +37,6 @@ describe('LessonBody', () => {
     const { container: withLeading } = renderWithLocale(
       <LessonBody
         id="naked_single"
-        locale="en"
         profile={PROFILE}
         leading={<button type="button">Back</button>}
       />,
@@ -41,7 +51,7 @@ describe('LessonBody', () => {
     ]);
 
     const { container: withoutLeading } = renderWithLocale(
-      <LessonBody id="naked_single" locale="en" profile={PROFILE} />,
+      <LessonBody id="naked_single" profile={PROFILE} />,
     );
     const headerWithoutLeading = withoutLeading.querySelector('header');
     expect(headerWithoutLeading).not.toBeNull();

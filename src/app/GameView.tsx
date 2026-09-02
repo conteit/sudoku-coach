@@ -551,7 +551,6 @@ export function GameView({
       // its tab stop for the same reason — see `GameLayout`'s lesson column.
       <LessonBody
         id={namedTechnique}
-        locale={locale}
         profile={profile}
         titleAs="h2"
         exampleFocusable={false}
