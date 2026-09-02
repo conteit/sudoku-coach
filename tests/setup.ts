@@ -1,5 +1,18 @@
 import '@testing-library/jest-dom/vitest';
 
+// jsdom's own default is 1024 — a plausible screen width, and exactly
+// `useViewportTier`'s inclusive `laptop` boundary. A test that renders a
+// tier-aware component without stubbing a tier was therefore landing on
+// `'laptop'` by coincidence, not by design: silently exercising the wide
+// layout instead of the narrow one every such test was written against
+// before tier-awareness existed. Pinned here to a phone width instead — this
+// app is designed mobile-first, and `GameView.layout.test.tsx` already names
+// 375 as "this file's default context" for the same reason. A test that
+// cares about a specific tier still says so explicitly (see
+// `LearnView.test.tsx`, `LibraryView.test.tsx`); this only fixes what an
+// *unstubbed* render implicitly assumes.
+window.innerWidth = 375;
+
 // jsdom implements no rendering engine, so it never had a reason to implement
 // `matchMedia` — but `useViewportTier` needs it to tell the four layouts
 // apart (the modal focus-trap/Escape machinery must never activate on the
