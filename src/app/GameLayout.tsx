@@ -78,6 +78,12 @@ export function GameLayout({
       {/* The board comes before the coach in the DOM even though it sits
           visually between the two asides on a laptop: a screen-reader user
           should meet the puzzle before the commentary about it. */}
+      {/* `gap-6`, where `SplitLayout` gaps at 8: this row is already over
+          budget at 1024 — a 40rem board plus a 22rem coach column plus the
+          page padding does not fit — so the gutter is width taken straight
+          off the board, and invariant 9 is about the board's box. The two
+          layouts differ because their rows are spending on different things,
+          not by accident; `SplitLayout`'s comment carries the other half. */}
       <div className="flex flex-1 items-start justify-center gap-6 px-6 pb-6">
         <main className="flex w-full max-w-[40rem] flex-col gap-3">
           {board}
