@@ -52,6 +52,21 @@ export interface KeypadProps {
    * is a key that can only do nothing.
    */
   canErase?: boolean;
+  /**
+   * How many pencil marks a placement of the player's own has killed.
+   *
+   * While there are any, the eraser *is* the clear: the key reads "Clear 3
+   * dead notes" and does that, and the ordinary cell erase waits until they
+   * are gone. Clearing first is the point — the alternative was a coach sheet
+   * two taps away from a thumb that is already here — and Undo, one key over,
+   * is the better answer to the mis-tap the erase would otherwise fix.
+   *
+   * The count is a reading of the board, not a mode the pad remembers: the
+   * key goes back to erasing the moment the host says the notes are gone.
+   */
+  staleCount?: number;
+  /** Clears every dead note in one undoable step. Without it the key just erases. */
+  onClearStale?: () => void;
   /** The board is paused or already solved — no move is legal right now. */
   disabled?: boolean;
   /** The digit the board's green layer is on, so the key that controls it looks like it does. */
@@ -99,6 +114,8 @@ export function Keypad({
   canUndo = true,
   canRedo = true,
   canErase = true,
+  staleCount = 0,
+  onClearStale,
   disabled = false,
   highlighted = null,
   onHaptic,
@@ -106,6 +123,10 @@ export function Keypad({
 }: KeypadProps) {
   const t = useT();
   const remaining = useMemo(() => remainingCounts(values), [values]);
+  /* Optional-by-design, like `onDigitLongPress`: a host that wires no clear
+     gets today's eraser rather than a key whose label promises something
+     nothing is listening for. */
+  const clearing = staleCount > 0 && onClearStale !== undefined;
 
   const fire = (pattern: HapticPattern, action: () => void) => {
     onHaptic?.(pattern);
@@ -296,13 +317,47 @@ export function Keypad({
           pressed={pencilMode}
           onClick={() => fire('toggle', onTogglePencil)}
         />
-        <IconButton
-          label={t('keypad.erase')}
-          caption={t('keypad.captionErase')}
-          icon={<EraserIcon />}
-          disabled={disabled || !canErase}
-          onClick={() => fire('tap', onErase)}
-        />
+        {/* One key, one meaning at a time — a pad offering "erase" and
+            "clear" at once is a pad the player has to read before every tap.
+            The caption is the same word in both modes on purpose: "Erase" /
+            "Cancella" is true of a cell and of a dead note, so the mode costs
+            no new copy and no second translation to keep honest. The count
+            rides the glyph, and the accessible name carries it in full. */}
+        {clearing ? (
+          <IconButton
+            label={
+              staleCount === 1
+                ? t('action.clearStaleOne')
+                : t('action.clearStaleCount', { count: staleCount })
+            }
+            caption={t('keypad.captionErase')}
+            icon={
+              <span className="relative">
+                <EraserIcon />
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1 -right-2 min-w-4 rounded-full bg-coach px-1 text-[0.625rem] leading-4 font-semibold text-paper tabular-nums"
+                >
+                  {staleCount}
+                </span>
+              </span>
+            }
+            // `canErase` asks whether a cell is selected, which is the wrong
+            // question for a key about to clear notes all over the board.
+            // `disabled` still applies: clearing goes on the undo stack like
+            // any other move, and a paused board takes none.
+            disabled={disabled}
+            onClick={() => fire('tap', onClearStale)}
+          />
+        ) : (
+          <IconButton
+            label={t('keypad.erase')}
+            caption={t('keypad.captionErase')}
+            icon={<EraserIcon />}
+            disabled={disabled || !canErase}
+            onClick={() => fire('tap', onErase)}
+          />
+        )}
         <IconButton
           label={t('action.undo')}
           caption={t('keypad.captionUndo')}

@@ -443,6 +443,12 @@ export function GameView({
       // the eraser has nothing to erase, so it needs the gate the pad no
       // longer applies for it.
       canErase={selected !== null}
+      // The same count and the same single undoable step the coach panel's
+      // eraser dispatches — one action, two doors. The pad is the near one:
+      // a phone player's thumb is already on it, where the panel's copy is a
+      // notification, a sheet and a tap away.
+      staleCount={staleCount}
+      onClearStale={() => dispatch({ type: 'clearStaleCandidates' })}
       disabled={paused || solved}
       highlighted={highlightDigit}
       onHaptic={haptic}
