@@ -20,6 +20,10 @@ cannot mean "make the text wider" — it has to mean *put more in it*. Both scre
 gain a second pane rather than a wider one, and any pane containing prose keeps a readable
 cap regardless of how much room it is given.
 
+**That cap is 40rem**, the same number the game screen caps its board at, and roughly a
+70-character measure at the body size this app uses. It applies to the prose inside a pane,
+not to the pane: a lesson's example grid may use the pane's full width, and so may a heading.
+
 ## Tiers
 
 The same four the game screen uses, from `src/app/useViewportTier.ts` — no new breakpoints,
