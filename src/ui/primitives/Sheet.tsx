@@ -1,6 +1,14 @@
 /**
  * Modal surface: a bottom sheet on a phone, a centred card from `sm` up.
  *
+ * **The panel is capped and its body scrolls.** Without that a sheet taller
+ * than the viewport does not overflow downwards into a scrollbar — it is laid
+ * out against the bottom of a `fixed inset-0` container, so it grows *upwards*
+ * past the top of the screen, taking its own title with it, and nothing on the
+ * page can scroll to reach any of it. Settings crossed that line and became
+ * unusable on a phone. Every sheet had the bug; Settings was only the first to
+ * outgrow the screen.
+ *
  * Not a `<dialog>` — `showModal` is still uneven across the jsdom/browser
  * split we test in, and the focus behaviour we want (trap, restore, escape) is
  * a dozen lines we can own outright. The sheet is the one place a shadow is
@@ -110,12 +118,16 @@ export function Sheet({
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cx(
-          'relative w-full max-w-md border-t border-rule-strong bg-paper-raised shadow-lift',
-          'sm:rounded-cell sm:border',
+          'relative flex w-full max-w-md flex-col border-t border-rule-strong bg-paper-raised',
+          'shadow-lift sm:rounded-cell sm:border',
+          // `dvh`, not `vh`: on a phone the browser's own chrome comes and
+          // goes, and `vh` measures the tallest state — which is exactly the
+          // height at which the sheet stops fitting.
+          'max-h-[85dvh]',
           'pb-[max(1.25rem,env(safe-area-inset-bottom))]',
         )}
       >
-        <header className="flex items-start gap-3 border-b border-rule px-5 py-4">
+        <header className="flex flex-none items-start gap-3 border-b border-rule px-5 py-4">
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="font-display text-lg leading-tight text-ink">
               {title}
@@ -130,8 +142,17 @@ export function Sheet({
             <IconButton size="sm" label={t('action.close')} icon={<CloseIcon />} onClick={onClose} />
           ) : null}
         </header>
-        {children ? <div className="px-5 py-4">{children}</div> : null}
-        {footer ? <div className="flex gap-2 px-5 pt-1">{footer}</div> : null}
+        {/* `min-h-0` is load-bearing: a flex child's default `min-height:
+            auto` floors it at its content's height, so `overflow-y-auto` here
+            would never actually scroll — the panel would grow instead, which
+            is the bug this is fixing. `overscroll-contain` keeps a flick that
+            runs out of sheet from scrolling the board behind it. */}
+        {children ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+            {children}
+          </div>
+        ) : null}
+        {footer ? <div className="flex flex-none gap-2 px-5 pt-1">{footer}</div> : null}
       </div>
     </div>,
     document.body,

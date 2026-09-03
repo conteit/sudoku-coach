@@ -15,7 +15,13 @@ import { boardGrid } from './board';
 test('switches language, and keeps it across a restart', async ({ page }) => {
   await page.goto('/play');
   await page.getByRole('button', { name: 'Settings' }).click();
+  // Language sits under General since Settings grew tabs; the tab strip is
+  // itself localised, so this is the last press that can name an English one.
+  await page.getByRole('tab', { name: 'General' }).click();
   await page.getByRole('button', { name: 'Italiano' }).click();
+
+  // The strip retitles itself along with everything else.
+  await expect(page.getByRole('tab', { name: 'Generale' })).toBeVisible();
 
   // The sheet retitles itself under the player's hand.
   await expect(page.getByRole('heading', { name: 'Impostazioni' })).toBeVisible();
