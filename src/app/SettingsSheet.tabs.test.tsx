@@ -111,6 +111,14 @@ describe('the settings tabs', () => {
     expect(screen.getByRole('switch', { name: /vibrat|haptic/i })).toBeInTheDocument();
   });
 
+  it('puts the sweep switch with the board, where the sweeping happens', () => {
+    renderSettings();
+
+    expect(
+      screen.getByRole('switch', { name: /sweep one digit/i }),
+    ).toBeInTheDocument();
+  });
+
   it('moves between tabs with the arrow keys, and takes focus along', async () => {
     const { user } = renderSettings();
 

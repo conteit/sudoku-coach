@@ -362,6 +362,14 @@ export function SettingsSheet({
                 checked={profile.settings.autoClearDeadNotes}
                 onChange={(autoClearDeadNotes) => onSettings({ autoClearDeadNotes })}
               />
+              {/* The other switch here that takes something away rather than
+                  adding a layer: on, a cell can only receive a note of the
+                  digit being swept. Off by default for that reason. */}
+              <Toggle
+                label={t('settings.sweepOneDigit')}
+                checked={profile.settings.sweepOneDigit}
+                onChange={(sweepOneDigit) => onSettings({ sweepOneDigit })}
+              />
             </>
           ) : active === 'general' ? (
             <>

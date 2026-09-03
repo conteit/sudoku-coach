@@ -287,6 +287,8 @@ export const en = {
   'db.unavailable.title': 'The app cannot reach its storage',
   'db.unavailable.body': 'Saved games live in this browser, and this one will not open its storage — a private window, or a browser out of space, are the usual reasons. You can still play; nothing will be kept until this is sorted. Reload to try again.',
 
+  'settings.sweepOneDigit': 'Sweep one digit at a time',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;

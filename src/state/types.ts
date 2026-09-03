@@ -148,5 +148,23 @@ export interface PlayerProfile {
      * see and reverse what the setting did on their behalf.
      */
     autoClearDeadNotes: boolean;
+    /**
+     * While taking notes with a digit highlighted, sweep that digit and only
+     * that digit.
+     *
+     * Off by default, because it takes something away: with it on, putting a
+     * different note into a cell means clearing the highlight first. It exists
+     * for the way people actually use the green — running one digit across the
+     * board, eyes on the grid rather than the keypad — where two mis-taps are
+     * easy and both are expensive. A wrong key writes a note that is simply
+     * false; a stray tap on a solved cell re-points the highlight and the
+     * sweep is gone. On, the keypad refuses any digit but the highlighted one,
+     * and a tap on a filled cell moves the caret without moving the green.
+     *
+     * The highlight still moves on the keypad's long-press, which is already
+     * how a digit with none of its nine placed gets highlighted at all. So the
+     * deliberate way to change it survives and only the accidental one goes.
+     */
+    sweepOneDigit: boolean;
   };
 }

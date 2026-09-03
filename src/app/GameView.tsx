@@ -52,7 +52,7 @@ import { useAccount } from '../state/account';
 import { buildDiagnosticReport, formatDiagnosticReport } from './diagnostics';
 import { isDevUser } from './devTools';
 import { GameLayout } from './GameLayout';
-import { selectHighlight, toggleHighlight } from './greenHighlight';
+import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { useCoachSession } from './useCoachSession';
 import { useViewportTier } from './useViewportTier';
@@ -369,6 +369,14 @@ export function GameView({
   );
 
   /**
+   * A sweep is running: the player asked for one digit at a time, is taking
+   * notes, and has a digit lit. Only then do the two protections apply — the
+   * setting alone changes nothing while the player is placing digits rather
+   * than sweeping notes across the board.
+   */
+  const sweeping = settings.sweepOneDigit && pencilMode;
+
+  /**
    * Selecting a cell is the green's arm/clear decision now, not a keypad tap
    * (R3). Empty cells pass `selectHighlight` a null value, which is exactly
    * what makes it a no-op for them — the caret can move across the whole
@@ -378,9 +386,9 @@ export function GameView({
     (cell: CellIndex) => {
       setSelected(cell);
       const value = game.cells[cell]?.value ?? null;
-      setHighlightDigit((current) => selectHighlight(value, current));
+      setHighlightDigit((current) => selectHighlight(value, current, sweeping));
     },
-    [game.cells],
+    [game.cells, sweeping],
   );
 
   // "Speaking" is the panel having something the player asked for on screen.
@@ -554,6 +562,13 @@ export function GameView({
         // even with nothing selected, which is exactly the no-op 'blocked'
         // exists to feel different from.
         if (selected === null) {
+          haptic('blocked');
+          return;
+        }
+        // Mid-sweep, the only digit that means anything is the one being
+        // swept. Refused rather than corrected to it: writing a 5 because the
+        // player pressed 6 would be the app deciding what they meant.
+        if (sweepRefuses(digit, highlightDigit, sweeping)) {
           haptic('blocked');
           return;
         }
