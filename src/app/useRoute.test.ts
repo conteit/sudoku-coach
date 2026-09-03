@@ -1,10 +1,15 @@
 /**
- * Two routes, and the back button.
+ * Four routes, and the back button.
  *
  * The hand-rolled router exists because a library would be twenty kilobytes
- * to answer a question with two values — but "hand-rolled" is only defensible
+ * to answer a question with four values — but "hand-rolled" is only defensible
  * if the two things a router must actually get right are pinned: the address
  * decides the screen, and history behaves.
+ *
+ * `/privacy` and `/terms` raise the stakes on the first of those. Their
+ * addresses are given to Google's OAuth consent screen, so a change that
+ * quietly sent them to the landing page would not break a button anyone
+ * presses — it would break a link the app has promised elsewhere.
  */
 
 import { act, renderHook } from '@testing-library/react';
@@ -27,11 +32,18 @@ describe('routeOf', () => {
 
   it('ignores a trailing slash, which a shared link often carries', () => {
     expect(routeOf('/play/')).toBe('play');
+    expect(routeOf('/privacy/')).toBe('privacy');
+  });
+
+  it('serves the two pages the consent screen links to', () => {
+    expect(routeOf('/privacy')).toBe('privacy');
+    expect(routeOf('/terms')).toBe('terms');
   });
 
   it('round-trips with pathOf', () => {
-    expect(routeOf(pathOf('play'))).toBe('play');
-    expect(routeOf(pathOf('landing'))).toBe('landing');
+    for (const route of ['landing', 'play', 'privacy', 'terms'] as const) {
+      expect(routeOf(pathOf(route))).toBe(route);
+    }
   });
 });
 

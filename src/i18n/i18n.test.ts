@@ -46,9 +46,18 @@ describe('dictionaries', () => {
     // `cell.value` is "{cell}, {digit}" in any language. `account.title` is
     // the fourth kind: a loanword Italian actually uses, where inventing
     // "Profilo" would be a translation of a word rather than of a meaning.
+    // `legal.privacy` is that same kind and has the stronger claim — "privacy"
+    // is the word Italian data-protection law uses of itself.
     // Everything else must actually have been written.
     expect(new Set(identical)).toEqual(
-      new Set(['app.name', 'coach.title', 'coach.open', 'cell.value', 'account.title']),
+      new Set([
+        'app.name',
+        'coach.title',
+        'coach.open',
+        'cell.value',
+        'account.title',
+        'legal.privacy',
+      ]),
     );
   });
 });

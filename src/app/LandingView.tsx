@@ -18,8 +18,10 @@ import type { CellIndex, Digit, GeneratedPuzzle } from '../engine/types';
 import { useT } from '../i18n/locale';
 import { SudokuGrid, type GridCell } from '../ui/board/SudokuGrid';
 import { Button } from '../ui/primitives/Button';
+import { LegalFooter } from './LegalFooter';
 import { seedForDate } from './dailyPuzzle';
 import { useGenerator } from './useGenerator';
+import type { Route } from './useRoute';
 
 export interface LandingViewProps {
   /**
@@ -28,11 +30,16 @@ export interface LandingViewProps {
    * it again to keep going.
    */
   onStart: (taster: { puzzle: GeneratedPuzzle; entries: readonly (Digit | null)[] } | null) => void;
+  /**
+   * The footer's links. The landing page is where a visitor decides whether
+   * to sign in, so it is where the privacy policy has to be reachable from.
+   */
+  onNavigate: (route: Route) => void;
   /** Overridable so a test does not depend on what day it is. */
   now?: () => Date;
 }
 
-export function LandingView({ onStart, now = () => new Date() }: LandingViewProps) {
+export function LandingView({ onStart, onNavigate, now = () => new Date() }: LandingViewProps) {
   const t = useT();
   const generator = useGenerator();
   const [puzzle, setPuzzle] = useState<GeneratedPuzzle | null>(null);
@@ -163,6 +170,8 @@ export function LandingView({ onStart, now = () => new Date() }: LandingViewProp
           </div>
         ))}
       </section>
+
+      <LegalFooter onNavigate={onNavigate} current="landing" />
     </div>
   );
 }
