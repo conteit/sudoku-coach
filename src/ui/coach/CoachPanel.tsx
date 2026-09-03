@@ -75,6 +75,14 @@ export interface CoachPanelProps {
    */
   onLearn?: (technique: TechniqueId) => void;
   /**
+   * Sets the finding on screen aside and asks for the next one.
+   *
+   * Offered only while a hint is showing, because "another" is meaningless
+   * without a *this* — and only then does the player know what they are
+   * turning down.
+   */
+  onAnother?: () => void;
+  /**
    * Puts the panel back to its resting bar. Offered only while it is showing
    * something, and only where it overlays the board's controls.
    */
@@ -228,6 +236,7 @@ export function CoachPanel({
   onDrill,
   onDismissDrill,
   onLearn,
+  onAnother,
   onFixNotes,
   onCollapse,
   nudge,
@@ -399,6 +408,17 @@ export function CoachPanel({
             {staleCount === 1
               ? t('action.clearStaleOne')
               : t('action.clearStaleCount', { count: staleCount })}
+          </Button>
+        ) : null}
+        {/* Beside the way deeper into this finding, because it is the other
+            half of the same question: the ladder goes down into the pattern
+            on screen, this steps sideways to a different one. A player who
+            has already worked this pattern in their notes has nowhere else
+            to go — the engine reads placed digits, so it keeps offering what
+            it can still see. */}
+        {onAnother && hint !== null ? (
+          <Button variant="ghost" size="lg" onClick={onAnother}>
+            {t('coach.another')}
           </Button>
         ) : null}
         {onLearn && namedTechnique !== null ? (

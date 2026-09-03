@@ -94,6 +94,25 @@ only mean something on the device holding that game.
    text, and never serialized to the coach in full (spec §5.6).
 3. **A finding's eliminations are sound.** Property test: applying any finding's
    eliminations never removes the true solution's digit from a cell (R6).
+3b. **The engine reads placed digits, and the player says what is spent.**
+   `createCoach` builds its board from values alone — never from pencil marks,
+   because a hint built on a wrong mark is a wrong hint. The cost is that a
+   player who has worked a pattern in their notes has changed nothing the
+   detector can see, so the same finding comes back. `nextFinding(skip)` is
+   the answer: the player sets a finding aside ("show me another") and the
+   catalog walks on. The set is cleared whenever the board changes, since a
+   placement rewrites what the catalog sees.
+
+   The note check has the same root and the opposite symptom. "Missing" used
+   to mean "a basic true candidate the player has not noted", which reported
+   every elimination a technique had earned as an oversight.
+   `eliminableCandidates` (`src/coach/candidates.ts`) now runs the catalog to
+   a fixed point and stays silent about any digit a technique proves
+   impossible. **Eliminations only, never placements** — applying a naked
+   single there would narrow other cells by way of an answer the player has
+   not been given, and a cell narrowed to one candidate is one "missing"
+   report away from being handed its digit.
+
 4. **Disclosure discipline.** A cell's digit is never rendered below disclosure
    level 4, and level 4 states eliminations and logic — not "put N here" (R7).
 5. **`Game` is self-contained and serializable.** No class instances, no

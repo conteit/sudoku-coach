@@ -14,7 +14,8 @@ import { EXAMPLES, PUZZLES } from '../engine/techniques/fixtures';
 import type { CellIndex, Digit } from '../engine/types';
 import { t } from '../i18n';
 import type { CoachCell } from './format';
-import { reviewCells, reviewMarks } from './candidates';
+import { eliminableByTechnique, reviewCells, reviewMarks } from './candidates';
+import { nakedPair } from '../engine/techniques/subsets';
 
 const cellsOf = (grid: string, marks: Record<number, Digit[]> = {}): CoachCell[] =>
   [...Board.fromString(grid).values].map((value, cell) => ({
@@ -24,6 +25,13 @@ const cellsOf = (grid: string, marks: Record<number, Digit[]> = {}): CoachCell[]
 
 const clone = (cells: readonly CoachCell[]): CoachCell[] =>
   cells.map((c) => ({ value: c.value, candidates: new Set(c.candidates) }));
+
+/** Marks for the whole board: the given cells noted, everything else empty. */
+const markSet = (
+  board: Board,
+  marks: Record<number, Digit[]>,
+): readonly ReadonlySet<Digit>[] =>
+  [...board.values].map((_value, cell) => new Set<Digit>(marks[cell] ?? []));
 
 const firstEmpty = (cells: readonly CoachCell[]): CellIndex =>
   cells.findIndex((c) => c.value === null);
@@ -142,4 +150,74 @@ describe('what the review reports', () => {
     marks[cell] = new Set(digits);
     return marks;
   }
+});
+
+/**
+ * Paolo's report, and the reason the rule below exists.
+ *
+ * He worked a naked pair in a column — 7 and 9 confined to two cells — and
+ * removed 7 and 9 from the column's other cells, which is exactly what the
+ * pattern proves. "Check my notes" then told him both digits were missing
+ * from one of those cells, because `trueCandidates` is *basic* elimination
+ * only: a peer holding the digit. A pair's eliminations are a deduction, and
+ * the check could not see deductions at all, so it punished him for playing
+ * well.
+ */
+describe('marks a technique has ruled out', () => {
+  it('is silent about a digit the catalog can prove eliminable', () => {
+    // A board where a naked pair is provable, and a cell the pair empties.
+    const board = Board.fromString(EXAMPLES.naked_pair);
+    const pair = nakedPair.detect(board);
+    expect(pair, 'the fixture must actually hold a naked pair').not.toBeNull();
+
+    const victim = pair!.eliminations[0];
+    const noted = board.trueCandidates(victim.cell);
+    // The player has done the elimination: everything basic rules allow,
+    // minus the digit the pair rules out.
+    const marks = markSet(board, {
+      [victim.cell]: [...noted].filter((digit) => digit !== victim.digit),
+    });
+
+    const review = reviewMarks(board, marks, 'en');
+    const missing = review.issues.filter(
+      (issue) => issue.cell === victim.cell && issue.kind === 'missing',
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  it('still names a digit nothing rules out', () => {
+    // The check is not being switched off — a mark genuinely forgotten, with
+    // neither a peer nor a technique against it, is still worth saying.
+    const board = Board.fromString(EXAMPLES.naked_pair);
+    const open = board.values.findIndex((value) => value === null);
+    const truth = [...board.trueCandidates(open)];
+    const dropped = truth.find(
+      (digit) => !eliminableByTechnique(board, open, digit),
+    );
+    expect(dropped, 'the fixture needs a candidate no technique kills').toBeDefined();
+
+    const marks = markSet(board, { [open]: truth.filter((digit) => digit !== dropped) });
+    const review = reviewMarks(board, marks, 'en');
+
+    expect(
+      review.issues.some(
+        (issue) => issue.cell === open && issue.kind === 'missing' && issue.digit === dropped,
+      ),
+    ).toBe(true);
+  });
+
+  it('still calls an impossible mark impossible', () => {
+    // The other half of the report is untouched: a digit a placed peer holds
+    // is wrong by a rule the player can check themselves.
+    const board = Board.fromString(EXAMPLES.naked_pair);
+    const cell = board.values.findIndex((value) => value === null);
+    const held = board.peers(cell).map((peer) => board.values[peer]).find((v) => v !== null)!;
+    const marks = markSet(board, { [cell]: [held] });
+
+    const review = reviewMarks(board, marks, 'en');
+    expect(review.issues.some((issue) => issue.kind === 'invalid' && issue.digit === held)).toBe(
+      true,
+    );
+  });
 });

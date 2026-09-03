@@ -78,6 +78,18 @@ export interface CoachSession {
   nudge: TeachableTrigger | null;
   ask: () => void;
   escalate: () => void;
+  /**
+   * "Not that one." Sets the finding on screen aside and offers the next one
+   * the catalog can see.
+   *
+   * It exists because the engine reads placed digits only: a player who has
+   * worked a pattern in their notes has changed nothing the detector can see,
+   * so the same finding comes back every time they ask. Trusting the notes
+   * instead would mean building hints on marks that may be wrong, which is
+   * the one thing the coach must never do — so the player is the one who says
+   * a pattern is spent.
+   */
+  another: () => void;
   checkMarks: () => void;
   /** Puts the panel back to rest; the log keeps what was already disclosed. */
   dismiss: () => void;
@@ -122,6 +134,19 @@ export function useCoachSession({
 }: CoachSessionInput): CoachSession {
   const [hint, setHint] = useState<Hint | null>(null);
   const [review, setReview] = useState<CandidateReview | null>(null);
+  /*
+   * Findings the player has set aside on *this* board. Cleared whenever the
+   * board changes, because a placement rewrites what the catalog sees: a
+   * pattern set aside two moves ago may be a different pattern now, and one
+   * that is genuinely gone will not be offered again anyway.
+   */
+  const [skipped, setSkipped] = useState<ReadonlySet<string>>(() => new Set());
+  const boardKey = game.undoStack.length;
+  const lastBoard = useRef(boardKey);
+  if (lastBoard.current !== boardKey) {
+    lastBoard.current = boardKey;
+    if (skipped.size > 0) setSkipped(new Set());
+  }
   const [exhausted, setExhausted] = useState(false);
   const [nudge, setNudge] = useState<TeachableTrigger | null>(null);
   const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
@@ -242,9 +267,9 @@ export function useCoachSession({
   }, [game, locale, dismissedNudge, now, updateProfile]);
 
   const show = useCallback(
-    (pickLevel: LevelPicker) => {
+    (pickLevel: LevelPicker, skip?: ReadonlySet<string>) => {
       const coach = createCoach({ cells: coachCells(game), locale });
-      const finding = coach.nextFinding();
+      const finding = coach.nextFinding(skip ?? skipped);
       if (finding === null) {
         setHint(null);
         setExhausted(true);
@@ -260,7 +285,7 @@ export function useCoachSession({
       setExhausted(false);
       setHint(next);
     },
-    [game, locale, now, onCoachLog, updateProfile],
+    [game, locale, now, onCoachLog, updateProfile, skipped],
   );
 
   /**
@@ -296,6 +321,21 @@ export function useCoachSession({
   }, []);
 
   const ask = useCallback(() => show(resumeLevel), [show]);
+
+  /*
+   * The set aside has to be handed to `show` rather than left to the state
+   * update: `setSkipped` does not change `skipped` until the next render, and
+   * this call happens in this one.
+   */
+  const another = useCallback(() => {
+    if (hint === null) return;
+    const next = new Set(skipped);
+    next.add(hint.findingKey);
+    setSkipped(next);
+    // A fresh finding starts at the bottom of the ladder — `resumeLevel`
+    // reads the log, and a pattern never disclosed has nothing in it.
+    show(resumeLevel, next);
+  }, [hint, skipped, show]);
   const escalate = useCallback(() => show(escalatedLevel), [show]);
 
   const checkMarks = useCallback(() => {
@@ -323,6 +363,7 @@ export function useCoachSession({
     nudge,
     ask,
     escalate,
+    another,
     startDrill,
     dismissDrill,
     checkMarks,

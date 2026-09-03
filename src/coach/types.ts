@@ -86,8 +86,17 @@ export interface CoachContext {
 
 /** The deterministic coach surface the UI talks to. */
 export interface Coach {
-  /** Next finding on the board, cheapest technique first. */
-  nextFinding(): Finding | null;
+  /**
+   * Next finding on the board, cheapest technique first.
+   *
+   * `skip` holds `findingKey`s the player has set aside — "I have already
+   * done that one". The engine still reads placed digits only, so it cannot
+   * tell that a player's notes have applied a pattern; rather than trust the
+   * notes (a hint built on a wrong mark is a wrong hint), it lets the player
+   * say so and walks on. Returns null when everything the catalog can see has
+   * been set aside, which is a true answer and a useful one.
+   */
+  nextFinding(skip?: ReadonlySet<string>): Finding | null;
   /** Render a finding at a disclosure level. */
   hint(finding: Finding, level: DisclosureLevel): Hint;
   /** Diff player marks against true candidates. */

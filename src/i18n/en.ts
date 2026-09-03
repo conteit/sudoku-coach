@@ -106,6 +106,8 @@ export const en = {
   'coach.enough': 'That is enough',
   'coach.technique': 'Technique',
   'coach.whatIsThis': 'What is this technique?',
+  'coach.another': 'Not that one — show me another',
+  'coach.anotherShort': 'Another',
   'coach.eliminationGroup': '{digit} from {cells}',
   'coach.marksClean': 'Every note you have made is right.',
   'coach.marksSummary': '{count} notes need attention.',
