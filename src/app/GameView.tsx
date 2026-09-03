@@ -48,6 +48,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
+import { buildDiagnosticReport, formatDiagnosticReport } from './diagnostics';
 import { GameLayout } from './GameLayout';
 import { selectHighlight, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
@@ -106,6 +107,14 @@ export function GameView({
   const [pencilMode, setPencilMode] = useState(false);
   const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  /*
+   * The diagnostic report, held as text once it is built. Built on demand
+   * rather than kept live: it walks the whole detector catalog, which is
+   * cheap (a full sweep is 0.02ms median) but pointless on every render of a
+   * screen where nobody has asked a question.
+   */
+  const [diagnostics, setDiagnostics] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
   // The coach's own open/closed state, not derived from `speaking`: opening
   // the sheet is how the player asks to be spoken to, and closing it is a
@@ -787,6 +796,35 @@ export function GameView({
           >
             {t('settings.title')}
           </Button>
+          {/* Below the ordinary actions, above the destructive one: it is not
+              something a player reaches for while playing, but when the coach
+              has said something that cannot be right, it has to be findable
+              without leaving the board that proves it. */}
+          <Button
+            variant="ghost"
+            size="lg"
+            block
+            onClick={() => {
+              setMenuOpen(false);
+              setCopied(false);
+              setDiagnostics(
+                formatDiagnosticReport(
+                  buildDiagnosticReport({
+                    game,
+                    profile,
+                    tier,
+                    viewport: `${window.innerWidth}x${window.innerHeight}`,
+                    hint: coach.hint,
+                    drill: coach.drill,
+                    exhausted: coach.exhausted,
+                    review: coach.review,
+                  }),
+                ),
+              );
+            }}
+          >
+            {t('action.diagnostics')}
+          </Button>
           <Button
             variant="danger"
             size="lg"
@@ -829,6 +867,41 @@ export function GameView({
         }}
         onCancel={() => setConfirming(null)}
       />
+
+      {/* The report is shown, not just copied. `navigator.clipboard` needs a
+          secure context and a permission that a browser is free to refuse,
+          and a "report a problem" button that silently does nothing is a
+          worse bug than the one being reported — so the text is on screen and
+          selectable either way, and the copy button is the convenience. */}
+      <Sheet
+        open={diagnostics !== null}
+        onClose={() => setDiagnostics(null)}
+        title={t('diagnostics.title')}
+      >
+        <div className="flex flex-col gap-3 pb-2">
+          <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
+            {t('diagnostics.intro')}
+          </p>
+          <pre className="max-h-[45dvh] overflow-auto rounded-cell border border-rule bg-paper-sunk p-3 text-xs leading-relaxed text-ink select-all">
+            {diagnostics}
+          </pre>
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            onClick={() => {
+              void navigator.clipboard?.writeText(diagnostics ?? '').then(
+                () => setCopied(true),
+                // A refused clipboard is not worth an error dialog: the text
+                // is already on screen and selectable.
+                () => undefined,
+              );
+            }}
+          >
+            {copied ? t('action.copied') : t('action.copy')}
+          </Button>
+        </div>
+      </Sheet>
 
       <Sheet
         open={solved}
