@@ -265,10 +265,10 @@ test.describe('one puzzle, end to end', () => {
     // for real: jsdom runs no animation, so a unit test can hold which cells
     // were told to flip but never that any of them ended up gold. `toHaveCSS`
     // retries, which is what lets it wait out the wave rather than racing it.
-    await expect(boardCell(page, 0)).toHaveCSS('background-color', 'rgb(224, 178, 58)');
-    // The far corner is the last of sixteen diagonals — if the wave were a
-    // flash, or reading order, this cell would not be the one still arriving.
-    await expect(boardCell(page, 80)).toHaveCSS('background-color', 'rgb(224, 178, 58)');
+    await expect(boardCell(page, 0)).toHaveCSS('background-color', 'rgb(58, 167, 111)');
+    // The bottom row lands last — if the shower were a flash, this cell would
+    // not be the one still arriving.
+    await expect(boardCell(page, 80)).toHaveCSS('background-color', 'rgb(58, 167, 111)');
 
     // The recap reports what the coach was asked for. This puzzle was solved
     // from the solution, so the honest answer is "nothing".

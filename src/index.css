@@ -41,11 +41,12 @@
   --color-coach-wash: #fbeedb;
   --color-danger: #b3261e;
   --color-danger-wash: #fbe3e1;
-  /* The finished board. Gold rather than the coach's amber: the coach's
-     colour means "something to do here", and a solved puzzle is the one
-     moment nothing is. Dark enough in light mode to carry `--color-ink`
-     digits at AA, and it is only ever a background. */
-  --color-win: #e0b23a;
+  /* The finished board. Green, and a green of its own rather than
+     `--color-match`: that one means "this digit, here, again" and is on
+     screen during play, where a solved board is a different statement. Deep
+     enough to carry `--color-ink` digits at AA (5.3:1); it is only ever a
+     background. */
+  --color-win: #3aa76f;
 
   --radius-cell: 3px;
   --shadow-lift: 0 1px 2px rgb(27 25 23 / 0.05), 0 8px 24px -12px rgb(27 25 23 / 0.18);
@@ -77,9 +78,9 @@
       --color-coach-wash: #33260f;
       --color-danger: #ff8a80;
       --color-danger-wash: #3a1a18;
-      /* Deep gold on a dark ground, so the light `--color-ink` digits stay
-         readable (5.5:1) and the board reads as lit rather than bleached. */
-      --color-win: #7a5c12;
+      /* Deep green on a dark ground, so the light `--color-ink` digits stay
+         readable (8:1) and the board reads as lit rather than bleached. */
+      --color-win: #14512f;
     }
   }
 
@@ -101,7 +102,7 @@
     --color-coach-wash: #33260f;
     --color-danger: #ff8a80;
     --color-danger-wash: #3a1a18;
-    --color-win: #7a5c12;
+    --color-win: #14512f;
   }
 }
 
