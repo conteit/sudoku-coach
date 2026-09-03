@@ -13,13 +13,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+// Imported rather than read from disk: this suite runs in jsdom with no Node
+// types, and the bundler resolves JSON natively. It also means the test reads
+// the very file the host is served, not a copy of it.
+import vercelConfig from '../../vercel.json';
 
-// Resolved from the working directory rather than `import.meta.url`: the
-// suite runs in jsdom, where `import.meta.url` is an http URL and `readFile`
-// wants a path.
-const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as {
+const config = vercelConfig as {
   cleanUrls?: boolean;
   rewrites?: { source: string; destination: string }[];
   headers?: { source: string; headers: { key: string; value: string }[] }[];
