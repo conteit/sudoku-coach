@@ -202,8 +202,12 @@ has already read the front door.
    projects, through the level-2 disclosure that swaps the lesson column's
    contents — the one state that actually changes a column's content mid-game.
 9b. **The celebration is transform-only.** The solved board turns each cell
-    over and leaves it green (`.cell-win` in `src/index.css`, driven by
-    `SudokuGrid`'s `celebrate`). It animates `transform` and
+    over — `rotateX`, top over bottom, along the wave rather than across it —
+    and leaves it in the board's own match green, `--color-match-wash`
+    (`.cell-win` in `src/index.css`, driven by `SudokuGrid`'s `celebrate`).
+    There is no separate win colour: a celebration in a colour the player has
+    never seen is a new thing to learn at the moment they have finished
+    learning, and the match green already means "these belong together". It animates `transform` and
     `background-color` and nothing else, so invariant 9 holds through it —
     the board's box is the same box before, during and after. The delay falls
     with the row and is scattered within it by a hash of the cell index, so
