@@ -196,18 +196,27 @@ export function GameView({
   /*
    * A report describes the board at the moment it was run, so applying it
    * leaves the panel showing a reading that is no longer true. Re-running the
-   * check is the honest answer — "these are fixed" rather than a list of
-   * issues that are not there any more — but it cannot happen in the click
-   * handler: `checkMarks` closes over the `game` of the render it came from,
-   * which is the board *before* the dispatch. The flag makes the re-check
-   * wait for the render that has the new board in it.
+   * check is the honest answer, but it cannot happen in the click handler:
+   * `checkMarks` closes over the `game` of the render it came from, which is
+   * the board *before* the dispatch.
+   *
+   * What it waits for is the *board*, not the next render. A boolean flag was
+   * the first attempt and it was a race: this component re-renders for plenty
+   * of reasons that are not a new game — a coach state change, a parent's
+   * subscription firing — and whichever render arrived first consumed the
+   * flag and re-checked the board that was already on screen. It passed on a
+   * fast machine and failed on CI, which is what a race looks like from the
+   * outside. Remembering the move count instead makes the condition the one
+   * that was always meant: re-check when the board has actually moved.
    */
-  const recheckAfterFix = useRef(false);
+  const recheckAfterFix = useRef<number | null>(null);
   useEffect(() => {
-    if (!recheckAfterFix.current) return;
-    recheckAfterFix.current = false;
+    if (recheckAfterFix.current === null || game.undoStack.length === recheckAfterFix.current) {
+      return;
+    }
+    recheckAfterFix.current = null;
     coach.checkMarks();
-  }, [coach]);
+  }, [coach, game.undoStack.length]);
 
   /**
    * Opens the sheet. The restore target has to be captured *here*, synchronously
@@ -616,7 +625,7 @@ export function GameView({
                       kind,
                     })) ?? [],
                   });
-                  recheckAfterFix.current = true;
+                  recheckAfterFix.current = game.undoStack.length;
                 }
           }
           // Open (mobile), the X has to close the whole sheet — not just

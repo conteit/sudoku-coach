@@ -116,13 +116,13 @@ function cell(index: number): HTMLElement {
 
 describe('fixing the notes the check found', () => {
   /*
-   * The generous budget is measured, not superstition. This renders the whole
-   * game screen — 81 cells and the coach panel — and drives two checks
-   * through it, each running the detector catalog to a fixed point (2-7ms
-   * native, ~10ms instrumented). Locally that is comfortably inside the
-   * default second; on a shared CI runner under coverage it was not, twice,
-   * while three full instrumented runs here passed. A wait that is too short
-   * is a test reporting the runner's load, not the code's behaviour.
+   * The wait is a second over the default, not because this is slow — a check
+   * sweeps the detector catalog in 2-7ms — but because it renders the whole
+   * game screen twice over. An earlier version of this test carried fifteen
+   * seconds, on a diagnosis of "CI is loaded" that turned out to be wrong
+   * twice: what actually failed was a race in the re-check and a fixture that
+   * emptied the only noted cell. Both are fixed; the budget goes back to
+   * something ordinary, so the next real failure fails fast.
    */
   it('applies the issues on screen, then reports the board as it now is', async () => {
     // r1c3 gets a 5 it cannot hold — r1c1 is a given 5 — and misses digits it
@@ -138,7 +138,13 @@ describe('fixing the notes the check found', () => {
       }),
       { type: 'addCandidate', cell: 2, digit: 5, at: 1100 },
     );
-    const { user } = renderGame({}, game);
+    // A second, *legitimate* note in the same cell — 4 is r1c3's solution
+    // digit, so nothing rules it out. Without it, fixing empties the only
+    // noted cell on the board and the panel correctly reports "nothing to
+    // check" rather than "exactly right": a check of no notes is not a clean
+    // check. The fixture, not the app, was wrong.
+    const withBoth = reduce(game, { type: 'addCandidate', cell: 2, digit: 4, at: 1150 });
+    const { user } = renderGame({}, withBoth);
 
     await user.click(screen.getByRole('button', { name: /check my notes/i }));
     expect(screen.getByRole('button', { name: 'Fix them all' })).toBeInTheDocument();
@@ -147,6 +153,7 @@ describe('fixing the notes the check found', () => {
 
     // The impossible 5 is gone, and the cell now carries the marks it should.
     expect(cell(2).textContent).not.toContain('5');
+    expect(cell(2).textContent).toContain('4');
 
     // And the report is re-run rather than left describing a board that has
     // moved. Awaited, because the re-check is deliberately deferred a render:
@@ -155,10 +162,10 @@ describe('fixing the notes the check found', () => {
     // absence synchronously passed on a fast machine and failed on CI — the
     // wait is the honest reading of a re-check that was never synchronous.
     expect(
-      await screen.findByText(/notes are exactly right/, undefined, { timeout: 15_000 }),
+      await screen.findByText(/notes are exactly right/, undefined, { timeout: 3000 }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
-  }, 20_000);
+  }, 10_000);
 
   it('takes one undo to put the notes back exactly as they were', async () => {
     const game = reduce(
