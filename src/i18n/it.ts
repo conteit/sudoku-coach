@@ -285,6 +285,8 @@ export const it: Dictionary = {
   'db.unavailable.title': 'L\u2019app non riesce ad accedere alla memoria',
   'db.unavailable.body': 'Le partite salvate vivono in questo browser, e questo non apre la sua memoria: di solito è una finestra anonima, o un browser senza spazio. Puoi comunque giocare, ma finché non si risolve non verrà conservato nulla. Ricarica per riprovare.',
 
+  'settings.sweepOneDigit': 'Cerca una cifra alla volta',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };

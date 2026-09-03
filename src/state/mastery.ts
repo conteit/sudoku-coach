@@ -50,6 +50,8 @@ export const DEFAULT_PROFILE: PlayerProfile = {
     colorEntries: true,
     // Invariant 1: the app does not edit a player's marks unless asked to.
     autoClearDeadNotes: false,
+    // Off because it takes something away — one digit at a time is the point.
+    sweepOneDigit: false,
   },
 };
 
