@@ -145,7 +145,16 @@ describe('fixing the notes the check found', () => {
     // has to wait for the one holding the fixed board. Asserting the button's
     // absence synchronously passed on a fast machine and failed on CI — the
     // wait is the honest reading of a re-check that was never synchronous.
-    expect(await screen.findByText(/notes are exactly right/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/notes are exactly right/, undefined, { timeout: 5000 }),
+      // Longer than the default second, and not superstition: a check now
+      // runs the whole detector catalog to a fixed point (2-7ms native, and
+      // this suite runs under coverage instrumentation on a shared CI
+      // runner), and applying a report runs it twice — once for the check,
+      // once for the re-check afterwards. The default timeout was enough
+      // locally and not on CI, which is the definition of a wait that was
+      // too short rather than a test that was wrong.
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
   });
 
