@@ -281,6 +281,9 @@ export const en = {
   'settings.tab.board': 'Board',
   'settings.tab.general': 'General',
 
+  'sync.notice.signedOut': 'Your games are saved on this device. Sync is paused until you sign in to Google again — Settings has the button.',
+  'sync.notice.failed': 'Your games are saved on this device. Sync could not reach Google and will try again.',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;

@@ -11,7 +11,7 @@
  * and the game store then resumes the game the player left (R5).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { preferredLocale } from './i18n/locale';
 import { LocaleProvider } from './i18n/react';
 import { useAccount } from './state/account';
@@ -36,6 +36,7 @@ import { LibraryView } from './app/LibraryView';
 import { useRoute } from './app/useRoute';
 import { NewGameSheet } from './app/NewGameSheet';
 import { OfflineNotice } from './app/OfflineNotice';
+import { SyncNotice } from './app/SyncNotice';
 import { SettingsSheet } from './app/SettingsSheet';
 
 export default function App() {
@@ -57,6 +58,8 @@ export default function App() {
    * so the usual "not ready yet" placeholder would be shown forever.
    */
   const [block, setBlock] = useState<DatabaseBlock>('none');
+  /** Sync is bootstrapped once a load, on first entering the app. */
+  const syncBooted = useRef(false);
   const [showNewGame, setShowNewGame] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   /** null = Learn is closed; a technique = opened straight onto that lesson. */
@@ -70,27 +73,47 @@ export default function App() {
     // Restores an existing session if there is one. A no-op in a build with
     // no Firebase config, which is what keeps sign-in genuinely optional
     // rather than merely unused.
-    useAccount.getState().watch();
-    // Reads the stored switch and, if sync is on, runs one straight away. It
-    // resolves on its own schedule: nothing on screen waits for the network.
-    void useSync.getState().hydrate();
   }, []);
 
-  // Sync follows the session rather than the other way round. Signing out
-  // drops the token but keeps the preference — it ends a session, it is not a
-  // decision to stop syncing — and signing in is the moment the other
-  // device's games become worth asking for.
-  useEffect(
-    () =>
-      useAccount.subscribe((state, previous) => {
-        if (state.account === previous.account) return;
-        if (state.account === null) useSync.getState().forget();
-        else void useSync.getState().syncNow();
-      }),
-    [],
-  );
-
+  /**
+   * Auth and sync belong to the app, not to the front door.
+   *
+   * They used to start with the shell, and the cost was not theoretical: a
+   * restored session on the *landing page* fired a sync, a sync asked Google
+   * for a token, and a token request opens a popup — so reading the front page
+   * could throw a sign-in window at a visitor who had asked for nothing. It
+   * also had an anonymous reader of a marketing page initialising Firebase and
+   * reaching Google before they touched a control, which is not what the
+   * privacy policy says the app does.
+   *
+   * None of it can block a page either. Everything below resolves on its own
+   * schedule and reports failure as a state; the notice is how a player learns
+   * sync is paused, and their games are on the device either way.
+   */
   useEffect(() => {
+    if (route !== 'play') return;
+
+    // Idempotent, so returning to the app does not stack listeners.
+    useAccount.getState().watch();
+
+    // Once per load rather than once per visit to `/play`: entering the app
+    // is a reasonable moment to sync, but bouncing between the landing page
+    // and the board is not a reason to ask Google for a token each time.
+    if (!syncBooted.current) {
+      syncBooted.current = true;
+      void useSync.getState().hydrate();
+    }
+
+    // Sync follows the session rather than the other way round. Signing out
+    // drops the token but keeps the preference — it ends a session, it is not
+    // a decision to stop syncing — and signing in is the moment the other
+    // device's games become worth asking for.
+    const unwatch = useAccount.subscribe((state, previous) => {
+      if (state.account === previous.account) return;
+      if (state.account === null) useSync.getState().forget();
+      else void useSync.getState().syncNow();
+    });
+
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
         // Flush first, then sync. The autosave debounce means the last few
@@ -108,8 +131,11 @@ export default function App() {
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, []);
+    return () => {
+      unwatch();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [route]);
 
   // An explicit `data-theme` beats the OS preference; "system" is its absence,
   // which is what lets the media query in index.css do the work (R9 dark mode).
@@ -226,6 +252,11 @@ export default function App() {
           sit covers either the board or the controls; the library is where the
           player is when the precache finishes anyway. */}
       {activeGame === null ? <OfflineNotice /> : null}
+
+      {/* Same rule as the offline notice, and the same reason: a fixed banner
+          over a board covers either the grid or the controls. Sync being
+          paused is worth knowing and is never worth a swallowed tap. */}
+      {activeGame === null ? <SyncNotice /> : null}
 
       <SettingsSheet
         open={showSettings}
