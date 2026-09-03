@@ -1,0 +1,88 @@
+{
+  "privacy": {
+    "title": "Privacy",
+    "updated": "3 September 2026",
+    "intro": "Sudoku Coach is a local-first app. Your puzzles, your notes and your progress are stored in your own browser and are not sent anywhere. Signing in is optional, and nothing about the game requires it.",
+    "sections": [
+      {
+        "heading": "Who is responsible",
+        "body": "Sudoku Coach is made by Paolo Contessi, the data controller for the small amount of personal data described here. You can reach him at hello@paolocontessi.me about anything on this page.\n\nThe app is free, carries no advertising, and there is no business here that would be served by collecting more than it needs."
+      },
+      {
+        "heading": "What stays on your device",
+        "body": "Everything you do while playing is written to your browser's own storage and stays there: saved games, the digits and pencil marks you enter, elapsed time, your settings and language, and the record of which techniques you have used unaided.\n\nNone of it is transmitted. It is readable only by this app in this browser, and clearing your browser's site data for Sudoku Coach deletes all of it permanently. There is no copy elsewhere for anyone to delete on your behalf."
+      },
+      {
+        "heading": "Signing in, if you choose to",
+        "body": "Sudoku Coach offers an optional Google sign-in, so your progress can follow you to another device. If you never sign in, no account exists and this section does not apply to you.\n\nWhen you do sign in, Google tells the app three things about your Google account: an account identifier, your email address, and your display name. They are held for the length of your session, which is what lets the app show who is signed in and address the right storage. The app runs no user database of its own — the sign-in itself is handled by Firebase Authentication, a Google service.\n\nYou can sign out at any time from Settings, and you can revoke the app's access entirely at myaccount.google.com/permissions."
+      },
+      {
+        "heading": "Your Google Drive",
+        "body": "Sync uses a single Google Drive permission, drive.appdata. It grants access to a hidden application-data folder that Google keeps for this app inside your own Drive, and to nothing else: it cannot read, list or change your documents, your photos or any other file in your Drive.\n\nYour saved games are written there, in your account and under your control. Nobody who makes this app can see that folder or what is in it. Revoking the app's access, or deleting the hidden app data from your Drive settings, removes it."
+      },
+      {
+        "heading": "Hosting and server logs",
+        "body": "The site is hosted by Vercel, which serves the files to your browser and keeps ordinary access logs in order to deliver the site and defend it from abuse. Those logs hold the usual technical record of a web request: an IP address, a timestamp, the page requested and your browser's user-agent string. Their retention is Vercel's, and they are not used to build a profile of you.\n\nGoogle (for sign-in) and Vercel (for hosting) act as processors. Both may process data outside the European Economic Area, under the transfer safeguards those companies publish."
+      },
+      {
+        "heading": "What there is not",
+        "body": "No analytics. No advertising, and no advertising cookies. No third-party trackers, no fingerprinting, no social widgets. Nothing about you is sold, rented or shared with anyone beyond the two providers named above.\n\nThe 'Report a problem' screen builds a diagnostic report on your device and does nothing with it. It is transmitted only if you copy or download it yourself and choose to send it."
+      },
+      {
+        "heading": "Legal bases",
+        "body": "Where the GDPR applies: sign-in and Drive sync rest on your consent, given by choosing to sign in and withdrawn by signing out or revoking access. Server logs rest on the legitimate interest in delivering a working, secure website. Data that stays in your own browser is not processed by us at all."
+      },
+      {
+        "heading": "Your rights",
+        "body": "You have the right to ask for access to the personal data held about you, its correction or its deletion, to object to the processing, and to receive the data in a portable form. In practice very little is held: signing out and revoking access at myaccount.google.com/permissions ends it, and clearing your browser data removes everything local.\n\nWrite to hello@paolocontessi.me for anything those two steps do not settle. If you believe your data is being handled wrongly, you can complain to your national supervisory authority — in Italy, the Garante per la protezione dei dati personali."
+      },
+      {
+        "heading": "Children",
+        "body": "The app is a general-audience puzzle game and is not directed at children under 13. Neither an account nor any personal data is needed to play it."
+      },
+      {
+        "heading": "Changes",
+        "body": "If this policy changes, the date above changes with it and the new version replaces this one at this address. A change that materially widened what the app collects would be announced in the app rather than slipped in quietly."
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms",
+    "updated": "3 September 2026",
+    "intro": "Sudoku Coach is free to use, provided as it is, and needs no account. These terms are the short version of what that means, for you and for the person who makes it.",
+    "sections": [
+      {
+        "heading": "The service",
+        "body": "Sudoku Coach is a sudoku that coaches rather than solves: every hint names a technique and explains the reasoning, and none of them ever hands you a digit. It is offered free of charge, with no subscription, no purchase and no advertising.\n\nIt is made and operated by Paolo Contessi. Questions go to hello@paolocontessi.me."
+      },
+      {
+        "heading": "Your data is your responsibility",
+        "body": "Games and progress live in your own browser. Clearing your browser data, playing in a private window, or a browser evicting storage under pressure will remove them — and unless you have signed in and enabled sync, there is no copy anywhere else. Treat saved games as something on your device, not as something backed up for you."
+      },
+      {
+        "heading": "Accounts",
+        "body": "Signing in is optional and uses your existing Google account; there is no separate password here. Keep control of that Google account, since whoever holds it reaches the games synced to it. You can sign out or revoke access at any time, and doing so leaves the games already on your device untouched."
+      },
+      {
+        "heading": "Acceptable use",
+        "body": "Use the app to play sudoku. Do not try to break it, overload it, or gain unauthorised access to it or to the services behind it, and do not use it to interfere with anyone else's use of it. Access may be withdrawn where that is ignored."
+      },
+      {
+        "heading": "The source code",
+        "body": "The app's source is published under the Apache License 2.0 and you may use it on those terms. The licence covers the code: it is not permission to pass a copy off as this service, or to use the name in a way that suggests it."
+      },
+      {
+        "heading": "No warranty",
+        "body": "The app is provided as is and as available, without warranty of any kind. It is a puzzle game maintained in someone's spare time: it may be unavailable, it may contain errors, and it may change or stop. The coaching content is written to be correct, but it is offered for learning, not as a guarantee.\n\nNothing here limits rights you have as a consumer under mandatory law, which apply whatever these terms say."
+      },
+      {
+        "heading": "Liability",
+        "body": "To the extent the law allows, the maker is not liable for indirect or consequential loss, or for lost data or lost progress, arising from your use of the app. Liability that cannot lawfully be excluded — for death or personal injury caused by negligence, or for fraud — is not excluded."
+      },
+      {
+        "heading": "Changes and governing law",
+        "body": "These terms may change; the date above says when they last did, and continuing to use the app after that is acceptance of the current version. They are governed by Italian law, and if you are a consumer you keep the protection of the mandatory rules of the country you live in."
+      }
+    ]
+  }
+}

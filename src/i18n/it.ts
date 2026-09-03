@@ -253,6 +253,11 @@ export const it: Dictionary = {
   'coach.tagInvalid': '{digit} non può stare qui',
   'coach.tagMissing': 'manca {digit}',
 
+  'legal.home': 'Pagina iniziale',
+  'legal.privacy': 'Privacy',
+  'legal.terms': 'Termini',
+  'legal.updated': 'Ultimo aggiornamento: {date}',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };

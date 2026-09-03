@@ -1,0 +1,88 @@
+{
+  "privacy": {
+    "title": "Privacy",
+    "updated": "3 settembre 2026",
+    "intro": "Sudoku Coach è un'app local-first: i tuoi schemi, le tue annotazioni e i tuoi progressi restano nel tuo browser e non vengono inviati da nessuna parte. Accedere con un account è facoltativo, e per giocare non serve.",
+    "sections": [
+      {
+        "heading": "Chi è il titolare",
+        "body": "Sudoku Coach è realizzata da Paolo Contessi, titolare del trattamento dei pochi dati personali descritti qui. Per qualsiasi cosa riguardi questa pagina puoi scrivergli a hello@paolocontessi.me.\n\nL'app è gratuita, non contiene pubblicità, e dietro non c'è un'attività a cui converrebbe raccogliere più del necessario."
+      },
+      {
+        "heading": "Che cosa resta sul tuo dispositivo",
+        "body": "Tutto quello che fai giocando viene scritto nella memoria del tuo browser e lì rimane: le partite salvate, le cifre e le annotazioni che inserisci, il tempo trascorso, le impostazioni e la lingua, e il registro delle tecniche che hai applicato da solo.\n\nNiente di tutto questo viene trasmesso. È leggibile soltanto da questa app in questo browser, e cancellare i dati del sito per Sudoku Coach lo elimina definitivamente. Non ne esiste una copia altrove che qualcuno possa cancellare per tuo conto."
+      },
+      {
+        "heading": "L'accesso, se scegli di farlo",
+        "body": "Sudoku Coach offre un accesso facoltativo con Google, così i tuoi progressi possono seguirti su un altro dispositivo. Se non accedi mai, nessun account viene creato e questa sezione non ti riguarda.\n\nQuando accedi, Google comunica all'app tre informazioni sul tuo account Google: un identificativo, il tuo indirizzo email e il nome visualizzato. Restano per la durata della sessione, il tempo che serve a mostrare chi ha effettuato l'accesso e a indirizzare l'archivio giusto. L'app non tiene un proprio archivio di utenti: l'autenticazione è gestita da Firebase Authentication, un servizio di Google.\n\nPuoi disconnetterti quando vuoi dalle Impostazioni, e revocare del tutto l'accesso dell'app da myaccount.google.com/permissions."
+      },
+      {
+        "heading": "Il tuo Google Drive",
+        "body": "La sincronizzazione usa un solo permesso di Google Drive, drive.appdata. Dà accesso a una cartella nascosta di dati applicativi che Google riserva a questa app dentro il tuo Drive, e a nient'altro: non può leggere, elencare né modificare i tuoi documenti, le tue foto o qualunque altro file del tuo Drive.\n\nLe partite salvate finiscono lì, nel tuo account e sotto il tuo controllo. Chi realizza questa app non può vedere quella cartella né ciò che contiene. Revocare l'accesso, oppure eliminare i dati applicativi nascosti dalle impostazioni di Drive, la rimuove."
+      },
+      {
+        "heading": "Hosting e log del server",
+        "body": "Il sito è ospitato da Vercel, che consegna i file al tuo browser e conserva i normali log di accesso per erogare il servizio e difenderlo dagli abusi. Contengono la consueta traccia tecnica di una richiesta web: un indirizzo IP, data e ora, la pagina richiesta e la stringa user-agent del browser. La loro conservazione è di Vercel, e non servono a costruire un profilo di te.\n\nGoogle (per l'accesso) e Vercel (per l'hosting) agiscono come responsabili del trattamento. Entrambi possono trattare dati fuori dallo Spazio economico europeo, con le garanzie di trasferimento che tali società pubblicano."
+      },
+      {
+        "heading": "Quello che non c'è",
+        "body": "Nessuna analitica. Nessuna pubblicità e nessun cookie pubblicitario. Nessun tracciante di terze parti, nessun fingerprinting, nessun widget social. Niente che ti riguardi viene venduto, ceduto o condiviso con qualcuno oltre ai due fornitori nominati sopra.\n\nLa schermata «Segnala un problema» costruisce un rapporto diagnostico sul tuo dispositivo e non ne fa nulla. Viene trasmesso solo se sei tu a copiarlo o a scaricarlo e scegli di inviarlo."
+      },
+      {
+        "heading": "Basi giuridiche",
+        "body": "Dove si applica il GDPR: l'accesso e la sincronizzazione con Drive si fondano sul tuo consenso, prestato scegliendo di accedere e revocabile disconnettendoti o revocando l'accesso. I log del server si fondano sul legittimo interesse a erogare un sito funzionante e sicuro. I dati che restano nel tuo browser non sono oggetto di alcun trattamento da parte nostra."
+      },
+      {
+        "heading": "I tuoi diritti",
+        "body": "Hai diritto di chiedere l'accesso ai dati personali che ti riguardano, la loro rettifica o cancellazione, di opporti al trattamento e di riceverli in un formato portabile. In concreto se ne conservano pochissimi: disconnetterti e revocare l'accesso da myaccount.google.com/permissions li esaurisce, e cancellare i dati del browser rimuove tutto ciò che è locale.\n\nPer quello che questi due passaggi non risolvono, scrivi a hello@paolocontessi.me. Se ritieni che i tuoi dati siano trattati in modo scorretto puoi rivolgerti all'autorità di controllo del tuo Paese: in Italia, il Garante per la protezione dei dati personali."
+      },
+      {
+        "heading": "Minori",
+        "body": "L'app è un gioco di enigmistica rivolto al pubblico generale e non è destinata a minori di 13 anni. Per giocare non servono né un account né dati personali."
+      },
+      {
+        "heading": "Modifiche",
+        "body": "Se questa informativa cambia, cambia con essa la data qui sopra, e la nuova versione sostituisce questa allo stesso indirizzo. Una modifica che ampliasse in modo sostanziale ciò che l'app raccoglie verrebbe annunciata nell'app, non fatta passare in silenzio."
+      }
+    ]
+  },
+  "terms": {
+    "title": "Termini",
+    "updated": "3 settembre 2026",
+    "intro": "Sudoku Coach è gratuita, si usa così com'è e non richiede un account. Questi termini sono la versione breve di che cosa significa, per te e per chi la realizza.",
+    "sections": [
+      {
+        "heading": "Il servizio",
+        "body": "Sudoku Coach è un sudoku che allena invece di risolvere: ogni suggerimento nomina una tecnica e ne spiega il ragionamento, e nessuno ti dà mai una cifra. È offerta gratuitamente, senza abbonamenti, senza acquisti e senza pubblicità.\n\nÈ realizzata e gestita da Paolo Contessi. Le domande vanno a hello@paolocontessi.me."
+      },
+      {
+        "heading": "I tuoi dati sono responsabilità tua",
+        "body": "Partite e progressi vivono nel tuo browser. Cancellare i dati del browser, giocare in una finestra anonima, o un browser che libera spazio sotto pressione, li elimina — e se non hai effettuato l'accesso attivando la sincronizzazione, non ne esiste copia altrove. Considera le partite salvate come qualcosa che sta sul tuo dispositivo, non come qualcosa di cui qualcuno tiene il backup per te."
+      },
+      {
+        "heading": "Account",
+        "body": "L'accesso è facoltativo e usa il tuo account Google: qui non c'è una password separata. Mantieni il controllo di quell'account, perché chi lo possiede raggiunge le partite sincronizzate su di esso. Puoi disconnetterti o revocare l'accesso quando vuoi, e farlo lascia intatte le partite già presenti sul dispositivo."
+      },
+      {
+        "heading": "Uso corretto",
+        "body": "Usa l'app per giocare a sudoku. Non tentare di comprometterla, di sovraccaricarla o di accedervi senza autorizzazione, né a lei né ai servizi che la sorreggono, e non usarla per interferire con l'uso che ne fanno gli altri. L'accesso può essere sospeso se questo viene ignorato."
+      },
+      {
+        "heading": "Il codice sorgente",
+        "body": "Il sorgente dell'app è pubblicato con licenza Apache 2.0 e puoi usarlo a quelle condizioni. La licenza copre il codice: non è il permesso di spacciare una copia per questo servizio, né di usarne il nome in modo che lo lasci credere."
+      },
+      {
+        "heading": "Nessuna garanzia",
+        "body": "L'app è fornita così com'è e come disponibile, senza garanzie di alcun tipo. È un gioco mantenuto nel tempo libero: può non essere raggiungibile, può contenere errori, può cambiare o cessare. I contenuti didattici sono scritti per essere corretti, ma sono offerti per imparare, non come garanzia.\n\nNulla di quanto scritto qui limita i diritti che ti spettano come consumatore per norma inderogabile, che valgono comunque."
+      },
+      {
+        "heading": "Responsabilità",
+        "body": "Nei limiti consentiti dalla legge, chi realizza l'app non risponde di danni indiretti o consequenziali, né della perdita di dati o di progressi, derivanti dall'uso dell'app. Resta ferma la responsabilità che la legge non consente di escludere: quella per morte o lesioni personali dovute a negligenza, e quella per dolo."
+      },
+      {
+        "heading": "Modifiche e legge applicabile",
+        "body": "Questi termini possono cambiare; la data qui sopra dice quando è successo l'ultima volta, e continuare a usare l'app dopo quella data vale come accettazione della versione corrente. Sono regolati dalla legge italiana e, se sei un consumatore, conservi la tutela delle norme inderogabili del Paese in cui risiedi."
+      }
+    ]
+  }
+}

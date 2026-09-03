@@ -28,6 +28,7 @@ import type {
 import { GameView } from './app/GameView';
 import { LandingView } from './app/LandingView';
 import { LearnView } from './app/LearnView';
+import { LegalView } from './app/LegalView';
 import { LibraryView } from './app/LibraryView';
 import { useRoute } from './app/useRoute';
 import { NewGameSheet } from './app/NewGameSheet';
@@ -118,11 +119,16 @@ export default function App() {
           language or the wrong theme is worse than one frame of nothing. */}
       {!profileReady || !gamesReady ? (
         <div className="min-h-dvh" aria-busy="true" />
+      ) : route === 'privacy' || route === 'terms' ? (
+        // Reachable from outside the app, and rendered from the address
+        // alone: Google's OAuth consent screen links straight here, and so
+        // does anyone deciding whether to sign in at all.
+        <LegalView id={route} locale={profile.locale} onNavigate={go} />
       ) : route === 'landing' ? (
         // The front door. It reads no game state and writes none — a visitor
         // who has never played sees the same page as one with four saved
         // puzzles, and "Start" is what moves them.
-        <LandingView onStart={startFromLanding} />
+        <LandingView onStart={startFromLanding} onNavigate={go} />
       ) : learning !== null ? (
         <LearnView
           profile={profile}

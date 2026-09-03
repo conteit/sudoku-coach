@@ -43,12 +43,17 @@ beforeEach(() => {
 });
 
 const renderLanding = (onStart = vi.fn()) => {
+  const onNavigate = vi.fn();
   render(
     <LocaleProvider locale="en">
-      <LandingView onStart={onStart} now={() => new Date(2026, 8, 3, 12)} />
+      <LandingView
+        onStart={onStart}
+        onNavigate={onNavigate}
+        now={() => new Date(2026, 8, 3, 12)}
+      />
     </LocaleProvider>,
   );
-  return { onStart, user: userEvent.setup() };
+  return { onStart, onNavigate, user: userEvent.setup() };
 };
 
 describe('the landing page', () => {

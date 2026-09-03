@@ -255,6 +255,11 @@ export const en = {
   'coach.tagInvalid': "{digit} can't be here",
   'coach.tagMissing': '{digit} is missing',
 
+  'legal.home': 'Home',
+  'legal.privacy': 'Privacy',
+  'legal.terms': 'Terms',
+  'legal.updated': 'Last updated {date}',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;
