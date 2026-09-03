@@ -278,6 +278,9 @@ export const en = {
   'db.superseded.body': 'Another window updated the app. Reload this one to catch up. Nothing has been lost.',
   'action.reload': 'Reload',
 
+  'settings.tab.board': 'Board',
+  'settings.tab.general': 'General',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;

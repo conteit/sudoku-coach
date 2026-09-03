@@ -276,6 +276,9 @@ export const it: Dictionary = {
   'db.superseded.body': 'Un\u2019altra finestra ha aggiornato l\u2019app. Ricarica questa per allinearla. Non hai perso nulla.',
   'action.reload': 'Ricarica',
 
+  'settings.tab.board': 'Griglia',
+  'settings.tab.general': 'Generale',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };
