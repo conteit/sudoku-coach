@@ -1,6 +1,6 @@
 // Must come first: Dexie captures the global `indexedDB` when it is imported.
 import 'fake-indexeddb/auto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatGrid } from '../engine/board';
 import { Dexie } from 'dexie';
 import type { Digit } from '../engine/types';
@@ -8,7 +8,8 @@ import {
   applySchema, db, DB_NAME, deleteGame, listSummaries, loadGame, loadProfile, saveGame,
   saveProfile, SCHEMA, SudokuCoachDB, toSummary,
 } from './db';
-import type { SchemaVersion } from './db';
+import type { DatabaseBlock, SchemaVersion } from './db';
+import { observeBlocking, watchDatabaseBlock } from './db';
 import { newGame, reduce, toStored } from './game';
 import { DEFAULT_PROFILE, onTaught } from './mastery';
 import type { Game, PlayerProfile } from './types';
@@ -84,6 +85,69 @@ describe('schema', () => {
     expect(conn.verno).toBe(SCHEMA.length);
     expect(await conn.games.get('kept')).toBeDefined();
     expect(await conn.tombstones.toArray()).toEqual([]);
+  });
+
+  it('says so when another connection holds the old version open', async () => {
+    // The outage this exists to prevent: a blocked upgrade leaves `open()`
+    // pending with no timeout and no rejection, so every caller waits forever
+    // and the shell shows its loading placeholder for good. Silence is also
+    // what data loss looks like, which is why this has to become a state.
+    //
+    // Held with raw IndexedDB rather than Dexie, and that detail is the whole
+    // point: a Dexie connection that is *awake* yields on its own — its
+    // default `versionchange` handler closes it to let the upgrade through.
+    // The window that caused the outage was an installed PWA frozen in the
+    // background, which runs no JavaScript at all and so yields nothing. This
+    // is what that looks like from the other side.
+    const name = `${DB_NAME}-blocked-${counter++}`;
+    const holder = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(name, 10);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('games', { keyPath: 'id' });
+        request.result.createObjectStore('profile', { keyPath: 'id' });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    const seen: DatabaseBlock[] = [];
+    const stop = watchDatabaseBlock((state) => seen.push(state));
+
+    const conn = new SudokuCoachDB(name);
+    opened.push(conn);
+    observeBlocking(conn);
+    const opening = conn.open();
+
+    await vi.waitFor(() => expect(seen).toContain('blocked'));
+
+    // And it clears itself once the obstruction goes, without a reload.
+    holder.close();
+    await opening;
+    await vi.waitFor(() => expect(seen.at(-1)).toBe('none'));
+    stop();
+  });
+
+  it('steps aside when another window needs to upgrade, so it is never the obstruction', async () => {
+    const name = `${DB_NAME}-yield-${counter++}`;
+    const conn = new SudokuCoachDB(name);
+    opened.push(conn);
+    observeBlocking(conn);
+    await conn.open();
+
+    const seen: DatabaseBlock[] = [];
+    const stop = watchDatabaseBlock((state) => seen.push(state));
+
+    const newer = new Dexie(name);
+    applySchema(newer, [
+      ...SCHEMA,
+      { version: SCHEMA.length + 1, stores: { later: 'id' } },
+    ]);
+    await newer.open();
+    newer.close();
+
+    await vi.waitFor(() => expect(seen).toContain('superseded'));
+    expect(conn.isOpen()).toBe(false);
+    stop();
   });
 
   it('names the app database', () => {

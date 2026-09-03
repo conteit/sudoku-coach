@@ -16,6 +16,7 @@ import { preferredLocale } from './i18n/locale';
 import { LocaleProvider } from './i18n/react';
 import { useAccount } from './state/account';
 import { useProfile } from './state/profile';
+import { watchDatabaseBlock, type DatabaseBlock } from './state/db';
 import { useGameStore } from './state/store';
 import { useSync } from './sync/store';
 import { parseGrid } from './engine/board';
@@ -28,6 +29,7 @@ import type {
 } from './engine/types';
 import { GameView } from './app/GameView';
 import { LandingView } from './app/LandingView';
+import { DatabaseBlockedNotice } from './app/DatabaseBlockedNotice';
 import { LearnView } from './app/LearnView';
 import { LegalView } from './app/LegalView';
 import { LibraryView } from './app/LibraryView';
@@ -49,10 +51,18 @@ export default function App() {
   const activeGame = activeGameId === null ? null : (games[activeGameId] ?? null);
 
   const { route, go } = useRoute();
+  /**
+   * Another window holding the database open. Watched rather than derived,
+   * because it is the one condition under which hydration never finishes and
+   * so the usual "not ready yet" placeholder would be shown forever.
+   */
+  const [block, setBlock] = useState<DatabaseBlock>('none');
   const [showNewGame, setShowNewGame] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   /** null = Learn is closed; a technique = opened straight onto that lesson. */
   const [learning, setLearning] = useState<{ technique: TechniqueId | null } | null>(null);
+
+  useEffect(() => watchDatabaseBlock(setBlock), []);
 
   useEffect(() => {
     void useProfile.getState().hydrate(preferredLocale());
@@ -153,10 +163,18 @@ export default function App() {
   };
 
   return (
-    <LocaleProvider locale={profile.locale}>
+    // Before the profile is read the stored language is unknown, and the
+    // blocked notice below is shown in exactly that state — so it falls back
+    // to what the browser asks for rather than to English.
+    <LocaleProvider locale={profileReady ? profile.locale : (preferredLocale() ?? profile.locale)}>
       {/* Nothing renders before the profile is read: a first paint in the wrong
           language or the wrong theme is worse than one frame of nothing. */}
-      {!profileReady || !gamesReady ? (
+      {block !== 'none' ? (
+        // Ahead of the hydration check on purpose: 'superseded' can arrive
+        // long after the app is running, and by then the connection is closed
+        // and every screen behind this one is reading from nothing.
+        <DatabaseBlockedNotice state={block} />
+      ) : !profileReady || !gamesReady ? (
         <div className="min-h-dvh" aria-busy="true" />
       ) : route === 'privacy' || route === 'terms' ? (
         // Reachable from outside the app, and rendered from the address
