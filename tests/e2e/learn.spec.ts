@@ -10,7 +10,7 @@ import { openCoach } from './coach';
 import { boardGrid } from './board';
 
 test('reads the rules, the ladder and a technique lesson', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'Learn' }).click();
 
   await expect(page.getByRole('heading', { name: 'How sudoku works' })).toBeVisible();
@@ -37,7 +37,7 @@ test('reads the rules, the ladder and a technique lesson', async ({ page }, test
 
 test('keeps the index on screen while a lesson opens beside it', async ({ page }, testInfo) => {
   test.skip(!['laptop', 'wide'].includes(testInfo.project.name), 'one column below laptop');
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'Learn' }).click();
 
   const index = page.getByTestId('left-pane');
@@ -60,7 +60,7 @@ test('keeps the index on screen while a lesson opens beside it', async ({ page }
 });
 
 test('a named technique links from the coach panel to its lesson', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
@@ -96,7 +96,7 @@ test('a named technique links from the coach panel to its lesson', async ({ page
 });
 
 test('offers a puzzle chosen for the technique at the edge of mastery', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
 
   // A fresh player has met nothing, so the edge is the first technique in the

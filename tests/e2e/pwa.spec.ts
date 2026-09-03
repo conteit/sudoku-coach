@@ -27,7 +27,7 @@ test('ships an installable manifest with the icons an install prompt needs', asy
   page,
   request,
 }) => {
-  await page.goto('/');
+  await page.goto('/play');
 
   const href = await page.locator('link[rel="manifest"]').getAttribute('href');
   expect(href, 'a manifest must be linked from the document').not.toBeNull();
@@ -38,7 +38,9 @@ test('ships an installable manifest with the icons an install prompt needs', asy
   const manifest = (await response.json()) as Manifest;
   expect(manifest.name).toBeTruthy();
   expect(manifest.short_name).toBeTruthy();
-  expect(manifest.start_url).toBeTruthy();
+  // `/play`, not `/`: an installed app opens the board, since whoever
+  // installed it has already read the landing page.
+  expect(manifest.start_url).toContain('/play');
   expect(manifest.display).toBe('standalone');
 
   const sizes = (manifest.icons ?? []).map((icon) => icon.sizes);
@@ -56,7 +58,7 @@ test('ships an installable manifest with the icons an install prompt needs', asy
 });
 
 test('says when it is ready to play offline', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/play');
 
   // The promise is only kept once the precache is in place, and a player who
   // is never told finds out by losing signal.
@@ -66,7 +68,7 @@ test('says when it is ready to play offline', async ({ page }) => {
 });
 
 test('plays with the network off', async ({ page, context }) => {
-  await page.goto('/');
+  await page.goto('/play');
 
   // The service worker must be in control before the network goes away —
   // precaching is what makes the next load possible at all.

@@ -13,7 +13,7 @@ import { openCoach } from './coach';
 import { boardGrid } from './board';
 
 test('switches language, and keeps it across a restart', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'Italiano' }).click();
 

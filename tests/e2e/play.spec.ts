@@ -81,7 +81,7 @@ async function enter(page: Page, cell: number, digit: number): Promise<void> {
 }
 
 async function startEasyGame(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   // Generation runs in a worker and retries until the rating matches.

@@ -52,6 +52,8 @@ dependency.
 | `src/i18n/` | Flat dotted dictionary, `t()`, and the locale React context | state/types |
 | `src/ui/` | Presentational components: grid, keypad, game list, coach panel | engine, state, i18n |
 | `src/app/` | The assembled app: screens, and the hooks that bind them to the layers below | everything |
+| `src/app/LandingView.tsx` | The front door: the thesis, and today's puzzle to try it on | engine, i18n |
+| `src/app/dailyPuzzle.ts` | The day's seed. One puzzle a day, the same for everyone, stored nowhere | — |
 | `src/App.tsx` | Shell: hydration order, theme, locale, which screen is showing | app, state |
 
 **The three `types.ts` files are frozen interfaces.** Parallel work streams build
@@ -71,9 +73,20 @@ locally. Open gaps are collected in issue #25.
 | `useCoachSession.ts` | The ladder, the note check, teachable nudges, and mastery credit |
 | `useGenerator.ts` | One worker per mounted app, aborted when nobody is waiting |
 
-There is no router. Which screen shows is derived from the store's
-`activeGameId` plus two pieces of shell state, because a URL for a board would
-only mean something on the device holding that game.
+**Two routes, and no more.** `/` is the landing page, `/play` is the app;
+`src/app/useRoute.ts` is forty lines of `pushState` and `popstate` rather than
+a router dependency, because the question has two possible answers. Inside
+`/play`, which screen shows is still derived from the store's `activeGameId`
+plus two pieces of shell state.
+
+**There are no per-game URLs**, and that is the original no-router note
+surviving intact rather than being overruled: a URL for a board would only
+mean something on the device holding that game. What changed is that a
+landing page has to be linkable, shareable and indexable, and a page reachable
+only by pressing something inside the app is none of those. `vercel.json`
+already rewrites every path to `index.html`, so the addresses work on a cold
+load; the installed app's `start_url` is `/play`, since whoever installed it
+has already read the front door.
 
 ## Key invariants
 

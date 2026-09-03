@@ -34,7 +34,11 @@ export default defineConfig({
         background_color: '#faf7f2',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        // The installed app opens the app, not the front door: someone who
+        // has added this to their home screen has already been sold. `scope`
+        // stays '/' so the landing page is still inside the service worker's
+        // reach and still installable from there.
+        start_url: '/play',
         scope: '/',
         categories: ['games', 'education', 'puzzle'],
         icons: [
