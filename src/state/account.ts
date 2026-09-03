@@ -77,8 +77,10 @@ export const accountOf = (user: {
   displayName: string | null;
 }): Account => ({ uid: user.uid, email: user.email, displayName: user.displayName });
 
-export const createAccountStore = (config: FirebaseConfig | null = FIREBASE_CONFIG) =>
-  create<AccountStore>()((set) => ({
+export const createAccountStore = (config: FirebaseConfig | null = FIREBASE_CONFIG) => {
+  let watching = false;
+
+  return create<AccountStore>()((set) => ({
     account: null,
     // Nothing to wait for when the build has no auth: `ready` is immediately
     // true so no screen sits behind a spinner for a feature that is absent.
@@ -87,7 +89,12 @@ export const createAccountStore = (config: FirebaseConfig | null = FIREBASE_CONF
     failed: false,
 
     watch: () => {
-      if (config === null) return;
+      if (config === null || watching) return;
+      // Idempotent, because it is now called on entering the app rather than
+      // once at boot — a player who goes to the front door and back would
+      // otherwise stack a fresh `onAuthStateChanged` listener every round
+      // trip, and nothing ever removes them.
+      watching = true;
       void (async () => {
         const { onAuthStateChanged } = await import('firebase/auth');
         const { authOf } = await import('./firebase');
@@ -123,5 +130,6 @@ export const createAccountStore = (config: FirebaseConfig | null = FIREBASE_CONF
       set({ account: null, failed: false });
     },
   }));
+};
 
 export const useAccount = createAccountStore();

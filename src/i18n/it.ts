@@ -279,6 +279,9 @@ export const it: Dictionary = {
   'settings.tab.board': 'Griglia',
   'settings.tab.general': 'Generale',
 
+  'sync.notice.signedOut': 'Le tue partite sono salvate su questo dispositivo. La sincronizzazione è in pausa finché non accedi di nuovo a Google: il pulsante è nelle Impostazioni.',
+  'sync.notice.failed': 'Le tue partite sono salvate su questo dispositivo. La sincronizzazione non ha raggiunto Google e verrà ritentata.',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };
