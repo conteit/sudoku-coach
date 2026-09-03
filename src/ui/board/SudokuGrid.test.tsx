@@ -288,17 +288,41 @@ describe('the win', () => {
     expect(cellAt(0).getAttribute('style')).toBeNull();
   });
 
-  it('flips every cell, on a diagonal wave', () => {
+  it('falls row by row, scattered within each row', () => {
     render(<Harness celebrate />);
 
-    // r1c1 goes first; the two cells a step along either edge go together,
-    // because the wave is row + column and not reading order.
     expect(cellAt(0).className).toContain('cell-win');
-    expect(cellAt(0).style.getPropertyValue('--win-delay')).toBe('0ms');
-    expect(cellAt(1).style.getPropertyValue('--win-delay')).toBe('45ms');
-    expect(cellAt(9).style.getPropertyValue('--win-delay')).toBe('45ms');
-    // The far corner is the last of sixteen diagonals.
-    expect(cellAt(80).style.getPropertyValue('--win-delay')).toBe('720ms');
+
+    const delayOf = (cell: number): number =>
+      Number(cellAt(cell as CellIndex).style.getPropertyValue('--win-delay').replace('ms', ''));
+
+    // It falls: every cell of row 3 starts after every cell of row 1, however
+    // the scatter lands. That is the difference between rain and a curtain
+    // being drawn sideways.
+    const row1 = Array.from({ length: 9 }, (_, col) => delayOf(col));
+    const row3 = Array.from({ length: 9 }, (_, col) => delayOf(18 + col));
+    expect(Math.max(...row1)).toBeLessThan(Math.min(...row3));
+
+    // And it is uneven: a row whose cells all started together is a column
+    // sweep wearing a different direction, which is what this replaced.
+    expect(new Set(row1).size).toBeGreaterThan(1);
+  });
+
+  it('scatters the same way every time, so a win is not a dice roll', () => {
+    // The unevenness is a hash of the cell, not a random number: the same
+    // board has to animate the same way twice, or nothing can pin it.
+    const { unmount } = render(<Harness celebrate />);
+    const first = Array.from({ length: 9 }, (_, col) =>
+      cellAt(col as CellIndex).style.getPropertyValue('--win-delay'),
+    );
+    unmount();
+
+    render(<Harness celebrate />);
+    const second = Array.from({ length: 9 }, (_, col) =>
+      cellAt(col as CellIndex).style.getPropertyValue('--win-delay'),
+    );
+
+    expect(second).toEqual(first);
   });
 
   it('drops the green while it celebrates', () => {

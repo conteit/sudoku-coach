@@ -101,8 +101,9 @@ export interface SudokuGridProps {
   colorEntries?: boolean;
   /**
    * The puzzle is finished: turn the board over, cell by cell, and leave it
-   * gold. The wave is a diagonal — the delay is row + column — so it reads as
-   * sweeping across the board rather than as 81 cells firing at once.
+   * green. The delay falls with the row and is scattered within it, so the
+   * board reads as a shower rather than as columns being switched on in
+   * turn.
    *
    * Only `transform` and `background-color` animate, so the board's box is
    * untouched (invariant 9), and the same flag drops the green match layer
@@ -119,12 +120,22 @@ export interface SudokuGridProps {
 const ROW_INDEXES = Array.from({ length: SIZE }, (_, r) => r);
 
 /*
- * The gap between one diagonal of the win wave and the next. Sixteen
- * diagonals at this step is a hair over 700ms before the last cell starts,
- * which lands the whole sweep inside the beat before the solved sheet opens
- * over it — long enough to read as a wave, short enough not to be a wait.
+ * The win reads as rain rather than as a machine.
+ *
+ * It was `(row + col) * step`, a clean diagonal — and a clean diagonal is
+ * exactly what makes it look like columns being switched on one after
+ * another, which is what Paolo saw. A shower has two properties instead: it
+ * falls (so the delay is the row's, not the diagonal's) and it is uneven (so
+ * cells in the same row do not start together).
+ *
+ * The unevenness is a hash of the cell index, not a random number: the same
+ * board has to animate the same way every time it is solved, and a test
+ * cannot pin a wave that re-rolls itself.
  */
-const WIN_STEP_MS = 45;
+const WIN_ROW_MS = 55;
+const WIN_SCATTER_MS = 18;
+const winDelay = (row: number, col: number): number =>
+  row * WIN_ROW_MS + (((row * 9 + col) * 37) % 7) * WIN_SCATTER_MS;
 
 export function SudokuGrid({
   cells,
@@ -307,7 +318,7 @@ export function SudokuGrid({
                   highlightMatches && highlightMatchingNotes && !celebrate ? highlightDigit : null
                 }
                 colorEntries={colorEntries && !celebrate}
-                winDelayMs={celebrate ? (row + col) * WIN_STEP_MS : null}
+                winDelayMs={celebrate ? winDelay(row, col) : null}
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
               />

@@ -160,13 +160,16 @@ only mean something on the device holding that game.
    projects, through the level-2 disclosure that swaps the lesson column's
    contents — the one state that actually changes a column's content mid-game.
 9b. **The celebration is transform-only.** The solved board turns each cell
-    over and leaves it gold (`.cell-win` in `src/index.css`, driven by
+    over and leaves it green (`.cell-win` in `src/index.css`, driven by
     `SudokuGrid`'s `celebrate`). It animates `transform` and
     `background-color` and nothing else, so invariant 9 holds through it —
-    the board's box is the same box before, during and after. The wave is a
-    per-cell delay on the diagonal (row + column), and `animation-fill-mode:
-    both` is what makes the reduced-motion rule degrade honestly: the
-    animation collapses to 0.01ms and the board simply *is* gold.
+    the board's box is the same box before, during and after. The delay falls
+    with the row and is scattered within it by a hash of the cell index, so
+    the board reads as a shower rather than as columns switching on in turn;
+    the hash rather than a random number, because the same board has to
+    animate the same way twice. `animation-fill-mode: both` is what makes the
+    reduced-motion rule degrade honestly: the animation collapses to 0.01ms
+    and the board simply *is* green.
 
 9c. **The commentary scrolls; the board does not.** At `laptop` and above both
     asides are their own scrollers — `overflow-y-auto` with
