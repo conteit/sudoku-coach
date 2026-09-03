@@ -272,6 +272,12 @@ export const en = {
   'sync.consent': 'Google needs your permission again before this can sync.',
   'sync.conflict': 'Play the same puzzle on two devices and the one you played on last wins — the other version is not kept.',
 
+  'db.blocked.title': 'Open in another window',
+  'db.blocked.body': 'Sudoku Coach is running in another tab or in the installed app, and this version cannot start until that one closes. Close it, then reload. Nothing has been lost — your games are still on this device.',
+  'db.superseded.title': 'Reload to continue',
+  'db.superseded.body': 'Another window updated the app. Reload this one to catch up. Nothing has been lost.',
+  'action.reload': 'Reload',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;

@@ -136,6 +136,72 @@ export class SudokuCoachDB extends Dexie {
 export const db = new SudokuCoachDB();
 
 /* -------------------------------------------------------------------------- */
+/* When another window is in the way                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * An IndexedDB upgrade cannot run while another connection holds the old
+ * version open, and the blocked `open()` never settles — it waits, without a
+ * timeout and without failing.
+ *
+ * That is not a hypothetical. Shipping schema v2 did exactly this to a player
+ * with the installed app open in the background: a frozen PWA window cannot
+ * run its `versionchange` handler to step aside, so it held v1, the new tab's
+ * `open()` hung, both stores' `hydrate()` never resolved, `hydrated` stayed
+ * false, and the shell rendered its loading placeholder forever. A blank
+ * screen, with the player's whole library apparently gone and nothing on
+ * screen saying otherwise.
+ *
+ * Two halves to not doing that again. This connection now steps aside when
+ * someone else needs to upgrade, so *we* are never the obstruction — which is
+ * what makes the next schema change safe. And when we are the one blocked, it
+ * is a state the shell can render rather than silence, because the player is
+ * the only one who can close the other window.
+ */
+export type DatabaseBlock = 'none' | 'blocked' | 'superseded';
+
+let block: DatabaseBlock = 'none';
+const watchers = new Set<(state: DatabaseBlock) => void>();
+
+const setBlock = (next: DatabaseBlock): void => {
+  if (block === next) return;
+  block = next;
+  for (const watcher of watchers) watcher(next);
+};
+
+export const databaseBlock = (): DatabaseBlock => block;
+
+/** Subscribes, and reports the current state immediately. Returns an unsubscribe. */
+export function watchDatabaseBlock(watcher: (state: DatabaseBlock) => void): () => void {
+  watchers.add(watcher);
+  watcher(block);
+  return () => {
+    watchers.delete(watcher);
+  };
+}
+
+/**
+ * Wires the two events onto one connection. Applied to the app's `db` below;
+ * exported so a test can drive a private database through the same paths.
+ */
+export function observeBlocking(conn: SudokuCoachDB): void {
+  // Us, waiting on someone else. Only the player can clear it.
+  conn.on('blocked', () => setBlock('blocked'));
+
+  // Someone else waiting on us. Closing is not optional politeness — a
+  // connection that holds on is precisely the frozen background window that
+  // caused this, and Dexie cannot upgrade around it.
+  conn.on('versionchange', () => {
+    conn.close();
+    setBlock('superseded');
+  });
+
+  conn.on('ready', () => setBlock('none'));
+}
+
+observeBlocking(db);
+
+/* -------------------------------------------------------------------------- */
 /* Games                                                                      */
 /* -------------------------------------------------------------------------- */
 

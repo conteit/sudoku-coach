@@ -270,6 +270,12 @@ export const it: Dictionary = {
   'sync.consent': 'Google deve chiederti di nuovo il permesso prima di poter sincronizzare.',
   'sync.conflict': 'Se giochi lo stesso schema su due dispositivi, vince quello su cui hai giocato per ultimo: l\u2019altra versione non viene conservata.',
 
+  'db.blocked.title': 'Aperto in un\u2019altra finestra',
+  'db.blocked.body': 'Sudoku Coach è in esecuzione in un\u2019altra scheda o nell\u2019app installata, e questa versione non può partire finché quella resta aperta. Chiudila, poi ricarica. Non hai perso nulla: le tue partite sono ancora su questo dispositivo.',
+  'db.superseded.title': 'Ricarica per continuare',
+  'db.superseded.body': 'Un\u2019altra finestra ha aggiornato l\u2019app. Ricarica questa per allinearla. Non hai perso nulla.',
+  'action.reload': 'Ricarica',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };
