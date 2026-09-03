@@ -16,10 +16,19 @@ import { preferredLocale } from './i18n/locale';
 import { LocaleProvider } from './i18n/react';
 import { useProfile } from './state/profile';
 import { useGameStore } from './state/store';
-import type { Difficulty, TechniqueId } from './engine/types';
+import { parseGrid } from './engine/board';
+import type {
+  CellIndex,
+  Difficulty,
+  Digit,
+  GeneratedPuzzle,
+  TechniqueId,
+} from './engine/types';
 import { GameView } from './app/GameView';
+import { LandingView } from './app/LandingView';
 import { LearnView } from './app/LearnView';
 import { LibraryView } from './app/LibraryView';
+import { useRoute } from './app/useRoute';
 import { NewGameSheet } from './app/NewGameSheet';
 import { OfflineNotice } from './app/OfflineNotice';
 import { SettingsSheet } from './app/SettingsSheet';
@@ -36,6 +45,7 @@ export default function App() {
   const games = useGameStore((state) => state.games);
   const activeGame = activeGameId === null ? null : (games[activeGameId] ?? null);
 
+  const { route, go } = useRoute();
   const [showNewGame, setShowNewGame] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   /** null = Learn is closed; a technique = opened straight onto that lesson. */
@@ -71,12 +81,43 @@ export default function App() {
     void useGameStore.getState().closeGame();
   };
 
+  /**
+   * Into the app, carrying the landing board if the visitor started one.
+   *
+   * The taster's placements are replayed as real moves rather than written
+   * into the new game's cells: they are the player's moves, and a board whose
+   * first four digits cannot be undone would be lying about where they came
+   * from.
+   */
+  const startFromLanding = (
+    taster: { puzzle: GeneratedPuzzle; entries: readonly (Digit | null)[] } | null,
+  ): void => {
+    go('play');
+    if (taster === null) return;
+    const givens = parseGrid(taster.puzzle.givens);
+    void useGameStore
+      .getState()
+      .startGame(taster.puzzle)
+      .then(() => {
+        const dispatch = useGameStore.getState().dispatch;
+        taster.entries.forEach((value, cell) => {
+          if (value === null || givens[cell] !== null) return;
+          dispatch({ type: 'setValue', cell: cell as CellIndex, digit: value });
+        });
+      });
+  };
+
   return (
     <LocaleProvider locale={profile.locale}>
       {/* Nothing renders before the profile is read: a first paint in the wrong
           language or the wrong theme is worse than one frame of nothing. */}
       {!profileReady || !gamesReady ? (
         <div className="min-h-dvh" aria-busy="true" />
+      ) : route === 'landing' ? (
+        // The front door. It reads no game state and writes none — a visitor
+        // who has never played sees the same page as one with four saved
+        // puzzles, and "Start" is what moves them.
+        <LandingView onStart={startFromLanding} />
       ) : learning !== null ? (
         <LearnView
           profile={profile}

@@ -11,7 +11,7 @@ import { expect, test } from '@playwright/test';
 
 test('shows progress beside the games once there is room', async ({ page }, testInfo) => {
   const wide = ['laptop', 'wide'].includes(testInfo.project.name);
-  await page.goto('/');
+  await page.goto('/play');
 
   const progress = page.getByRole('complementary', { name: 'Your progress' });
   if (wide) {

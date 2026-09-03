@@ -26,8 +26,15 @@ export interface GeneratorState {
 }
 
 export interface UseGenerator extends GeneratorState {
-  /** Resolves to null when the run was cancelled or the worker failed. */
-  generate: (difficulty: Difficulty) => Promise<GenerationResult | null>;
+  /**
+   * Resolves to null when the run was cancelled or the worker failed.
+   *
+   * `seed` makes a run reproducible, which the worker protocol has always
+   * supported for replaying bug reports. The landing page uses it for the
+   * opposite reason: the same seed every day means every visitor is handed
+   * the same puzzle without anything having to store or serve it.
+   */
+  generate: (difficulty: Difficulty, seed?: number) => Promise<GenerationResult | null>;
   /**
    * A puzzle whose solve path actually needs `technique`. Falls back to the
    * last puzzle generated — `matched` on the result says which happened, so a
@@ -73,7 +80,7 @@ export function useGenerator(): UseGenerator {
     setState({ running: false, progress: null, failed: false });
   }, []);
 
-  const generate = useCallback(async (difficulty: Difficulty) => {
+  const generate = useCallback(async (difficulty: Difficulty, seed?: number) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -83,6 +90,7 @@ export function useGenerator(): UseGenerator {
     try {
       const result = await clientRef.current.generate({
         difficulty,
+        seed,
         signal: controller.signal,
         onProgress: (progress) => {
           // A stale run's progress must not repaint the sheet the player is

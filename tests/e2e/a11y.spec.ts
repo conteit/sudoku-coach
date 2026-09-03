@@ -17,14 +17,24 @@ import { boardGrid } from './board';
 const audit = (page: Page) =>
   new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
 
-test('the library screen is clean', async ({ page }) => {
+test('the landing page is clean', async ({ page }) => {
+  // The first page anyone sees, and the only one a search engine will read.
+  // It is also the one screen a visitor reaches without ever having chosen
+  // anything, so it has the least excuse of all of them.
   await page.goto('/');
+  await expect(page.getByRole('grid')).toBeVisible({ timeout: 20_000 });
+  const results = await audit(page).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('the library screen is clean', async ({ page }) => {
+  await page.goto('/play');
   const results = await audit(page).analyze();
   expect(results.violations).toEqual([]);
 });
 
 test('Learn is clean, list and lesson', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'Learn' }).click();
   expect((await audit(page).analyze()).violations).toEqual([]);
 
@@ -33,7 +43,7 @@ test('Learn is clean, list and lesson', async ({ page }) => {
 });
 
 test('the board is clean, with a hint open and notes flagged', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
@@ -51,7 +61,7 @@ test('the board is clean, with a hint open and notes flagged', async ({ page }) 
 });
 
 test('a dialog traps nothing it should not', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   expect((await audit(page).analyze()).violations).toEqual([]);
 });
@@ -66,7 +76,7 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
     'the coach sheet only exists on a narrow viewport',
   );
 
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
@@ -81,14 +91,14 @@ test('the coach sheet is accessible', async ({ page }, testInfo) => {
 
 test('the library is clean with the progress pane open beside the games', async ({ page }, testInfo) => {
   // The progress pane (`LibraryView`'s right `SplitLayout` column) only
-  // exists from the laptop tier up; below it `page.goto('/')` alone already
+  // exists from the laptop tier up; below it `page.goto('/play')` alone already
   // covers the single-pane screen the first library audit above asserts.
   test.skip(
     !['laptop', 'wide'].includes(testInfo.project.name),
     'the progress pane only exists from the laptop tier up',
   );
 
-  await page.goto('/');
+  await page.goto('/play');
   // Confirms the two-pane state is actually on screen, so a layout
   // regression that dropped the pane would fail here rather than let the
   // audit below pass over a screen it never intended to check.
@@ -105,7 +115,7 @@ test('Learn is clean with the index and an open lesson side by side', async ({ p
     'the two-pane layout only exists from the laptop tier up',
   );
 
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'Learn' }).click();
   await page.getByTestId('left-pane').getByRole('button', { name: /naked single/i }).click();
 
@@ -126,7 +136,7 @@ test('puts the board before the coach in the reading order', async ({ page }, te
     'the coach column only exists from the laptop tier up',
   );
 
-  await page.goto('/');
+  await page.goto('/play');
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await page.getByRole('button', { name: 'Easy', exact: true }).click();
   await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
