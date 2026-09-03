@@ -141,9 +141,13 @@ variable, the way Paolo's other project does it.
 Filed as `needs-human` issues, not buried here:
 
 1. Create the Firebase project and enable the Google sign-in provider.
-2. Configure the Google Cloud OAuth consent screen, add the `drive.appdata`
-   scope, and **publish it to production** (Testing status is what imposes
-   the 100-user cap and the 7-day refresh tokens, not the scope).
+2. Configure the consent screen and **publish it to production**. It lives in
+   the *Cloud* console rather than Firebase — the same project seen through a
+   second console — under APIs & Services → Google Auth Platform, whose
+   Audience tab holds the Publish button. Testing status is what imposes the
+   100-user cap and the 7-day refresh tokens; the scope imposes nothing.
+   Paolo wants no custom logo, which is also the answer that avoids brand
+   verification entirely. Steps are in #85.
 3. Set the Vercel environment variables: the Firebase web config, and
    `VITE_DEV_ALLOWLIST`.
 
