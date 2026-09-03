@@ -79,11 +79,28 @@ invisible in the game view except in Settings.
 **Settled:** the hidden `appDataFolder`, and newest-wins per whole game.
 
 - **Scope: `drive.appdata` only.** The app can never see the user's own
-  files, and there is nothing in their Drive UI to accidentally delete. This
-  scope is *sensitive* in Google's classification: an unverified app is
-  limited to test users until verification, which is a real constraint on
-  "share it with friends" and has to be known now rather than discovered
-  later.
+  files, and there is nothing in their Drive UI to accidentally delete.
+
+  An earlier draft of this document called that scope *sensitive* and warned
+  about verification. **That was wrong**, and the correction matters because
+  it removes the only real obstacle here: Google classifies `drive.appdata`
+  as **non-sensitive**, alongside `drive.file` and unlike `drive` or
+  `drive.readonly`. No security assessment, no sensitive-scope review.
+
+  What does bite is the consent screen's *publishing status*, which is a
+  button rather than a review:
+
+  | | Testing | In production, non-sensitive scopes only |
+  | --- | --- | --- |
+  | Who can sign in | listed test users, max 100 | anyone |
+  | Consent screen | unverified warning | normal |
+  | Refresh tokens | expire after 7 days | normal lifetime |
+  | Google review | none | none required |
+
+  So: publish to production, request `drive.appdata` and nothing else, and
+  there is no cap and no review. The 7-day rule is close to moot anyway for a
+  browser-only client, which receives hour-long access tokens through the
+  Google Identity token client rather than a refresh token.
 - **Shape:** `profile.json` plus one file per game, keyed by game id. One
   file per game rather than one big document, so a sync is proportional to
   what changed and a corrupted file costs one puzzle.
@@ -104,24 +121,29 @@ variable, the way Paolo's other project does it.
 
 - `VITE_DEV_ALLOWLIST`, comma-separated, read at build time. A signed-in user
   whose UID or email is in it sees two extra entries in the game menu:
-  - **Solve the board** — fills the solution and completes the game, so the
-    win animation can be watched without playing a puzzle out.
+  - **Preview the win** — plays the celebration on the board as it stands,
+    without completing anything. Paolo's call, and it makes the feature
+    simpler than the "solve it" it started as: nothing is written, so there
+    is no completion to record, no mastery to credit, no recap to generate
+    and nothing to sync. It is a view state, not a move.
   - **Dump state** — the existing diagnostic report (#79), written to a file
     rather than a sheet, for offline analysis.
 - The allowlist is public in the bundle. That is fine and worth saying: it
   contains no secret, grants nothing to anyone who is not signed in as that
   account, and the tools it unlocks are harmless anyway.
-- **Solve the board must not pollute the record.** A dev-solved game should
-  be marked as such, or mastery and the recap will report a puzzle nobody
-  played.
+- The record cannot be polluted, because nothing is written. This is why
+  "preview the win" beats "solve the board": a dev-solved game would have
+  needed a flag on `Game`, a rule in mastery, a rule in the recap and a rule
+  in sync, all to describe a puzzle nobody played.
 
 ## What Paolo has to do before slices 2-4 can start
 
 Filed as `needs-human` issues, not buried here:
 
 1. Create the Firebase project and enable the Google sign-in provider.
-2. Configure the Google Cloud OAuth consent screen and add the
-   `drive.appdata` scope — including the decision about verification.
+2. Configure the Google Cloud OAuth consent screen, add the `drive.appdata`
+   scope, and **publish it to production** (Testing status is what imposes
+   the 100-user cap and the 7-day refresh tokens, not the scope).
 3. Set the Vercel environment variables: the Firebase web config, and
    `VITE_DEV_ALLOWLIST`.
 
