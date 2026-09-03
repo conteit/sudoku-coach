@@ -289,6 +289,8 @@ export const en = {
 
   'settings.sweepOneDigit': 'Sweep one digit at a time',
 
+  'settings.shadeDigitPeers': 'Shade where the digit cannot go',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;

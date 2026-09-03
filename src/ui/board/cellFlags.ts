@@ -21,6 +21,12 @@ export const CELL_SPOTLIGHT = 1 << 3;
 export const CELL_HOUSE = 1 << 4;
 /** Duplicates a digit in one of its houses. */
 export const CELL_CONFLICT = 1 << 5;
+/**
+ * Empty, and sharing a house with a placed instance of the highlighted digit —
+ * so that digit cannot go here. The weakest layer on the board, and the only
+ * one that says where something is *not*.
+ */
+export const CELL_EXCLUDED = 1 << 6;
 
 export const hasFlag = (flags: number, bit: number): boolean => (flags & bit) !== 0;
 

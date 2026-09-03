@@ -1,5 +1,9 @@
 # Sudoku Coach
 
+[![ci](https://github.com/conteit/sudoku-coach/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/conteit/sudoku-coach/actions/workflows/ci.yml)
+[![licence](https://img.shields.io/badge/licence-Apache%202.0-blue)](LICENSE)
+[![PWA](https://img.shields.io/badge/PWA-installable%20%C2%B7%20offline-5a5a5a)](https://sudoku-coach.lab.paolocontessi.me)
+
 A sudoku PWA that teaches you to solve — it never solves for you.
 
 **Live:** https://sudoku-coach.lab.paolocontessi.me
@@ -36,6 +40,16 @@ eliminates a digit that belongs in the solution.
   closest to owning, on the gentlest grid that can require it
 - A Learn section — the rules, what the coach will and will not say, and a page
   per technique built from the same lessons the coach delivers mid-game
+- Sweeping aids, both off by default because each takes something from the
+  player: one digit at a time while taking notes, so a mis-tap cannot write the
+  wrong note or move the highlight; and cross-hatching that shades where the
+  highlighted digit cannot go. The second is a training wheel — it draws the
+  eliminations, never the conclusion, because the last unshaded cell in a box
+  is a digit and the digit is always yours to find
+- An optional Google account, and sync through the hidden app-data folder of
+  your own Drive: newest save wins per whole game, deletions carry tombstones so
+  a puzzle deleted on one device stays deleted, and none of it is ever in the
+  way of a game
 - Playable from the keyboard, and in English or Italian
 - Installable, and fully playable offline
 
@@ -43,7 +57,13 @@ eliminates a digit that belongs in the solution.
 
 React 19 · TypeScript · Vite · Tailwind 4 · Dexie (IndexedDB) · Vitest ·
 Playwright · vite-plugin-pwa. All computation runs in the browser; generation
-runs in a Web Worker. No backend.
+runs in a Web Worker.
+
+**No backend of ours.** Sign-in is Firebase Authentication and sync writes to
+the player's own Google Drive under the `drive.appdata` scope — a hidden folder
+this app cannot see past. There is no server holding anyone's puzzles, which is
+also why the app is complete with the network off and complete without an
+account.
 
 ## Develop
 
@@ -55,12 +75,14 @@ npm run e2e        # Playwright against the production build
 npm run audit      # Lighthouse, thresholds in lighthouserc.json
 ```
 
-CI runs all three. The e2e suite plays a generated puzzle to completion with no
-test-only seam in the bundle — it reads the board out of the DOM and solves it
+CI runs all three; the badge above is that workflow on `main`. The e2e suite
+plays a generated puzzle to completion with no test-only seam in the bundle — it reads the board out of the DOM and solves it
 with the same engine the app ships — and asserts installability, offline play
 and WCAG 2 AA (axe) on the real screens.
 
 Architecture and module contracts: [`docs/architecture.md`](docs/architecture.md).
+It is the binding reference — where it and the code disagree, one of them is a
+bug, and which one is worth saying out loud.
 
 ## Licence
 

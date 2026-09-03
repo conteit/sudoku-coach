@@ -52,6 +52,8 @@ export const DEFAULT_PROFILE: PlayerProfile = {
     autoClearDeadNotes: false,
     // Off because it takes something away — one digit at a time is the point.
     sweepOneDigit: false,
+    // Off because it does a share of the player's scanning: a training wheel.
+    shadeDigitPeers: false,
   },
 };
 

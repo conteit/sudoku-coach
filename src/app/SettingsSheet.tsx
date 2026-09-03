@@ -370,6 +370,13 @@ export function SettingsSheet({
                 checked={profile.settings.sweepOneDigit}
                 onChange={(sweepOneDigit) => onSettings({ sweepOneDigit })}
               />
+              {/* A training wheel, and the only switch here that does a share
+                  of the player's own scanning — which is why it ships off. */}
+              <Toggle
+                label={t('settings.shadeDigitPeers')}
+                checked={profile.settings.shadeDigitPeers}
+                onChange={(shadeDigitPeers) => onSettings({ shadeDigitPeers })}
+              />
             </>
           ) : active === 'general' ? (
             <>

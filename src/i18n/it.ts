@@ -287,6 +287,8 @@ export const it: Dictionary = {
 
   'settings.sweepOneDigit': 'Cerca una cifra alla volta',
 
+  'settings.shadeDigitPeers': 'Ombreggia dove la cifra non può andare',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };

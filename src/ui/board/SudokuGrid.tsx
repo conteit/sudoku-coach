@@ -20,6 +20,7 @@ import { CELL_COUNT, HOUSES, SIZE, colOf, peersOf, rowOf } from '../../engine/bo
 import { Cell } from './Cell';
 import {
   CELL_CONFLICT,
+  CELL_EXCLUDED,
   CELL_HOUSE,
   CELL_MATCH,
   CELL_PEER,
@@ -84,6 +85,17 @@ export interface SudokuGridProps {
    * else this digit can go.
    */
   highlightDigit?: Digit | null;
+  /**
+   * Wash the empty cells the highlighted digit cannot go in — cross-hatching,
+   * drawn rather than done in the player's head.
+   *
+   * Subordinate to `highlightDigit` and to nothing else: with no digit lit
+   * there is no question being asked, so there is nothing to shade. Placed
+   * digits only, never pencil marks — a wrong mark would shade a cell that is
+   * perfectly available, and this layer's whole claim is that it cannot be
+   * wrong.
+   */
+  shadeDigitPeers?: boolean;
   /**
    * Also echo the green onto pencil marks that match `highlightDigit`, not
    * just placed digits. Independent of `highlightMatches`: that one turns the
@@ -151,6 +163,7 @@ export function SudokuGrid({
   highlightPeers = true,
   highlightMatches = true,
   highlightDigit = null,
+  shadeDigitPeers = false,
   highlightMatchingNotes = true,
   colorEntries = true,
   celebrate = false,
@@ -184,6 +197,18 @@ export function SudokuGrid({
     // Not while the board is celebrating: green digits and a green wash on
     // gold are two colours arguing over a third, and a finished board has
     // nothing left to point at.
+    // Before the match layer, so a cell holding the digit is never also drawn
+    // as a place it cannot go — and below everything else, since this is the
+    // one layer that says where something is *not*.
+    if (shadeDigitPeers && !celebrate && highlightDigit !== null) {
+      for (let i = 0; i < CELL_COUNT; i += 1) {
+        if (cells[i].value !== highlightDigit) continue;
+        for (const peer of peersOf(i as CellIndex)) {
+          if (cells[peer].value === null) out[peer] |= CELL_EXCLUDED;
+        }
+      }
+    }
+
     if (highlightMatches && !celebrate && highlightDigit !== null) {
       for (let i = 0; i < cells.length; i++) {
         if (cells[i].value === highlightDigit) out[i] |= CELL_MATCH;
@@ -205,6 +230,7 @@ export function SudokuGrid({
     conflicts,
     highlightPeers,
     highlightMatches,
+    shadeDigitPeers,
     celebrate,
   ]);
 
