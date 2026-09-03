@@ -529,6 +529,7 @@ export function GameView({
           highlightPeers={settings.highlightPeers}
           highlightMatches={settings.highlightMatches}
           highlightMatchingNotes={settings.highlightMatchingNotes}
+          shadeDigitPeers={settings.shadeDigitPeers}
           colorEntries={settings.colorEntries}
           // Finishing the puzzle is the one thing on this screen that is
           // purely a reward, so the board says so itself rather than leaving

@@ -28,6 +28,7 @@ import { useT, type Translate } from '../../i18n/locale';
 import { cx } from '../primitives/cx';
 import {
   CELL_CONFLICT,
+  CELL_EXCLUDED,
   CELL_MATCH,
   CELL_SELECTED,
   CELL_SPOTLIGHT,
@@ -88,6 +89,13 @@ function washClass(flags: number): string {
   if (has(flags, CELL_SPOTLIGHT)) return 'bg-coach-wash';
   if (has(flags, CELL_SELECTED)) return 'bg-entry-wash';
   if (has(flags, CELL_HOUSE)) return 'bg-coach-wash/70';
+  // Above the selection's peer shading, and that ordering is a choice worth
+  // stating: a player with this on has asked where a digit cannot go, and the
+  // twenty cells around the caret are exactly the ones they are looking at. A
+  // grey peer wash painting over the green there would hide the answer in the
+  // one place it was wanted. The selection is still unmistakable — it carries
+  // a ring, not a wash.
+  if (has(flags, CELL_EXCLUDED)) return 'bg-match-wash/40';
   // Deliberately the quietest layer: twenty cells light up at once, and it has
   // to stay behind the selection ring and the match green in the hierarchy.
   if (has(flags, CELL_PEER)) return 'bg-paper-sunk/70';
@@ -152,6 +160,7 @@ function CellImpl({
       data-cell={index}
       data-given={given || undefined}
       data-match={has(flags, CELL_MATCH) || undefined}
+      data-excluded={has(flags, CELL_EXCLUDED) || undefined}
       data-spotlight={has(flags, CELL_SPOTLIGHT) || undefined}
       data-conflict={has(flags, CELL_CONFLICT) || undefined}
       aria-selected={selected}

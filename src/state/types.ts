@@ -166,5 +166,25 @@ export interface PlayerProfile {
      * deliberate way to change it survives and only the accidental one goes.
      */
     sweepOneDigit: boolean;
+    /**
+     * With a digit highlighted, wash every empty cell that digit cannot go in.
+     *
+     * Cross-hatching, drawn for you. Off by default, and the default is the
+     * product thesis rather than taste: this does a share of the scanning the
+     * player came here to learn. `highlightMatchingNotes` is off for the same
+     * reason and nearly the same words — the elimination is the thing the coach
+     * exists to make the player find. A training wheel, useful to a beginner
+     * and meant to come off.
+     *
+     * It draws the geometry and never the conclusion. The last unshaded cell in
+     * a box is a hidden single, and emphasising it would be handing over a
+     * digit — invariant 4, and the whole point of the app. Shading eliminations
+     * teaches the technique; marking the answer replaces it.
+     *
+     * Computed from placed digits only, never from pencil marks, which is what
+     * makes it sound: a digit cannot repeat in a house, whereas a wrong mark
+     * would shade a cell that is perfectly available (invariant 3b).
+     */
+    shadeDigitPeers: boolean;
   };
 }
