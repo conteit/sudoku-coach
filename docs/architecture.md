@@ -83,6 +83,12 @@ dependency.
 | `src/app/` | The assembled app: screens, and the hooks that bind them to the layers below | everything |
 | `src/app/LandingView.tsx` | The front door: the thesis, and today's puzzle to try it on | engine, i18n |
 | `src/app/dailyPuzzle.ts` | The day's seed. One puzzle a day, the same for everyone, stored nowhere | — |
+| `src/legal/` | The privacy policy and terms, authored per locale. Read like lesson copy | — |
+| `src/sync/plan.ts` | **Every sync decision**, as a pure function. No I/O | — |
+| `src/sync/drive.ts` | Google Drive, confined to `appDataFolder`. Five REST calls | — |
+| `src/sync/token.ts` | Incremental consent for `drive.appdata`; silent re-issue | — |
+| `src/sync/engine.ts` | One sync: read both sides, execute the plan, write the manifest | plan, drive, db |
+| `src/sync/store.ts` | The switch, the status, the time. Serialises runs | engine, token, account |
 | `src/App.tsx` | Shell: hydration order, theme, locale, which screen is showing | app, state |
 
 **The three `types.ts` files are frozen interfaces.** Parallel work streams build
@@ -283,6 +289,46 @@ deploy.
 - **Download diagnostics** writes the report from `src/app/diagnostics.ts` to
   a file, for reading later and beside other reports. The sheet is still
   there for pasting one into a message now.
+
+## Drive sync
+
+Optional, off until switched on, and **never in the way of a game**. Play does
+not wait for the network and a failure is a line in Settings, never a dialog.
+
+- **Scope `drive.appdata` and nothing else.** The token cannot reach a
+  player's own files. Sign-in does not request it: consent for sync is
+  incremental, asked once when the switch is turned on, so a player who only
+  wanted their settings to follow them is never shown a Drive prompt.
+- **The remote is a manifest, a profile and one file per game.** One file per
+  game so a sync costs what changed rather than what exists, and so a file
+  that arrives corrupt costs one puzzle.
+- **`index.json` is written last.** It is what the next sync reads to decide
+  what moved. Written first, a crash halfway leaves it claiming games that
+  were never uploaded and the next sync believes it. Written last, the same
+  crash leaves it merely behind, and the next sync re-uploads — idempotent,
+  and it costs bytes rather than a board.
+- **Newest wins, per whole game**, by `updatedAt`. Not per cell and not per
+  move: the later save replaces the earlier record entirely. It can never
+  invent a board neither device had. The cost — the other version is gone —
+  is written on screen in Settings rather than left to be discovered.
+- **Deletions are dated and compete on the same terms.** A deletion writes a
+  tombstone locally whether or not anyone is signed in; without one, a game
+  deleted on a phone is indistinguishable from one the laptop has not yet
+  sent, and comes back on every sync forever. A play *newer* than the
+  tombstone legitimately outranks it, and the spent tombstone is dropped
+  rather than kept to re-delete the resurrected game. Tombstones are pruned
+  past `TOMBSTONE_TTL_MS`, which bounds the table at the stated cost that a
+  device silent for longer than that can resurrect a game.
+- **`PlayerProfile` stays frozen.** It has no timestamp and newest-wins needs
+  one, so the stamp lives in the `sync` singleton next to it, written in the
+  same transaction as the profile.
+- **The access token is never in a store.** The app can write a diagnostic
+  report of its own state and invites players to paste it into a bug report;
+  a bearer token for someone's Drive must not be reachable from there.
+
+Sync needs `VITE_GOOGLE_CLIENT_ID` alongside the Firebase config. A build
+without it has no sync — not a broken switch, a feature that build does not
+have, the same rule sign-in follows.
 
 ## Difficulty rating
 

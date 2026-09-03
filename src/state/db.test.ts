@@ -44,18 +44,46 @@ function playedGame(id: string, at = 1000): Game {
 }
 
 describe('schema', () => {
-  it('declares one version with the indexes the game list queries', () => {
-    expect(SCHEMA).toHaveLength(1);
+  it('declares the indexes the game list queries', () => {
     expect(SCHEMA[0].stores.games).toContain('updatedAt');
     expect(SCHEMA[0].stores.games).toContain('completedAt');
     expect(SCHEMA[0].stores.games).toContain('difficulty');
   });
 
-  it('opens at the declared version with both stores', async () => {
+  it('is a history, oldest first, with no gaps', () => {
+    expect(SCHEMA.map((version) => version.version)).toEqual(
+      SCHEMA.map((_, index) => index + 1),
+    );
+  });
+
+  it('opens at the latest version with every store', async () => {
     const conn = freshDb();
     await conn.open();
-    expect(conn.verno).toBe(1);
-    expect(conn.tables.map((t) => t.name).sort()).toEqual(['games', 'profile']);
+    expect(conn.verno).toBe(SCHEMA.length);
+    expect(conn.tables.map((t) => t.name).sort()).toEqual([
+      'games',
+      'profile',
+      'sync',
+      'tombstones',
+    ]);
+  });
+
+  it('carries v1 games across the v2 upgrade — the migration players will run', async () => {
+    // v2 lists only the stores it adds. If that were read as the full schema,
+    // `games` and `profile` would be dropped and every saved puzzle with them.
+    const name = `${DB_NAME}-v2-${counter++}`;
+    const v1 = new Dexie(name);
+    applySchema(v1, SCHEMA.slice(0, 1));
+    await v1.open();
+    await v1.table('games').put(playedGame('kept'));
+    v1.close();
+
+    const conn = new SudokuCoachDB(name);
+    opened.push(conn);
+    await conn.open();
+    expect(conn.verno).toBe(SCHEMA.length);
+    expect(await conn.games.get('kept')).toBeDefined();
+    expect(await conn.tombstones.toArray()).toEqual([]);
   });
 
   it('names the app database', () => {
@@ -70,10 +98,14 @@ describe('schema', () => {
     await v1.table('games').put(playedGame('legacy'));
     v1.close();
 
-    // What appending `{ version: 2, ... }` to SCHEMA will look like.
+    // What appending the *next* version to SCHEMA will look like, whatever
+    // number that turns out to be — the procedure is the claim here, not the
+    // count, and pinning the count made this test go quietly green the moment
+    // a real second version landed.
+    const nextVersion = SCHEMA.length + 1;
     let upgraded = 0;
     const v2: SchemaVersion = {
-      version: 2,
+      version: nextVersion,
       stores: { games: 'id, updatedAt, completedAt, difficulty, createdAt' },
       upgrade: async (tx) => {
         upgraded = await tx
@@ -90,7 +122,7 @@ describe('schema', () => {
     opened.push(next);
     await next.open();
 
-    expect(next.verno).toBe(2);
+    expect(next.verno).toBe(nextVersion);
     expect(upgraded).toBe(1);
     expect(await next.table<Game>('games').get('legacy')).toBeDefined();
   });

@@ -11,6 +11,8 @@ import type { Locale, PlayerProfile } from '../state/types';
 import { LOCALES } from '../i18n';
 import { useT } from '../i18n/locale';
 import { authAvailable, useAccount } from '../state/account';
+import { useSync } from '../sync/store';
+import { syncAvailable } from '../sync/token';
 import { Button } from '../ui/primitives/Button';
 import { Sheet } from '../ui/primitives/Sheet';
 import { Toggle } from '../ui/primitives/Toggle';
@@ -111,6 +113,90 @@ function AccountSection() {
   );
 }
 
+/**
+ * Sync's whole surface: a switch, a line of status, and the cost stated.
+ *
+ * Only shown to a signed-in player, because there is nothing to offer one who
+ * is not — an account is what sync syncs to. Every state here is a sentence
+ * rather than a dialog, which is the spec's rule for this feature: a sync that
+ * failed is something the player may want to know, never something that
+ * interrupts a puzzle.
+ *
+ * The conflict rule is written on screen on purpose. "Newest wins, whole game"
+ * is a choice with a cost — the other device's version of that board is gone —
+ * and a player is entitled to know it before turning this on, not after losing
+ * an evening's puzzle to it.
+ */
+function SyncSection({ locale }: { locale: Locale }) {
+  const t = useT();
+  const account = useAccount((state) => state.account);
+  const enabled = useSync((state) => state.enabled);
+  const status = useSync((state) => state.status);
+  const lastSyncedAt = useSync((state) => state.lastSyncedAt);
+
+  if (!authAvailable() || !syncAvailable() || account === null) return null;
+
+  const when =
+    lastSyncedAt === null
+      ? null
+      : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+          lastSyncedAt,
+        );
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
+        {t('sync.title')}
+      </h3>
+
+      {enabled ? (
+        <>
+          <p className="text-sm text-ink-soft" role="status">
+            {status === 'syncing'
+              ? t('sync.syncing')
+              : when === null
+                ? t('sync.never')
+                : t('sync.lastSynced', { when })}
+          </p>
+          {status === 'error' ? <p className="text-sm text-danger">{t('sync.error')}</p> : null}
+          {status === 'consent' ? <p className="text-sm text-danger">{t('sync.consent')}</p> : null}
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            disabled={status === 'syncing'}
+            onClick={() => void useSync.getState().syncNow()}
+          >
+            {t('sync.now')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            block
+            onClick={() => void useSync.getState().disable()}
+          >
+            {t('sync.disable')}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            onClick={() => void useSync.getState().enable()}
+          >
+            {t('sync.enable')}
+          </Button>
+          <p className="text-sm leading-relaxed text-ink-soft">{t('sync.why')}</p>
+        </>
+      )}
+
+      <p className="text-sm leading-relaxed text-ink-faint">{t('sync.conflict')}</p>
+    </section>
+  );
+}
+
 export function SettingsSheet({
   open,
   onClose,
@@ -130,6 +216,7 @@ export function SettingsSheet({
             not a disabled button, which would advertise a feature this build
             does not have. */}
         <AccountSection />
+        <SyncSection locale={profile.locale} />
         <Choices
           label={t('settings.language')}
           value={profile.locale}

@@ -260,6 +260,18 @@ export const en = {
   'legal.terms': 'Terms',
   'legal.updated': 'Last updated {date}',
 
+  'sync.title': 'Sync',
+  'sync.why': 'Your games stay on this device. Turn sync on and they follow your Google account to your other devices, in a private folder only this app can see.',
+  'sync.enable': 'Turn on sync',
+  'sync.disable': 'Turn off sync',
+  'sync.now': 'Sync now',
+  'sync.syncing': 'Syncing…',
+  'sync.lastSynced': 'Last synced {when}',
+  'sync.never': 'Not synced yet',
+  'sync.error': 'The last sync did not finish. It will try again.',
+  'sync.consent': 'Google needs your permission again before this can sync.',
+  'sync.conflict': 'Play the same puzzle on two devices and the one you played on last wins — the other version is not kept.',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;
