@@ -35,6 +35,16 @@ dependency.
   because an account is not a coaching preference.
 - **Static hosting, free tier.** The build is a static bundle deployed to Vercel.
   Zero serverless functions in P0.
+
+  The CSP in `vercel.json` is the tightest thing that still works, and every
+  entry beyond `'self'` is there for optional Google sign-in: `script-src`
+  reaches `apis.google.com` for the SDK's loader, `connect-src` the two token
+  endpoints plus `www.googleapis.com`, `frame-src` the auth handler and the
+  account chooser. All host allowlists. **`unsafe-inline` in `script-src` is
+  the line that does not move** — if the popup flow ever genuinely requires
+  it, the answer is the redirect flow instead. `Cross-Origin-Opener-Policy`
+  is `same-origin-allow-popups` for the same feature: `same-origin` stops the
+  popup talking back to the page that opened it.
 - **Offline-complete.** Every P0 feature works with the network off (R9).
 
 ## Module map
