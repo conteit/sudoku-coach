@@ -35,6 +35,27 @@ dependency.
   because an account is not a coaching preference.
 - **Static hosting, free tier.** The build is a static bundle deployed to Vercel.
   Zero serverless functions in P0.
+
+  The CSP in `vercel.json` is the tightest thing that still works, and it is
+  widened only against evidence. Sign-in needs three entries beyond `'self'`,
+  and each was added after a console line named it: `script-src` reaches
+  `apis.google.com`, which is where the SDK loads the loader for its own
+  iframe (`api.js?onload=__iframefcb…`); `connect-src` covers the two token
+  endpoints; `frame-src` covers the auth handler's iframe. The popup window
+  itself is a top-level context and outside our policy entirely. Anything
+  further waits for another such line, because a policy widened on a guess is
+  a policy nobody can tighten later with confidence — this one was widened on
+  a guess once, and taken back.
+
+  **`unsafe-inline` in `script-src` is the line that does not move.** If the
+  popup flow ever genuinely requires it, the answer is the redirect flow.
+  `Cross-Origin-Opener-Policy` is `same-origin-allow-popups` for the same
+  feature: `same-origin` stops the popup talking back to the page that opened
+  it.
+
+  Vercel's preview-comments toolbar (`vercel.live`) is blocked by this policy
+  and stays blocked. It is a vendor widget on preview deployments only, and
+  production's CSP is not the place to make room for it.
 - **Offline-complete.** Every P0 feature works with the network off (R9).
 
 ## Module map
