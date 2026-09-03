@@ -282,6 +282,9 @@ export const it: Dictionary = {
   'sync.notice.signedOut': 'Le tue partite sono salvate su questo dispositivo. La sincronizzazione è in pausa finché non accedi di nuovo a Google: il pulsante è nelle Impostazioni.',
   'sync.notice.failed': 'Le tue partite sono salvate su questo dispositivo. La sincronizzazione non ha raggiunto Google e verrà ritentata.',
 
+  'db.unavailable.title': 'L\u2019app non riesce ad accedere alla memoria',
+  'db.unavailable.body': 'Le partite salvate vivono in questo browser, e questo non apre la sua memoria: di solito è una finestra anonima, o un browser senza spazio. Puoi comunque giocare, ma finché non si risolve non verrà conservato nulla. Ricarica per riprovare.',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };

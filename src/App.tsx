@@ -51,7 +51,26 @@ export default function App() {
   const games = useGameStore((state) => state.games);
   const activeGame = activeGameId === null ? null : (games[activeGameId] ?? null);
 
+  /**
+   * Before the profile is read the stored language is unknown, and the blocked
+   * notice and the unblocked front door are both shown in exactly that state —
+   * so it falls back to what the browser asks for rather than to English.
+   */
+  const locale = profileReady ? profile.locale : (preferredLocale() ?? profile.locale);
+
   const { route, go } = useRoute();
+  /**
+   * Only the app proper is made of stored state.
+   *
+   * The front door generates its board from the day's seed and reads no saved
+   * game; the legal pages are authored text. Neither has any business waiting
+   * on IndexedDB, and until now both did — the shell held every route behind
+   * one hydration gate, so a database that could not be read took the landing
+   * page and the privacy policy down with the library. Those two are the pages
+   * most likely to be someone's first and only visit, and the privacy policy
+   * is linked from a Google consent screen.
+   */
+  const needsDatabase = route === 'play';
   /**
    * Another window holding the database open. Watched rather than derived,
    * because it is the one condition under which hydration never finishes and
@@ -60,6 +79,22 @@ export default function App() {
   const [block, setBlock] = useState<DatabaseBlock>('none');
   /** Sync is bootstrapped once a load, on first entering the app. */
   const syncBooted = useRef(false);
+  /** So is storage, for the same reason and on the same trigger. */
+  const storageBooted = useRef(false);
+  /**
+   * Opening storage failed outright — not another window in the way, which is
+   * `block`, but a browser that will not give the app a database at all.
+   */
+  const [storageFailed, setStorageFailed] = useState(false);
+  /**
+   * The board a visitor started on the landing page, waiting for somewhere to
+   * put it. It cannot be saved at the moment it is handed over: storage does
+   * not open until the app does, which is the point of the hand-off.
+   */
+  const [pendingTaster, setPendingTaster] = useState<{
+    puzzle: GeneratedPuzzle;
+    entries: readonly (Digit | null)[];
+  } | null>(null);
   const [showNewGame, setShowNewGame] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   /** null = Learn is closed; a technique = opened straight onto that lesson. */
@@ -67,13 +102,6 @@ export default function App() {
 
   useEffect(() => watchDatabaseBlock(setBlock), []);
 
-  useEffect(() => {
-    void useProfile.getState().hydrate(preferredLocale());
-    void useGameStore.getState().hydrate();
-    // Restores an existing session if there is one. A no-op in a build with
-    // no Firebase config, which is what keeps sign-in genuinely optional
-    // rather than merely unused.
-  }, []);
 
   /**
    * Auth and sync belong to the app, not to the front door.
@@ -92,6 +120,18 @@ export default function App() {
    */
   useEffect(() => {
     if (route !== 'play') return;
+
+    // Storage is opened here and nowhere earlier. The front door does not read
+    // it — the day's board comes from the date's own seed and the page writes
+    // nothing — so opening a database to render a page that has no use for one
+    // only creates a way for that page to fail.
+    if (!storageBooted.current) {
+      storageBooted.current = true;
+      void Promise.all([
+        useProfile.getState().hydrate(preferredLocale()),
+        useGameStore.getState().hydrate(),
+      ]).catch(() => setStorageFailed(true));
+    }
 
     // Idempotent, so returning to the app does not stack listeners.
     useAccount.getState().watch();
@@ -165,16 +205,32 @@ export default function App() {
   /**
    * Into the app, carrying the landing board if the visitor started one.
    *
+   * Handing it over is two steps now rather than one, because the landing page
+   * has no database open to save it into. The board is parked here and written
+   * by the effect below, once the app has actually opened storage — so the
+   * failure, if there is one, happens where there is a screen able to explain
+   * it rather than silently on a page that has no idea storage exists.
+   */
+  const startFromLanding = (
+    taster: { puzzle: GeneratedPuzzle; entries: readonly (Digit | null)[] } | null,
+  ): void => {
+    setPendingTaster(taster);
+    go('play');
+  };
+
+  /**
+   * Writes the parked board once the app is ready for it.
+   *
    * The taster's placements are replayed as real moves rather than written
    * into the new game's cells: they are the player's moves, and a board whose
    * first four digits cannot be undone would be lying about where they came
    * from.
    */
-  const startFromLanding = (
-    taster: { puzzle: GeneratedPuzzle; entries: readonly (Digit | null)[] } | null,
-  ): void => {
-    go('play');
-    if (taster === null) return;
+  useEffect(() => {
+    if (route !== 'play' || pendingTaster === null || !gamesReady) return;
+    const taster = pendingTaster;
+    setPendingTaster(null);
+
     const givens = parseGrid(taster.puzzle.givens);
     void useGameStore
       .getState()
@@ -185,28 +241,33 @@ export default function App() {
           if (value === null || givens[cell] !== null) return;
           dispatch({ type: 'setValue', cell: cell as CellIndex, digit: value });
         });
-      });
-  };
+      })
+      .catch(() => setStorageFailed(true));
+  }, [route, pendingTaster, gamesReady]);
 
   return (
-    // Before the profile is read the stored language is unknown, and the
-    // blocked notice below is shown in exactly that state — so it falls back
-    // to what the browser asks for rather than to English.
-    <LocaleProvider locale={profileReady ? profile.locale : (preferredLocale() ?? profile.locale)}>
+    <LocaleProvider locale={locale}>
       {/* Nothing renders before the profile is read: a first paint in the wrong
           language or the wrong theme is worse than one frame of nothing. */}
-      {block !== 'none' ? (
+      {needsDatabase && storageFailed ? (
+        <DatabaseBlockedNotice state="unavailable" />
+      ) : needsDatabase && block !== 'none' ? (
         // Ahead of the hydration check on purpose: 'superseded' can arrive
         // long after the app is running, and by then the connection is closed
         // and every screen behind this one is reading from nothing.
         <DatabaseBlockedNotice state={block} />
-      ) : !profileReady || !gamesReady ? (
+      ) : needsDatabase && (!profileReady || !gamesReady) ? (
+        // The original rule, now scoped to the screens it was written for: a
+        // first paint of *the app* in the wrong language or the wrong theme is
+        // worse than one frame of nothing. The front door has no stored
+        // language to wait for — nothing here reads storage — so it paints at
+        // once in whichever language the browser asked for.
         <div className="min-h-dvh" aria-busy="true" />
       ) : route === 'privacy' || route === 'terms' ? (
         // Reachable from outside the app, and rendered from the address
         // alone: Google's OAuth consent screen links straight here, and so
         // does anyone deciding whether to sign in at all.
-        <LegalView id={route} locale={profile.locale} onNavigate={go} />
+        <LegalView id={route} locale={locale} onNavigate={go} />
       ) : route === 'landing' ? (
         // The front door. It reads no game state and writes none — a visitor
         // who has never played sees the same page as one with four saved

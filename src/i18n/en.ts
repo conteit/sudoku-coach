@@ -284,6 +284,9 @@ export const en = {
   'sync.notice.signedOut': 'Your games are saved on this device. Sync is paused until you sign in to Google again — Settings has the button.',
   'sync.notice.failed': 'Your games are saved on this device. Sync could not reach Google and will try again.',
 
+  'db.unavailable.title': 'The app cannot reach its storage',
+  'db.unavailable.body': 'Saved games live in this browser, and this one will not open its storage — a private window, or a browser out of space, are the usual reasons. You can still play; nothing will be kept until this is sorted. Reload to try again.',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;
