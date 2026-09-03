@@ -48,7 +48,9 @@ import {
   TrashIcon,
   UndoIcon,
 } from '../ui/primitives/icons';
+import { useAccount } from '../state/account';
 import { buildDiagnosticReport, formatDiagnosticReport } from './diagnostics';
+import { isDevUser } from './devTools';
 import { GameLayout } from './GameLayout';
 import { selectHighlight, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
@@ -61,6 +63,24 @@ const HAPTICS: Record<HapticPattern, number | number[]> = {
   toggle: [4, 30, 4],
   blocked: [12, 40, 12],
 };
+
+/**
+ * Writes the report to a file the developer can keep.
+ *
+ * A file rather than the sheet, because this one is for reading later and
+ * beside other reports — the sheet is for pasting into a message now. The
+ * object URL is revoked immediately: the download has already started by
+ * then, and a URL left alive pins the whole report in memory for the life of
+ * the document.
+ */
+function downloadDiagnostics(report: string, gameId: string): void {
+  const url = URL.createObjectURL(new Blob([report], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `sudoku-coach-${gameId}-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 /** One frozen empty reading, so turning the flag off does not rebuild 81 arrays. */
 const NO_STALE: readonly (readonly Digit[])[] = [];
@@ -115,6 +135,15 @@ export function GameView({
    */
   const [diagnostics, setDiagnostics] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  /*
+   * The win animation, played on the board as it stands. Paolo's call, and it
+   * is what keeps this tool free: nothing is written, so there is no
+   * completion to record, no mastery to credit, no recap to generate and
+   * nothing to sync. A view state, not a move — which is why it is a piece of
+   * component state and not a dispatch.
+   */
+  const [previewWin, setPreviewWin] = useState(false);
+  const devUser = isDevUser(useAccount((state) => state.account));
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
   // The coach's own open/closed state, not derived from `speaking`: opening
   // the sheet is how the player asks to be spoken to, and closing it is a
@@ -496,7 +525,7 @@ export function GameView({
           // Finishing the puzzle is the one thing on this screen that is
           // purely a reward, so the board says so itself rather than leaving
           // it to the sheet that opens over it.
-          celebrate={solved}
+          celebrate={solved || previewWin}
           className={paused ? 'pointer-events-none blur-md select-none' : undefined}
         />
         {paused ? (
@@ -806,6 +835,53 @@ export function GameView({
           >
             {t('settings.title')}
           </Button>
+          {/* Two entries nobody else sees. The allowlist is public in the
+              bundle and that is fine: it grants nothing to anyone not signed
+              in as that account, and neither tool does anything a player
+              could not do to their own board. */}
+          {devUser ? (
+            <>
+              <Button
+                variant="ghost"
+                size="lg"
+                block
+                onClick={() => {
+                  setMenuOpen(false);
+                  // Writes nothing. The board is not solved, the game is not
+                  // completed, and closing the menu again is the whole undo.
+                  setPreviewWin(true);
+                }}
+              >
+                {t('dev.previewWin')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                block
+                onClick={() => {
+                  setMenuOpen(false);
+                  downloadDiagnostics(
+                    formatDiagnosticReport(
+                      buildDiagnosticReport({
+                        game,
+                        profile,
+                        tier,
+                        viewport: `${window.innerWidth}x${window.innerHeight}`,
+                        hint: coach.hint,
+                        drill: coach.drill,
+                        exhausted: coach.exhausted,
+                        review: coach.review,
+                      }),
+                    ),
+                    game.id,
+                  );
+                }}
+              >
+                {t('dev.dumpState')}
+              </Button>
+            </>
+          ) : null}
+
           {/* Below the ordinary actions, above the destructive one: it is not
               something a player reaches for while playing, but when the coach
               has said something that cannot be right, it has to be findable
