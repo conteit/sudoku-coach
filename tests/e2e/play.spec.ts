@@ -265,10 +265,12 @@ test.describe('one puzzle, end to end', () => {
     // for real: jsdom runs no animation, so a unit test can hold which cells
     // were told to flip but never that any of them ended up gold. `toHaveCSS`
     // retries, which is what lets it wait out the wave rather than racing it.
-    await expect(boardCell(page, 0)).toHaveCSS('background-color', 'rgb(58, 167, 111)');
+    // The board's own match green: the celebration borrows the colour the
+    // player already knows rather than introducing one at the last moment.
+    await expect(boardCell(page, 0)).toHaveCSS('background-color', 'rgb(211, 239, 225)');
     // The bottom row lands last — if the shower were a flash, this cell would
     // not be the one still arriving.
-    await expect(boardCell(page, 80)).toHaveCSS('background-color', 'rgb(58, 167, 111)');
+    await expect(boardCell(page, 80)).toHaveCSS('background-color', 'rgb(211, 239, 225)');
 
     // The recap reports what the coach was asked for. This puzzle was solved
     // from the solution, so the honest answer is "nothing".
@@ -276,7 +278,11 @@ test.describe('one puzzle, end to end', () => {
 
     // And a solved board belongs under Finished, not under In progress.
     await page.getByRole('button', { name: 'Your games' }).click();
-    await expect(page.getByText('Finished')).toBeVisible();
+    // `exact`, because Playwright's text matching is substring by default and
+    // the finished row itself says "Finished in 3:11". This is #80: the two
+    // matched only once the row had a duration to show, which is why it
+    // failed occasionally rather than always.
+    await expect(page.getByText('Finished', { exact: true })).toBeVisible();
     await expect(page.getByText(/Finished in \d/)).toBeVisible();
     await expect(page.getByText('Nothing on the desk')).toBeVisible();
   });
