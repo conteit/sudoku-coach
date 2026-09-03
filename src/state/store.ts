@@ -30,7 +30,7 @@ import { create } from 'zustand';
 import type { StateCreator, StoreApi } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import type { GameSummary, SudokuCoachDB } from './db';
-import { db, deleteGame, listSummaries, loadGame, saveGame } from './db';
+import { db, deleteGameRecording, listSummaries, loadGame, saveGame } from './db';
 import type { GameAction, NewGameInput } from './game';
 import { newGame, reduce, toLive, toStored } from './game';
 import type { LiveGame } from './types';
@@ -247,7 +247,10 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
         cancel(id);
         dirty.delete(id);
         opened = opened.filter((x) => x !== id);
-        await deleteGame(id, deps.conn);
+        // Recorded, not merely deleted: without a tombstone the next sync
+        // reads this as a game the other device has and this one has not yet
+        // seen, and brings it straight back.
+        await deleteGameRecording(id, deps.now(), deps.conn);
         set((state) => {
           const games = { ...state.games };
           delete games[id];

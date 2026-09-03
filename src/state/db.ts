@@ -53,6 +53,15 @@ export const SCHEMA: readonly SchemaVersion[] = [
       profile: 'id',
     },
   },
+  {
+    version: 2,
+    stores: {
+      // Sync's two additions. A later version lists only the stores it
+      // changes; `games` and `profile` carry over untouched.
+      tombstones: 'id, deletedAt',
+      sync: 'id',
+    },
+  },
 ];
 
 /** Replays a version history onto a Dexie instance, in order. */
@@ -63,11 +72,59 @@ export function applySchema(db: Dexie, versions: readonly SchemaVersion[] = SCHE
   }
 }
 
+/**
+ * A game that was deleted, and when.
+ *
+ * Written on every deletion, signed in or not. "Newest wins" cannot express a
+ * deletion on its own — a game absent locally and present remotely is
+ * indistinguishable from one that has never been synced down — so without this
+ * record a game deleted on a phone comes back from the laptop on the next
+ * sync, and comes back again every time it is deleted. The tombstone is the
+ * only thing that says *when* it went, which is what lets a later play on
+ * another device legitimately outrank it.
+ */
+export interface Tombstone {
+  id: string;
+  deletedAt: number;
+}
+
+/**
+ * Sync's own bookkeeping. A singleton under the fixed key `'sync'`, alongside
+ * the profile and for the same reason: there is exactly one of it.
+ *
+ * `profileTouchedAt` exists because `PlayerProfile` is a frozen contract with
+ * no timestamp on it and newest-wins needs one. Stamping it here rather than
+ * on the profile keeps the contract closed and puts the fact in the one place
+ * that already knows when a profile write happened.
+ */
+export interface SyncRecord {
+  id: 'sync';
+  /** When the local profile was last written. 0 when it never has been. */
+  profileTouchedAt: number;
+  /** When a sync last completed cleanly. Shown in Settings. */
+  lastSyncedAt: number | null;
+  /**
+   * Whether the player has switched sync on. Separate from holding a usable
+   * token: consent survives a reload, a token does not, and forgetting the
+   * former would ask permission again on every visit.
+   */
+  enabled: boolean;
+}
+
+export const DEFAULT_SYNC_RECORD: SyncRecord = {
+  id: 'sync',
+  profileTouchedAt: 0,
+  lastSyncedAt: null,
+  enabled: false,
+};
+
 export class SudokuCoachDB extends Dexie {
   // `declare` keeps these type-only: with `useDefineForClassFields` a real field
   // declaration would emit `games = undefined` and clobber Dexie's own binding.
   declare games: Table<Game, string>;
   declare profile: Table<PlayerProfile, string>;
+  declare tombstones: Table<Tombstone, string>;
+  declare sync: Table<SyncRecord, string>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -184,5 +241,84 @@ export async function loadProfile(conn: SudokuCoachDB = db): Promise<PlayerProfi
 export const readProfile = (conn: SudokuCoachDB = db): Promise<PlayerProfile | undefined> =>
   conn.profile.get('profile');
 
-export const saveProfile = (profile: PlayerProfile, conn: SudokuCoachDB = db): Promise<string> =>
-  conn.profile.put({ ...profile, id: 'profile' });
+/**
+ * Writes the profile and records when, in one transaction.
+ *
+ * The stamp is not decoration: it is the only timestamp the profile has, and a
+ * sync that wrote the profile without it would have no way to tell a local
+ * change from a remote one on the next run. Both puts are in one transaction
+ * so a crash between them cannot leave a changed profile claiming it is older
+ * than it is — which would silently let a stale remote copy overwrite it.
+ */
+export const saveProfile = (
+  profile: PlayerProfile,
+  conn: SudokuCoachDB = db,
+  at: number = Date.now(),
+): Promise<void> =>
+  conn.transaction('rw', conn.profile, conn.sync, async () => {
+    await conn.profile.put({ ...profile, id: 'profile' });
+    const current = await conn.sync.get('sync');
+    await conn.sync.put({ ...(current ?? DEFAULT_SYNC_RECORD), profileTouchedAt: at });
+  });
+
+/* -------------------------------------------------------------------------- */
+/* Sync bookkeeping                                                           */
+/* -------------------------------------------------------------------------- */
+
+export const readSyncRecord = async (conn: SudokuCoachDB = db): Promise<SyncRecord> =>
+  (await conn.sync.get('sync')) ?? DEFAULT_SYNC_RECORD;
+
+export const writeSyncRecord = async (
+  patch: Partial<Omit<SyncRecord, 'id'>>,
+  conn: SudokuCoachDB = db,
+): Promise<void> => {
+  await conn.transaction('rw', conn.sync, async () => {
+    const current = (await conn.sync.get('sync')) ?? DEFAULT_SYNC_RECORD;
+    await conn.sync.put({ ...current, ...patch, id: 'sync' });
+  });
+};
+
+/**
+ * Deletes a game and remembers that it was deleted, atomically.
+ *
+ * One transaction because the two halves are one fact. A deletion recorded
+ * without the game gone would re-delete it forever; a game gone without the
+ * record is exactly the resurrection the tombstone exists to prevent.
+ */
+export const deleteGameRecording = (
+  id: string,
+  at: number,
+  conn: SudokuCoachDB = db,
+): Promise<void> =>
+  conn.transaction('rw', conn.games, conn.tombstones, async () => {
+    await conn.games.delete(id);
+    await conn.tombstones.put({ id, deletedAt: at });
+  });
+
+export const listTombstones = (conn: SudokuCoachDB = db): Promise<Tombstone[]> =>
+  conn.tombstones.toArray();
+
+export const forgetTombstones = async (
+  ids: readonly string[],
+  conn: SudokuCoachDB = db,
+): Promise<void> => {
+  if (ids.length === 0) return;
+  await conn.tombstones.bulkDelete([...ids]);
+};
+
+/**
+ * Drops tombstones older than `before`.
+ *
+ * Without this the table only ever grows, on a device that may be in use for
+ * years. The cost of pruning is stated rather than hidden: a device that has
+ * not synced since before the cutoff can resurrect a game deleted elsewhere,
+ * because the record proving the deletion is gone. `TOMBSTONE_TTL_MS` is set
+ * far past any plausible gap between two syncs of the same account.
+ */
+export const pruneTombstones = async (
+  before: number,
+  conn: SudokuCoachDB = db,
+): Promise<number> => conn.tombstones.where('deletedAt').below(before).delete();
+
+/** Ninety days. Long enough that pruning is invisible; short enough to bound. */
+export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;

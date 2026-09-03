@@ -17,6 +17,7 @@ import { LocaleProvider } from './i18n/react';
 import { useAccount } from './state/account';
 import { useProfile } from './state/profile';
 import { useGameStore } from './state/store';
+import { useSync } from './sync/store';
 import { parseGrid } from './engine/board';
 import type {
   CellIndex,
@@ -60,6 +61,44 @@ export default function App() {
     // no Firebase config, which is what keeps sign-in genuinely optional
     // rather than merely unused.
     useAccount.getState().watch();
+    // Reads the stored switch and, if sync is on, runs one straight away. It
+    // resolves on its own schedule: nothing on screen waits for the network.
+    void useSync.getState().hydrate();
+  }, []);
+
+  // Sync follows the session rather than the other way round. Signing out
+  // drops the token but keeps the preference — it ends a session, it is not a
+  // decision to stop syncing — and signing in is the moment the other
+  // device's games become worth asking for.
+  useEffect(
+    () =>
+      useAccount.subscribe((state, previous) => {
+        if (state.account === previous.account) return;
+        if (state.account === null) useSync.getState().forget();
+        else void useSync.getState().syncNow();
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        // Flush first, then sync. The autosave debounce means the last few
+        // seconds of play are still in memory at this point, and a sync that
+        // ran before the write would upload the board as it was, then record
+        // that timestamp as synced — losing those moves until the next change.
+        void useGameStore
+          .getState()
+          .flush()
+          .then(() => useSync.getState().syncNow());
+      } else {
+        // Back from another device, possibly. Cheap when nothing moved: the
+        // manifest is one small read and an unchanged plan does nothing.
+        void useSync.getState().syncNow();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
   // An explicit `data-theme` beats the OS preference; "system" is its absence,

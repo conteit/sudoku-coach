@@ -258,6 +258,18 @@ export const it: Dictionary = {
   'legal.terms': 'Termini',
   'legal.updated': 'Ultimo aggiornamento: {date}',
 
+  'sync.title': 'Sincronizzazione',
+  'sync.why': 'Le tue partite restano su questo dispositivo. Attiva la sincronizzazione e ti seguono sugli altri, tramite il tuo account Google, in una cartella privata che solo questa app può vedere.',
+  'sync.enable': 'Attiva la sincronizzazione',
+  'sync.disable': 'Disattiva la sincronizzazione',
+  'sync.now': 'Sincronizza ora',
+  'sync.syncing': 'Sincronizzazione in corso…',
+  'sync.lastSynced': 'Ultima sincronizzazione: {when}',
+  'sync.never': 'Mai sincronizzato',
+  'sync.error': 'L\u2019ultima sincronizzazione non è andata a buon fine. Verrà ritentata.',
+  'sync.consent': 'Google deve chiederti di nuovo il permesso prima di poter sincronizzare.',
+  'sync.conflict': 'Se giochi lo stesso schema su due dispositivi, vince quello su cui hai giocato per ultimo: l\u2019altra versione non viene conservata.',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };
