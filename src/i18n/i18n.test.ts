@@ -43,10 +43,12 @@ describe('dictionaries', () => {
   it('is not a copy of English pretending to be Italian', () => {
     const identical = KEYS.filter((key) => en[key] === itDictionary[key]);
     // Proper nouns match, and so does a string made only of placeholders —
-    // `cell.value` is "{cell}, {digit}" in any language. Everything else must
-    // actually have been written.
+    // `cell.value` is "{cell}, {digit}" in any language. `account.title` is
+    // the fourth kind: a loanword Italian actually uses, where inventing
+    // "Profilo" would be a translation of a word rather than of a meaning.
+    // Everything else must actually have been written.
     expect(new Set(identical)).toEqual(
-      new Set(['app.name', 'coach.title', 'coach.open', 'cell.value']),
+      new Set(['app.name', 'coach.title', 'coach.open', 'cell.value', 'account.title']),
     );
   });
 });

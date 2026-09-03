@@ -25,6 +25,14 @@ dependency.
   running a sweep between two keystrokes, not because a sweep is slow.
 - **Local-first.** IndexedDB is the source of truth. No account is required for
   any P0 feature.
+
+  Sign-in is optional in the strongest sense the code can express: without the
+  Firebase config in the environment the build has *no* sign-in — not a
+  disabled button, not an error — and `src/state/account.ts` answers every
+  call with a shrug. The SDK is dynamically imported, so a player who never
+  signs in never downloads it. Signing out stops syncing and touches no saved
+  game; the account lives in its own store rather than on `PlayerProfile`,
+  because an account is not a coaching preference.
 - **Static hosting, free tier.** The build is a static bundle deployed to Vercel.
   Zero serverless functions in P0.
 - **Offline-complete.** Every P0 feature works with the network off (R9).

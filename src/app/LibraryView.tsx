@@ -7,6 +7,7 @@
  */
 
 import { useT } from '../i18n/locale';
+import { authAvailable, useAccount } from '../state/account';
 import { useProfile } from '../state/profile';
 import type { GameSummary } from '../state/db';
 import { GameList } from '../ui/game/GameList';
@@ -23,6 +24,35 @@ export interface LibraryViewProps {
   onNewGame: () => void;
   onOpenSettings: () => void;
   onLearn: () => void;
+}
+
+/**
+ * The one invitation to sign in outside Settings.
+ *
+ * An invitation and not a gate: it sits under the games rather than over
+ * them, it never blocks anything, and it disappears the moment it is
+ * accepted. It lives on this screen because this is where a player decides
+ * what to do next — and nowhere near the board, which is for the board.
+ */
+function SignInInvitation() {
+  const t = useT();
+  const account = useAccount((state) => state.account);
+  const ready = useAccount((state) => state.ready);
+  const signIn = useAccount((state) => state.signIn);
+
+  // Nothing while the answer is still arriving: an invitation that appears a
+  // beat after the page, then vanishes because a session was restored, is
+  // worse than one that waits.
+  if (!authAvailable() || !ready || account !== null) return null;
+
+  return (
+    <div className="mt-8 flex flex-col items-start gap-2 border-t border-rule pt-6">
+      <p className="text-sm leading-relaxed text-ink-soft">{t('account.invite')}</p>
+      <Button variant="ghost" onClick={() => void signIn()}>
+        {t('account.signIn')}
+      </Button>
+    </div>
+  );
 }
 
 export function LibraryView({
@@ -70,6 +100,7 @@ export function LibraryView({
   const games = (
     <>
       <GameList games={inProgress} onResume={onResume} onNewGame={onNewGame} />
+      <SignInInvitation />
 
       {finished.length > 0 ? (
         <GameList

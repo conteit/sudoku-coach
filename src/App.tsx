@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react';
 import { preferredLocale } from './i18n/locale';
 import { LocaleProvider } from './i18n/react';
+import { useAccount } from './state/account';
 import { useProfile } from './state/profile';
 import { useGameStore } from './state/store';
 import { parseGrid } from './engine/board';
@@ -54,6 +55,10 @@ export default function App() {
   useEffect(() => {
     void useProfile.getState().hydrate(preferredLocale());
     void useGameStore.getState().hydrate();
+    // Restores an existing session if there is one. A no-op in a build with
+    // no Firebase config, which is what keeps sign-in genuinely optional
+    // rather than merely unused.
+    useAccount.getState().watch();
   }, []);
 
   // An explicit `data-theme` beats the OS preference; "system" is its absence,
