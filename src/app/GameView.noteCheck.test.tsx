@@ -115,6 +115,15 @@ function cell(index: number): HTMLElement {
 
 
 describe('fixing the notes the check found', () => {
+  /*
+   * The generous budget is measured, not superstition. This renders the whole
+   * game screen — 81 cells and the coach panel — and drives two checks
+   * through it, each running the detector catalog to a fixed point (2-7ms
+   * native, ~10ms instrumented). Locally that is comfortably inside the
+   * default second; on a shared CI runner under coverage it was not, twice,
+   * while three full instrumented runs here passed. A wait that is too short
+   * is a test reporting the runner's load, not the code's behaviour.
+   */
   it('applies the issues on screen, then reports the board as it now is', async () => {
     // r1c3 gets a 5 it cannot hold — r1c1 is a given 5 — and misses digits it
     // can. The check names both kinds; one press settles them.
@@ -146,17 +155,10 @@ describe('fixing the notes the check found', () => {
     // absence synchronously passed on a fast machine and failed on CI — the
     // wait is the honest reading of a re-check that was never synchronous.
     expect(
-      await screen.findByText(/notes are exactly right/, undefined, { timeout: 5000 }),
-      // Longer than the default second, and not superstition: a check now
-      // runs the whole detector catalog to a fixed point (2-7ms native, and
-      // this suite runs under coverage instrumentation on a shared CI
-      // runner), and applying a report runs it twice — once for the check,
-      // once for the re-check afterwards. The default timeout was enough
-      // locally and not on CI, which is the definition of a wait that was
-      // too short rather than a test that was wrong.
+      await screen.findByText(/notes are exactly right/, undefined, { timeout: 15_000 }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
-  });
+  }, 20_000);
 
   it('takes one undo to put the notes back exactly as they were', async () => {
     const game = reduce(
