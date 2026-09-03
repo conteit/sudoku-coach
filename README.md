@@ -2,8 +2,11 @@
 
 A sudoku PWA that teaches you to solve — it never solves for you.
 
-**Live:** https://sudoku-coach-steel.vercel.app
-<sub>Vercel appends a word because `sudoku-coach.vercel.app` was already taken by an unrelated project.</sub>
+**Live:** https://sudoku-coach.lab.paolocontessi.me
+<sub>On a domain of its own rather than the `*.vercel.app` one it was deployed to first. That is not
+cosmetic: `vercel.app` is on the Public Suffix List, so a browser partitions storage for the
+Firebase Auth helper iframe served from `*.firebaseapp.com`, and sign-in breaks with a
+cross-origin frame error. Serving the app from a domain we control is Firebase's own remedy.</sub>
 
 Most sudoku apps answer "I'm stuck" by revealing a digit, which teaches nothing.
 Sudoku Coach answers with the *reasoning*: it names the technique that applies to
