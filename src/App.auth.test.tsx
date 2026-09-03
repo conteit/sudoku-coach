@@ -127,6 +127,8 @@ beforeEach(() => {
   account.subscribe.mockClear();
   sync.state.hydrate.mockClear();
   sync.state.syncNow.mockClear();
+  profile.state.hydrate.mockClear();
+  games.state.hydrate.mockClear();
 });
 
 afterEach(() => at('/'));
@@ -153,12 +155,16 @@ describe('what the landing page is allowed to start', () => {
     expect(sync.state.hydrate).not.toHaveBeenCalled();
   });
 
-  it('still reads the profile and the saved games, which are local', async () => {
+  it('does not open the database either', async () => {
+    // The day's board comes from the date's own seed and the page writes
+    // nothing, so there is nothing here for a database to be needed for —
+    // and opening one only creates a way for this page to fail.
     at('/');
     render(<App />);
 
-    await waitFor(() => expect(profile.state.hydrate).toHaveBeenCalled());
-    expect(games.state.hydrate).toHaveBeenCalled();
+    await screen.findByText('landing');
+    expect(profile.state.hydrate).not.toHaveBeenCalled();
+    expect(games.state.hydrate).not.toHaveBeenCalled();
   });
 });
 
@@ -171,6 +177,9 @@ describe('what the app starts', () => {
     await waitFor(() => expect(account.state.watch).toHaveBeenCalled());
     expect(sync.state.hydrate).toHaveBeenCalled();
     expect(account.subscribe).toHaveBeenCalled();
+    // And the storage the app is actually made of.
+    expect(profile.state.hydrate).toHaveBeenCalled();
+    expect(games.state.hydrate).toHaveBeenCalled();
   });
 
   it('bootstraps sync once a load, not once a visit', async () => {
