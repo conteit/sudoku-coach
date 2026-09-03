@@ -42,6 +42,7 @@ import {
 } from '../state/mastery';
 import type { CandidateReview, Coach, Hint, HintToken, LessonLibrary } from './types';
 import { CHAIN_TECHNIQUES, TOKENS_ALLOWED_BY_LEVEL } from './types';
+import { CATALOG } from '../engine/techniques';
 import { loadLessons } from './lessons';
 import { reviewMarks } from './candidates';
 import {
@@ -334,9 +335,18 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
   let finding: Finding | null | undefined;
 
   return {
-    nextFinding(): Finding | null {
-      if (finding === undefined) finding = firstFinding(board);
-      return finding;
+    nextFinding(skip?: ReadonlySet<string>): Finding | null {
+      if (skip === undefined || skip.size === 0) {
+        // The memoised path, which is every ordinary ask: the same board is
+        // swept once however many times the panel re-renders.
+        if (finding === undefined) finding = firstFinding(board);
+        return finding;
+      }
+      for (const detector of CATALOG) {
+        const found = detector.detect(board);
+        if (found !== null && !skip.has(findingKey(found))) return found;
+      }
+      return null;
     },
     hint(target: Finding, level: DisclosureLevel): Hint {
       return renderHint({ finding: target, level, locale, library: lessons });

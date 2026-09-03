@@ -315,3 +315,42 @@ describe('applying the note check', () => {
     ).toBeTruthy();
   });
 });
+
+/*
+ * "Not that one." The engine reads placed digits, so a player who has already
+ * worked a pattern in their notes gets the same finding back every time they
+ * ask — the detector cannot see what they did. The way out is the player
+ * saying so, rather than the coach trusting marks it must not trust.
+ */
+describe('setting a finding aside', () => {
+  it('offers the way past whatever is on screen', async () => {
+    const onAnother = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CoachPanel
+        hint={hintAt(2, 'There is a naked pair in column 3.')}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onAnother={onAnother}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /show me another/i }));
+    expect(onAnother).toHaveBeenCalledOnce();
+  });
+
+  it('offers nothing to step past when nothing is being said', () => {
+    // "Another" is meaningless without a *this*, and at rest the invitation
+    // to ask a first question is the only thing that belongs here.
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onAnother={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /show me another/i })).toBeNull();
+  });
+});

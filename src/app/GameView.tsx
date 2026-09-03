@@ -599,6 +599,7 @@ export function GameView({
           onDrill={coach.startDrill}
           onDismissDrill={coach.dismissDrill}
           onLearn={onLearn}
+          onAnother={coach.another}
           onFixNotes={
             paused || solved
               ? undefined

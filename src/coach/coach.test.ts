@@ -669,6 +669,40 @@ describe('createCoach', () => {
     expect(coach.nextFinding()).toBe(finding);
   });
 
+  /*
+   * Paolo, mid-game: he had worked the naked pair the coach was pointing at,
+   * but his eliminations live in his notes and the engine reads placed digits
+   * only — so the same pair came back every time he asked. The engine is
+   * right not to trust notes (a hint built on a wrong mark is a wrong hint),
+   * so the player says "not that one" instead, and the coach walks on.
+   */
+  it('walks past a finding the player has set aside', () => {
+    const coach = createCoach({ cells, locale: 'en' });
+    const first = coach.nextFinding()!;
+    expect(first).not.toBeNull();
+
+    const another = createCoach({ cells, locale: 'en' }).nextFinding(
+      new Set([findingKey(first)]),
+    );
+
+    expect(another).not.toBeNull();
+    expect(findingKey(another!)).not.toBe(findingKey(first));
+  });
+
+  it('runs out honestly once everything on the board has been set aside', () => {
+    // "There is nothing else here" is a true and useful answer; inventing a
+    // finding to fill the silence is not.
+    const coach = createCoach({ cells, locale: 'en' });
+    const skip = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const finding = coach.nextFinding(skip);
+      if (finding === null) break;
+      skip.add(findingKey(finding));
+    }
+
+    expect(coach.nextFinding(skip)).toBeNull();
+  });
+
   it('detects from engine candidates, not from the player s marks', () => {
     // Marks nobody could justify must not change what the coach sees, or a
     // player with sloppy notes would get a hint that is simply wrong.

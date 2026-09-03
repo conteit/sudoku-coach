@@ -23,10 +23,66 @@
 import type { BoardView, CellIndex, Digit } from '../engine/types';
 import { DIGITS } from '../engine/types';
 import { Board } from '../engine/board';
+import { CandidateGrid } from '../engine/solver';
+import { CATALOG } from '../engine/techniques';
 import { t } from '../i18n';
 import type { Locale } from '../state/types';
 import type { CandidateIssue, CandidateReview } from './types';
 import type { CoachCell } from './format';
+
+/**
+ * Every candidate the technique catalog can prove impossible, as `cell:digit`.
+ *
+ * The check used to read `trueCandidates` alone, which is *basic* elimination
+ * — a peer already holding the digit — and nothing else. So a player who
+ * worked a naked pair and removed its two digits from the rest of the column
+ * was told both were missing: the pattern proves the elimination, and the
+ * check could not see patterns. It punished exactly the play the app exists
+ * to teach.
+ *
+ * **Eliminations only, never placements.** Findings that place a digit —
+ * naked and hidden single — are skipped rather than applied, and the reason
+ * is the thesis rather than tidiness: applying them would narrow other cells
+ * by way of an answer the player has not been given, and a cell narrowed to
+ * one candidate is one "missing" report away from being handed its digit.
+ * Every elimination applied here is sound by the R6 property test, so this
+ * can only ever make the check quieter, never wrong.
+ *
+ * It runs to a fixed point because one elimination unlocks the next; the step
+ * cap is the same tripwire `solveLogically` uses — 810 is one per candidate
+ * plus one per cell, so reaching it means a detector is reporting something
+ * it cannot prove.
+ */
+const MAX_STEPS = 810;
+
+export function eliminableCandidates(board: BoardView): ReadonlySet<string> {
+  const grid = CandidateGrid.fromBoard(board);
+  const proven = new Set<string>();
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    let progressed = false;
+    for (const detector of CATALOG) {
+      const finding = detector.detect(grid);
+      if (finding === null || finding.eliminations.length === 0) continue;
+      for (const { cell, digit } of finding.eliminations) {
+        if (!grid.eliminate(cell, digit)) continue;
+        proven.add(`${cell}:${digit}`);
+        progressed = true;
+      }
+      if (progressed) break;
+    }
+    if (!progressed) break;
+  }
+
+  return proven;
+}
+
+/** Whether any technique proves this one digit impossible in this one cell. */
+export const eliminableByTechnique = (
+  board: BoardView,
+  cell: CellIndex,
+  digit: Digit,
+): boolean => eliminableCandidates(board).has(`${cell}:${digit}`);
 
 /** Peers that already hold `digit` — the constraint that kills a mark. */
 const holdersOf = (board: BoardView, cell: CellIndex, digit: Digit): CellIndex[] =>
@@ -48,6 +104,9 @@ export function reviewMarks(
   const issues: CandidateIssue[] = [];
   const cleanCells: CellIndex[] = [];
   let checkedCells = 0;
+  // Computed once for the whole review rather than per cell: the sweep is the
+  // expensive part of a check that is already a deliberate, occasional press.
+  const eliminable = eliminableCandidates(board);
 
   for (let cell = 0; cell < marks.length; cell++) {
     const noted = marks[cell];
@@ -58,6 +117,12 @@ export function reviewMarks(
     const before = issues.length;
     for (const digit of DIGITS) {
       if (noted.has(digit) === truth.has(digit)) continue;
+      // A digit the player has removed, which a technique proves impossible,
+      // is not missing — it is the elimination they came here to learn,
+      // already made. Silence rather than praise: saying "good, the pair
+      // rules that out" would name a pattern the coach has not been asked
+      // about, which is the ladder's business and not the checker's.
+      if (!noted.has(digit) && eliminable.has(`${cell}:${digit}`)) continue;
       issues.push(
         noted.has(digit)
           ? {
