@@ -10,6 +10,8 @@
 import type { Locale, PlayerProfile } from '../state/types';
 import { LOCALES } from '../i18n';
 import { useT } from '../i18n/locale';
+import { authAvailable, useAccount } from '../state/account';
+import { Button } from '../ui/primitives/Button';
 import { Sheet } from '../ui/primitives/Sheet';
 import { Toggle } from '../ui/primitives/Toggle';
 import { cx } from '../ui/primitives/cx';
@@ -70,6 +72,45 @@ function Choices<T extends string>({
   );
 }
 
+function AccountSection() {
+  const t = useT();
+  const account = useAccount((state) => state.account);
+  const busy = useAccount((state) => state.busy);
+  const failed = useAccount((state) => state.failed);
+  const signIn = useAccount((state) => state.signIn);
+  const signOut = useAccount((state) => state.signOut);
+
+  if (!authAvailable()) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
+        {t('account.title')}
+      </h3>
+      {account === null ? (
+        <>
+          <Button variant="secondary" size="lg" block disabled={busy} onClick={() => void signIn()}>
+            {busy ? t('account.busy') : t('account.signIn')}
+          </Button>
+          <p className="text-sm leading-relaxed text-ink-soft">{t('account.why')}</p>
+          {/* A failure is a state here, never a dialog: the commonest one is
+              a closed popup, which the player did on purpose. */}
+          {failed ? <p className="text-sm text-danger">{t('account.failed')}</p> : null}
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-ink-soft">
+            {t('account.signedInAs', { who: account.email ?? account.displayName ?? account.uid })}
+          </p>
+          <Button variant="secondary" size="lg" block onClick={() => void signOut()}>
+            {t('account.signOut')}
+          </Button>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function SettingsSheet({
   open,
   onClose,
@@ -82,6 +123,13 @@ export function SettingsSheet({
   return (
     <Sheet open={open} onClose={onClose} title={t('settings.title')}>
       <div className="flex flex-col gap-4 pb-2">
+        {/* The only place in the app that mentions an account at all, apart
+            from one invitation on the library's empty desk. Paolo was
+            explicit: no avatar, no session chrome, and nothing about this in
+            the game view. A build with no Firebase config has no sign-in —
+            not a disabled button, which would advertise a feature this build
+            does not have. */}
+        <AccountSection />
         <Choices
           label={t('settings.language')}
           value={profile.locale}
