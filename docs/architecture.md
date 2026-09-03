@@ -37,12 +37,15 @@ dependency.
   Zero serverless functions in P0.
 
   The CSP in `vercel.json` is the tightest thing that still works, and it is
-  widened only against evidence. Sign-in needs two entries beyond `'self'`:
-  `connect-src` for the two token endpoints, `frame-src` for the auth
-  handler's own iframe — the popup window itself is a top-level context and
-  outside our policy entirely. Anything further waits for a console line
-  naming the host, because a policy widened on a guess is a policy nobody can
-  tighten later with confidence.
+  widened only against evidence. Sign-in needs three entries beyond `'self'`,
+  and each was added after a console line named it: `script-src` reaches
+  `apis.google.com`, which is where the SDK loads the loader for its own
+  iframe (`api.js?onload=__iframefcb…`); `connect-src` covers the two token
+  endpoints; `frame-src` covers the auth handler's iframe. The popup window
+  itself is a top-level context and outside our policy entirely. Anything
+  further waits for another such line, because a policy widened on a guess is
+  a policy nobody can tighten later with confidence — this one was widened on
+  a guess once, and taken back.
 
   **`unsafe-inline` in `script-src` is the line that does not move.** If the
   popup flow ever genuinely requires it, the answer is the redirect flow.
