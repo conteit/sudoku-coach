@@ -261,6 +261,25 @@ has already read the front door.
     game screen splits at the same tiers, for invariant 9's reason, not this
     one.
 
+## Developer tools
+
+Two entries appear in the game menu for a signed-in account named in
+`VITE_DEV_ALLOWLIST` (UIDs and/or emails, comma-separated, read at build
+time). The list is public in the bundle on purpose: it is not a credential,
+it grants nothing to anyone not signed in as that account, and neither tool
+does anything a player could not do to their own board. An **empty list means
+nobody** — the only reading that is safe when a variable goes missing from a
+deploy.
+
+- **Preview the win** plays the celebration on the board as it stands. It
+  writes nothing: no completion, no mastery credit, no recap, nothing to
+  sync. A view state rather than a move, which is why it is a preview and not
+  a "solve the board" — that one would have needed a flag on `Game` plus a
+  rule in each of those four places to describe a puzzle nobody played.
+- **Download diagnostics** writes the report from `src/app/diagnostics.ts` to
+  a file, for reading later and beside other reports. The sheet is still
+  there for pasting one into a message now.
+
 ## Difficulty rating
 
 Difficulty is a property of the *solve path*, not of clue count: rate a puzzle by
