@@ -375,6 +375,12 @@ export function GameView({
    * than sweeping notes across the board.
    */
   const sweeping = settings.sweepOneDigit && pencilMode;
+  /**
+   * The digit actually being swept, or null. Distinct from `sweeping`: the
+   * setting and notes mode can both be on with nothing lit, which is ordinary
+   * note-taking and must look like it.
+   */
+  const sweptDigit = sweeping ? highlightDigit : null;
 
   /**
    * Selecting a cell is the green's arm/clear decision now, not a keypad tap
@@ -389,6 +395,30 @@ export function GameView({
       setHighlightDigit((current) => selectHighlight(value, current, sweeping));
     },
     [game.cells, sweeping],
+  );
+
+  /**
+   * A press on a cell, which is not the same event as selecting one.
+   *
+   * Mid-sweep the grid is the whole interface: there is exactly one digit the
+   * player can be writing, so pressing an empty cell means it rather than
+   * meaning "put the caret here, now go to the keypad". Toggling rather than
+   * adding, so the press that made a mark takes it back — which is what makes
+   * a mis-tap cost one tap instead of an undo. A filled cell is left alone:
+   * there is nothing to note there.
+   *
+   * Bound to the press and not to `selectCell` on purpose. Selection also
+   * happens when the caret is walked with the arrow keys, and a keyboard
+   * player scanning across the board would otherwise leave a trail of notes
+   * behind the caret.
+   */
+  const activateCell = useCallback(
+    (cell: CellIndex) => {
+      if (sweptDigit === null) return;
+      if ((game.cells[cell]?.value ?? null) !== null) return;
+      enter(cell, sweptDigit);
+    },
+    [game.cells, sweptDigit, enter],
   );
 
   // "Speaking" is the panel having something the player asked for on screen.
@@ -519,6 +549,7 @@ export function GameView({
           cells={game.cells}
           selected={selected}
           onSelect={selectCell}
+          onActivate={activateCell}
           onEnter={enter}
           onClear={(cell) => dispatch({ type: 'clearCell', cell })}
           spotlight={spotlight}
@@ -576,6 +607,11 @@ export function GameView({
         haptic('tap');
         enter(selected, digit);
       }}
+      sweeping={sweptDigit}
+      // Ends the sweep without leaving notes mode: sweeping *is* notes plus a
+      // lit digit, so letting the digit go is the whole of returning to
+      // ordinary note-taking. Nothing else has to be unwound.
+      onEndSweep={() => setHighlightDigit(null)}
       onDigitLongPress={(digit) => setHighlightDigit((current) => toggleHighlight(digit, current))}
       onErase={() => {
         if (selected !== null) dispatch({ type: 'clearCell', cell: selected });

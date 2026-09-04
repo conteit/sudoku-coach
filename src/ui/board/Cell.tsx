@@ -64,6 +64,12 @@ export interface CellProps {
   /** Roving tabindex: exactly one cell in the grid is 0. */
   tabIndex: number;
   onSelect: (cell: CellIndex) => void;
+  /**
+   * The cell was *pressed*, as opposed to merely selected. Selection also
+   * happens when the caret is walked here with the arrow keys, and a caret
+   * passing over a cell must never change it.
+   */
+  onActivate?: (cell: CellIndex) => void;
 }
 
 /**
@@ -150,6 +156,7 @@ function CellImpl({
   winDelayMs,
   tabIndex,
   onSelect,
+  onActivate,
 }: CellProps) {
   const t = useT();
   const selected = has(flags, CELL_SELECTED);
@@ -166,7 +173,10 @@ function CellImpl({
       aria-selected={selected}
       aria-label={describe(t, index, value, given, marks, stale)}
       tabIndex={tabIndex}
-      onPointerDown={() => onSelect(index)}
+      onPointerDown={() => {
+        onSelect(index);
+        onActivate?.(index);
+      }}
       // The delay rides a custom property rather than `animationDelay`
       // directly, so the timing stays the grid's business and the animation
       // itself stays in the stylesheet with the keyframes it belongs to.

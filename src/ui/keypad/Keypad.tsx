@@ -40,6 +40,17 @@ export interface KeypadProps {
    * whose long-press does nothing, not a broken one.
    */
   onDigitLongPress?: (digit: Digit) => void;
+  /**
+   * The digit being swept, or null when no sweep is running.
+   *
+   * Sweeping is notes mode with a digit lit and the player having asked for
+   * one digit at a time, so it is a *state of the notes key* rather than a
+   * mode of its own — which is why this is a digit rather than a flag: the key
+   * says which one, because that is the fact a screen reader cannot see.
+   */
+  sweeping?: Digit | null;
+  /** Ends the sweep and leaves ordinary notes mode running. */
+  onEndSweep?: () => void;
   onErase: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -115,6 +126,8 @@ export function Keypad({
   onTogglePencil,
   onDigit,
   onDigitLongPress,
+  sweeping = null,
+  onEndSweep,
   onErase,
   onUndo,
   onRedo,
@@ -216,7 +229,13 @@ export function Keypad({
     <div
       className={cx('flex w-full flex-col', className)}
       data-pencil={pencilMode || undefined}
-      aria-label={pencilMode ? t('keypad.labelNotes') : t('keypad.label')}
+      aria-label={
+        sweeping !== null
+          ? t('keypad.labelSweeping', { digit: sweeping })
+          : pencilMode
+            ? t('keypad.labelNotes')
+            : t('keypad.label')
+      }
       role="group"
     >
       {/* The keys take whatever height the board did not, rather than leaving a
@@ -317,13 +336,38 @@ export function Keypad({
       </div>
 
       <div className="mt-1.5 flex gap-1.5">
-        <IconButton
-          label={pencilMode ? t('keypad.notesOn') : t('keypad.notesOff')}
-          caption={t('keypad.captionNotes')}
-          icon={<PencilIcon />}
-          pressed={pencilMode}
-          onClick={() => fire('toggle', onTogglePencil)}
-        />
+        {sweeping !== null ? (
+          /* The same treatment the eraser gets while it is the dead-note key,
+             and for the same reason: a wash reads as a state this key is in,
+             a fill reads as a different key — and mid-sweep it *is* a
+             different key. Green rather than amber because it is the board's
+             green the player is following, the one on the swept digit and on
+             the cells it cannot go in; amber is the coach's colour and means
+             "something to do here", which this is not.
+
+             `!` on every colour is load-bearing for the reason the eraser's
+             comment gives: `IconButton` sets the same properties itself, and
+             which wins is the order Tailwind emits, not the order written.
+
+             `bg-match` against `text-paper` mirrors the pressed state's
+             `bg-ink text-paper`, and clears AA in both themes: 4.8:1 light
+             (#14805a on #faf7f2), 8.9:1 dark (#4fd2a0 on #14120e). */
+          <IconButton
+            label={t('keypad.sweeping', { digit: sweeping })}
+            caption={t('keypad.captionSweep')}
+            icon={<PencilIcon />}
+            className="!border-match !bg-match !text-paper hover:!border-match hover:!text-paper"
+            onClick={() => fire('toggle', onEndSweep ?? onTogglePencil)}
+          />
+        ) : (
+          <IconButton
+            label={pencilMode ? t('keypad.notesOn') : t('keypad.notesOff')}
+            caption={t('keypad.captionNotes')}
+            icon={<PencilIcon />}
+            pressed={pencilMode}
+            onClick={() => fire('toggle', onTogglePencil)}
+          />
+        )}
         {/* One key, one meaning at a time — a pad offering "erase" and
             "clear" at once is a pad the player has to read before every tap.
             The caption is the same word in both modes on purpose: "Erase" /

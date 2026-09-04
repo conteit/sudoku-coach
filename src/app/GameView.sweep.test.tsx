@@ -124,12 +124,20 @@ const FIVE = 0;
 const THREE = 1;
 const EMPTY = 2;
 
-/** Into notes mode with the green armed on 5, which is the swept state. */
+/**
+ * Into notes mode with the green armed on 5, caret parked on an empty cell.
+ *
+ * The caret is walked there with the arrow keys rather than tapped, and that
+ * is not incidental: mid-sweep a *press* on an empty cell writes the swept
+ * digit, so tapping to get there would leave a note behind and every
+ * assertion below would be about the wrong board.
+ */
 async function startSweeping(user: ReturnType<typeof renderGame>['user']) {
   await user.click(within(keypad()).getByRole('button', { name: 'Notes off' }));
   await user.click(cell(FIVE));
   expect(highlighted()).toBe('5');
-  await user.click(cell(EMPTY));
+  await user.keyboard('{ArrowRight}{ArrowRight}');
+  expect(cell(EMPTY).getAttribute('aria-selected')).toBe('true');
 }
 
 describe('with sweeping on', () => {
@@ -186,6 +194,99 @@ describe('with sweeping on', () => {
   });
 });
 
+describe('the Sweeping key', () => {
+  it('takes over the notes key, and says which digit', async () => {
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    expect(within(keypad()).getByRole('button', { name: 'Sweeping 5' })).toBeInTheDocument();
+    // The old key is gone rather than sitting beside it: one key, one meaning.
+    expect(within(keypad()).queryByRole('button', { name: 'Notes on' })).toBeNull();
+  });
+
+  it('names the pad after the sweep, for a reader who cannot see the green', async () => {
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    expect(screen.getByRole('group', { name: 'Keypad, sweeping 5' })).toBeInTheDocument();
+  });
+
+  it('returns to ordinary notes on a single press, with notes still on', async () => {
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    await user.click(within(keypad()).getByRole('button', { name: 'Sweeping 5' }));
+
+    expect(highlighted()).toBeNull();
+    expect(within(keypad()).getByRole('button', { name: 'Notes on' })).toBeInTheDocument();
+    // And the restriction is gone with it, because there is nothing being swept.
+    await user.click(key(6));
+    expect(notes(EMPTY)).toEqual(['6']);
+  });
+
+  it('is the ordinary notes key when nothing is lit', async () => {
+    // The setting on and notes on is not a sweep: there is no digit to sweep.
+    const { user } = renderGame({ sweepOneDigit: true });
+    await user.click(within(keypad()).getByRole('button', { name: 'Notes off' }));
+
+    expect(within(keypad()).getByRole('button', { name: 'Notes on' })).toBeInTheDocument();
+  });
+});
+
+describe('tapping the grid mid-sweep', () => {
+  it('writes the swept digit, so the sweep never leaves the grid', async () => {
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    await user.click(cell(EMPTY));
+
+    expect(notes(EMPTY)).toEqual(['5']);
+  });
+
+  it('takes it back on a second tap, which is what makes a mis-tap cheap', async () => {
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    await user.click(cell(EMPTY));
+    await user.click(cell(EMPTY));
+
+    expect(notes(EMPTY)).toEqual([]);
+  });
+
+  it('writes nothing on a solved cell, and still leaves the green alone', async () => {
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    await user.click(cell(THREE));
+
+    expect(notes(THREE)).toEqual([]);
+    expect(highlighted()).toBe('5');
+  });
+
+  it('leaves no trail behind the caret, which is not a press', async () => {
+    // Selecting and pressing are the same event for a pointer and very much
+    // not for a keyboard. A player scanning the board with the arrow keys must
+    // not be writing notes as they go.
+    const { user } = renderGame({ sweepOneDigit: true });
+    await startSweeping(user);
+
+    await user.keyboard('{ArrowRight}{ArrowRight}{ArrowDown}');
+
+    expect(document.querySelectorAll('[data-marked]')).toHaveLength(0);
+  });
+
+  it('does none of this outside a sweep', async () => {
+    // With the setting off a tap is a tap: it moves the caret and writes
+    // nothing, which is what every other mode in the app does.
+    const { user } = renderGame();
+    await startSweeping(user);
+
+    await user.click(cell(EMPTY));
+
+    expect(notes(EMPTY)).toEqual([]);
+  });
+});
+
 describe('with sweeping off, which is the default', () => {
   it('takes any digit as a note', async () => {
     const { user } = renderGame();
@@ -197,8 +298,13 @@ describe('with sweeping off, which is the default', () => {
   });
 
   it('lets a tap on a solved cell re-point the green, as it always has', async () => {
+    // Set up directly rather than through `startSweeping`: that helper walks
+    // the caret with the arrow keys, and with the lock off a caret crossing a
+    // solved cell re-points the green on its way past — which is the very
+    // behaviour under test here and would be doing the work for it.
     const { user } = renderGame();
-    await startSweeping(user);
+    await user.click(cell(FIVE));
+    expect(highlighted()).toBe('5');
 
     await user.click(cell(THREE));
 

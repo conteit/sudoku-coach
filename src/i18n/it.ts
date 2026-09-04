@@ -289,6 +289,10 @@ export const it: Dictionary = {
 
   'settings.shadeDigitPeers': 'Ombreggia dove la cifra non può andare',
 
+  'keypad.sweeping': 'Scansione del {digit}',
+  'keypad.captionSweep': 'Scansione',
+  'keypad.labelSweeping': 'Tastiera, scansione del {digit}',
+
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
 };
