@@ -47,6 +47,14 @@ describe('the sync notice', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('says nothing about being offline, which is not a failure', () => {
+    // This app is meant to be played offline. A banner every time someone
+    // opens it on a train would be a true sentence about a non-problem, and
+    // it is the nagging this state was introduced to stop.
+    show('offline');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('says nothing to a player who never turned sync on', () => {
     // The status can be anything at all; without the switch there is no
     // promise to have broken.
