@@ -62,6 +62,15 @@ a clear between waves costs nothing because #22 carries the state across it.
 Never weaken a config to make it pass. `main` requires the `verify` check and linear history; land
 work through a PR with `gh pr merge --auto --rebase`.
 
+**Run the mutation.** A new test is not evidence until you have watched it fail. Break the thing it
+covers, see red, put it back, see green. This repo has had eight tests that passed for the wrong
+reason and every one was caught this way rather than by review — a geometry test that passed with
+the fix deleted, a blocked-upgrade test holding the database with Dexie (which yields, so it never
+blocked), a landing-page assertion that could not fail because the e2e build has no Firebase config
+at all. That last kind is the one to watch for: **a test whose subject is absent from the
+environment passes silently and forever.** When a claim cannot be made to fail, say so and test it
+somewhere it can.
+
 ## Style
 
 Match the surrounding code — `src/engine/board.ts` sets the tone for the engine, `src/index.css` for
