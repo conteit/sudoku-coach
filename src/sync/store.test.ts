@@ -35,12 +35,14 @@ const storeWith = (
   conn: SudokuCoachDB,
   getGrant = vi.fn().mockResolvedValue(grant),
   available = true,
+  offline = false,
 ) =>
   createSyncStore({
     conn,
     now: () => 1000,
     available: () => available,
     getGrant,
+    offline: () => offline,
   });
 
 beforeEach(() => {
@@ -200,6 +202,52 @@ describe('the sync store', () => {
     await Promise.all([useStore.getState().syncNow(), useStore.getState().syncNow()]);
 
     expect(overlapped).toBe(false);
+  });
+
+  describe('with no network', () => {
+    it('does not ask Google for anything', async () => {
+      // The point of the whole exercise. Asking for a token is the one thing
+      // sync does that can put a popup in front of someone, and offline it can
+      // only fail — so a player on a train is never asked to sign in again.
+      const getGrant = vi.fn().mockResolvedValue(grant);
+      const useStore = storeWith(device(), getGrant, true, true);
+
+      await useStore.getState().enable();
+
+      expect(getGrant).not.toHaveBeenCalled();
+      expect(syncOnce).not.toHaveBeenCalled();
+    });
+
+    it('rests in "offline", which is neither a failure nor a consent problem', async () => {
+      // Kept out of both so they keep meaning something: `error` is a real
+      // failure, `consent` is Google refusing a token. Absorbing "no network"
+      // into either would make both unactionable.
+      const useStore = storeWith(device(), vi.fn().mockResolvedValue(grant), true, true);
+
+      await useStore.getState().enable();
+
+      expect(useStore.getState().status).toBe('offline');
+    });
+
+    it('remembers the switch, so coming back needs no decision', async () => {
+      const conn = device();
+      const useStore = storeWith(conn, vi.fn().mockResolvedValue(grant), true, true);
+
+      await useStore.getState().enable();
+
+      expect(useStore.getState().enabled).toBe(true);
+      expect((await readSyncRecord(conn)).enabled).toBe(true);
+    });
+
+    it('still refuses to sync when the player is signed out', async () => {
+      const useStore = storeWith(device(), vi.fn().mockResolvedValue(grant), true, true);
+      await useStore.getState().enable();
+
+      useAccount.setState({ account: null });
+      await useStore.getState().syncNow();
+
+      expect(useStore.getState().status).toBe('off');
+    });
   });
 
   it('keeps the access token out of anything that can be serialised', async () => {

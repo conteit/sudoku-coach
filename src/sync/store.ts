@@ -21,6 +21,7 @@ import { useAccount } from '../state/account';
 import { DriveError, driveFor } from './drive';
 import { syncOnce } from './engine';
 import { requestGrant, syncAvailable, usable, type Grant } from './token';
+import { isOffline } from './connectivity';
 
 export type SyncStatus =
   /** This build cannot sync, or the player has not switched it on. */
@@ -30,6 +31,11 @@ export type SyncStatus =
   | 'syncing'
   /** On, but Google will not issue a token without being asked in person. */
   | 'consent'
+  /**
+   * On, and there is no network. Not a failure and not the player's problem:
+   * this app is meant to be played offline, so nothing is shown for it.
+   */
+  | 'offline'
   /** On, and the last attempt failed. Not fatal: the next one may not. */
   | 'error';
 
@@ -63,6 +69,7 @@ export interface SyncDeps {
   now: () => number;
   available: () => boolean;
   getGrant: (prompt: string, hint?: string) => Promise<Grant | null>;
+  offline: () => boolean;
 }
 
 const defaultDeps = (): SyncDeps => ({
@@ -70,6 +77,7 @@ const defaultDeps = (): SyncDeps => ({
   now: () => Date.now(),
   available: () => syncAvailable(),
   getGrant: (prompt, hint) => requestGrant({ prompt, hint }),
+  offline: isOffline,
 });
 
 export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
@@ -92,6 +100,15 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
       // feature, and it is reached by the player pressing "Sign out".
       if (!get().enabled || !deps.available() || useAccount.getState().account === null) {
         set({ status: 'off' });
+        return;
+      }
+
+      // Before the token, and that order is the whole point: asking Google for
+      // one is the single thing sync does that can put a popup in front of
+      // someone, and doing it with no network can only fail. A player on a
+      // train is not having an account problem.
+      if (deps.offline()) {
+        set({ status: 'offline' });
         return;
       }
 

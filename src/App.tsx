@@ -19,6 +19,7 @@ import { useProfile } from './state/profile';
 import { watchDatabaseBlock, type DatabaseBlock } from './state/db';
 import { useGameStore } from './state/store';
 import { useSync } from './sync/store';
+import { watchConnection } from './sync/connectivity';
 import { parseGrid } from './engine/board';
 import type {
   CellIndex,
@@ -154,6 +155,15 @@ export default function App() {
       else void useSync.getState().syncNow();
     });
 
+    // Sync follows the network as well as the session. Both callbacks simply
+    // poke `syncNow`, because the store is the one that classifies: with no
+    // network it settles into `offline` and asks Google for nothing, and with
+    // a connection that has held it does the run it skipped.
+    const unwatchConnection = watchConnection({
+      onStable: () => void useSync.getState().syncNow(),
+      onLost: () => void useSync.getState().syncNow(),
+    });
+
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
         // Flush first, then sync. The autosave debounce means the last few
@@ -173,6 +183,7 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       unwatch();
+      unwatchConnection();
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [route]);
