@@ -93,7 +93,42 @@ dependency.
 
 **The three `types.ts` files are frozen interfaces.** Parallel work streams build
 against them. Changing one is a coordinated change: raise it rather than editing
-locally. Open gaps are collected in issue #25.
+locally, and say so in the PR body — `PlayerProfile.settings` has been widened
+that way several times (#60, #73, #107, #108).
+
+### The four gaps that were open, and why they stay as they are
+
+Issue #25 collected these when the state layer was young and they were cheap to
+change. **One fact has since decided three of them: `Game` is a sync payload.**
+Every stored game is serialised to `game-<id>.json` in a player's Drive, so a
+change to its shape now needs a Dexie migration *and* a remote-format migration
+*and* a merge rule, where it used to need an edit.
+
+1. **`completedAt: number | null` is indexed, and IndexedDB cannot index
+   `null`.** In-progress games are therefore *absent* from that index rather
+   than sorted first: `where('completedAt').above(0)` is an exact "finished
+   games" query, while `orderBy('completedAt')` silently drops every unfinished
+   game. A sentinel `0` would remove the trap at the cost of a less honest type.
+   **Kept as it is** — the trap is documented in `db.ts`, pinned by a test, and
+   no caller can reach it: `listSummaries` orders by `updatedAt`. Rewriting
+   every stored and synced game to defuse a trap nothing walks into is the
+   worse trade.
+2. **`Move.at` is the wall clock and the batch identity.** A batch is the
+   trailing run of moves sharing one `at`, with the reducer forcing each action
+   strictly past the last recorded move so two actions in the same millisecond
+   cannot merge into one undo step. Implicit, but enforced and tested. **Kept**
+   — an explicit `batch` field would rewrite every persisted and synced `Move`.
+3. **`MoveBatch` has no persisted role.** It does have a role: `topBatch`
+   returns it and the undo and redo paths consume it. It is an in-memory view
+   of the flat `Move[]`, which is a real job and not a stored one. **Kept.**
+4. **`mastery.ts` transitions take an explicit `at`** where the original spec
+   listed two arguments. That is the reducer's determinism rule applied to pure
+   functions — no `Date.now()` inside one — and this document, not the spec, is
+   the binding reference. **No gap.**
+
+The pattern worth carrying: a contract is cheap to change until something
+outside the process depends on its bytes. These stopped being cheap the day
+sync shipped, and nothing has needed them to change since.
 
 ### Inside `src/app/`
 
@@ -329,6 +364,30 @@ not wait for the network and a failure is a line in Settings, never a dialog.
 Sync needs `VITE_GOOGLE_CLIENT_ID` alongside the Firebase config. A build
 without it has no sync — not a broken switch, a feature that build does not
 have, the same rule sign-in follows.
+
+## Schema changes are a hazard, not a chore
+
+An IndexedDB upgrade cannot run while another connection holds the old version
+open, and a blocked `open()` **never settles** — no timeout, no rejection. That
+took the app down to a blank page on 2026-09-03: both stores' `hydrate()` waited
+forever, `hydrated` stayed false, and the shell rendered its loading
+placeholder with every saved game apparently gone.
+
+Two things make it worse than it sounds, and both are counter-intuitive:
+
+- **An awake Dexie connection yields on its own** — its default `versionchange`
+  handler closes it so the upgrade proceeds. A **frozen background window runs
+  no JavaScript at all**, so it yields nothing. An installed PWA sitting in the
+  background is exactly that window, and it is the common case rather than the
+  exotic one.
+- Which means a test that holds the old version *with Dexie* proves nothing,
+  because Dexie lets go. The test in `db.test.ts` holds it with raw IndexedDB
+  for that reason, and the first version of it passed for the wrong reason.
+
+`observeBlocking(db)` now closes this connection on `versionchange` so it can
+never be the obstruction, and being blocked is a state the shell renders —
+which window is in the way, that nothing has been lost, and a reload. Before
+adding a `SchemaVersion`, read that code rather than this paragraph.
 
 ## Difficulty rating
 
