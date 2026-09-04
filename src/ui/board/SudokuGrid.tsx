@@ -49,6 +49,12 @@ export interface SudokuGridProps {
   cells: readonly GridCell[];
   selected: CellIndex | null;
   onSelect: (cell: CellIndex) => void;
+  /**
+   * A press, not a selection. The two are the same event for a pointer and
+   * very much not for a keyboard: `onSelect` also fires as the caret is walked
+   * across the board, and anything that writes has to hear only this one.
+   */
+  onActivate?: (cell: CellIndex) => void;
   /** Digit typed into a cell. Never fired for a given (R2). */
   onEnter?: (cell: CellIndex, digit: Digit) => void;
   /** Backspace / Delete on a cell. Never fired for a given. */
@@ -153,6 +159,7 @@ export function SudokuGrid({
   cells,
   selected,
   onSelect,
+  onActivate,
   onEnter,
   onClear,
   spotlight,
@@ -347,6 +354,7 @@ export function SudokuGrid({
                 winDelayMs={celebrate ? winDelay(row, col) : null}
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
+                onActivate={onActivate}
               />
             );
           })}

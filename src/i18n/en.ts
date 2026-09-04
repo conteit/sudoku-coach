@@ -291,6 +291,10 @@ export const en = {
 
   'settings.shadeDigitPeers': 'Shade where the digit cannot go',
 
+  'keypad.sweeping': 'Sweeping {digit}',
+  'keypad.captionSweep': 'Sweep',
+  'keypad.labelSweeping': 'Keypad, sweeping {digit}',
+
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
 } as const;
