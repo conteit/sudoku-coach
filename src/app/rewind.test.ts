@@ -66,13 +66,41 @@ describe('rewindTrail', () => {
       move(2, 'clear'),
       move(3, 'addCandidate', 7),
       move(4, 'removeCandidate', 8),
+      move(5, 'fillCandidates'),
+      move(6, 'clearCandidates'),
     ]);
-    expect(trail.map((s) => s.label)).toEqual(['unnoted', 'noted', 'cleared', 'placed']);
-    expect(trail.map((s) => s.digit)).toEqual([8, 7, null, 4]);
+    expect(trail.map((s) => s.label)).toEqual([
+      'unnotedAll',
+      'notedAll',
+      'unnoted',
+      'noted',
+      'cleared',
+      'placed',
+    ]);
+    // The digit-less labels don't just happen to read undefined here — the
+    // field isn't in the type for that shape, so a future call site can't
+    // read it even if it tried.
+    expect(trail.map((s) => ('digit' in s ? s.digit : null))).toEqual([
+      null,
+      null,
+      8,
+      7,
+      null,
+      4,
+    ]);
   });
 
   it('caps the trail, because a long rewind is not a long list', () => {
     const many = Array.from({ length: MAX_TRAIL + 5 }, (_, i) => move(i, 'set', 1));
     expect(rewindTrail(many)).toHaveLength(MAX_TRAIL);
+  });
+
+  it('reads the digit-less label for a digit-bearing kind that somehow arrives without one, rather than inventing a digit', () => {
+    // `Move.digit` is optional in the type for every kind — this shouldn't
+    // happen for `set` in practice, but the fabrication this whole task
+    // exists to rule out was exactly this shape of surprise.
+    const trail = rewindTrail([move(9, 'set')]);
+    expect(trail).toEqual([{ cell: 9, label: 'cleared' }]);
+    expect('digit' in trail[0]).toBe(false);
   });
 });

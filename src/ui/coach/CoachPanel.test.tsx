@@ -369,9 +369,19 @@ describe('the rewind trail', () => {
       </LocaleProvider>,
     );
 
+  // All six labels the union can carry — 'placed', 'noted' and 'unnoted'
+  // are each about one digit; 'cleared', 'notedAll' and 'unnotedAll' never
+  // have one. The digit-bearing fixtures came first in the original test
+  // and are left first so its ordering assertion still means what it says;
+  // the other four were added under review, because a fixture that only
+  // ever exercised 'placed' and 'noted' is exactly how `?? 0` went uncaught.
   const TRAIL = [
     { cell: 3, digit: 9 as const, label: 'placed' as const },
     { cell: 2, digit: 7 as const, label: 'noted' as const },
+    { cell: 4, digit: 5 as const, label: 'unnoted' as const },
+    { cell: 5, label: 'cleared' as const },
+    { cell: 6, label: 'notedAll' as const },
+    { cell: 7, label: 'unnotedAll' as const },
   ];
 
   it('lists the undone moves newest first, and says the board is still wrong', () => {
@@ -381,6 +391,18 @@ describe('the rewind trail', () => {
     expect(items[0].textContent).toContain('r1c4');
     expect(items[1].textContent).toContain('r1c3');
     expect(screen.getByText(/cannot be finished/)).toBeTruthy();
+  });
+
+  it('describes every kind of undone move, and never invents a digit for the ones that have none', () => {
+    renderTrail({ rewindTrail: TRAIL, rewinding: true });
+
+    const items = screen.getAllByRole('listitem');
+    expect(items[0].textContent).toBe('9 in r1c4');
+    expect(items[1].textContent).toBe('noted 7 in r1c3');
+    expect(items[2].textContent).toBe('took the note 5 off r1c5');
+    expect(items[3].textContent).toBe('cleared r1c6');
+    expect(items[4].textContent).toBe('filled in the notes in r1c7');
+    expect(items[5].textContent).toBe('cleared the notes in r1c8');
   });
 
   it('changes what it says once the board works again', () => {

@@ -305,4 +305,6 @@ export const it: Dictionary = {
   'coach.rewind.cleared': 'svuotata {cell}',
   'coach.rewind.noted': 'annotato {digit} in {cell}',
   'coach.rewind.unnoted': 'tolta l\'annotazione {digit} da {cell}',
+  'coach.rewind.notedAll': 'scritte tutte le note in {cell}',
+  'coach.rewind.unnotedAll': 'svuotate le note in {cell}',
 };

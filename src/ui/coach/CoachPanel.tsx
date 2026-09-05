@@ -126,12 +126,26 @@ export interface CoachPanelProps {
  * Structurally identical to `app/rewind`'s own `RewindStep`; the one place
  * the two meet is `GameView` passing `rewindTrail(game.redoStack)` into this
  * prop, where `tsc` catches any drift between them.
+ *
+ * A discriminated union, not one shape with an optional `digit`: `placed`,
+ * `noted` and `unnoted` are each about one digit in one cell and always carry
+ * one, while `cleared`, `notedAll` and `unnotedAll` act on the whole cell at
+ * once — a value removed, every note written, every note wiped — and never
+ * have a single digit to name. Giving the digit-less variant no `digit` field
+ * at all (rather than `null`) is what makes a fabricated one a compile error
+ * instead of a runtime maybe.
  */
-export interface RewindStep {
-  cell: CellIndex;
-  digit: Digit | null;
-  label: 'placed' | 'cleared' | 'noted' | 'unnoted';
-}
+export type RewindStep =
+  | {
+      cell: CellIndex;
+      /** The one digit the move placed, noted or un-noted. Never guessed. */
+      digit: Digit;
+      label: 'placed' | 'noted' | 'unnoted';
+    }
+  // No `digit` field at all: `cleared` emptied the whole cell, and
+  // `notedAll`/`unnotedAll` touched every candidate in it, so none of the
+  // three is about any single digit.
+  | { cell: CellIndex; label: 'cleared' | 'notedAll' | 'unnotedAll' };
 
 function Ladder({ level }: { level: DisclosureLevel }) {
   const t = useT();
@@ -353,22 +367,27 @@ export function CoachPanel({
                   i === 0 ? 'text-coach' : 'text-ink-soft',
                 )}
               >
-                {step.label === 'cleared'
-                  ? t('coach.rewind.cleared', { cell: cellName(step.cell) })
-                  : step.label === 'placed'
-                    ? t('coach.rewind.placed', {
-                        cell: cellName(step.cell),
-                        digit: step.digit ?? 0,
-                      })
+                {/* Narrowed with `'digit' in step` first, not with equality
+                    checks on `step.label` alone: each of the two shapes has
+                    three labels of its own, so a chain of `label === …`
+                    comparisons never fully eliminates one shape in favour of
+                    the other for `tsc`. Splitting on the field's presence is
+                    what keeps this honest — the digit-less branch below has
+                    no `digit` in scope to reach for. */}
+                {'digit' in step
+                  ? step.label === 'placed'
+                    ? t('coach.rewind.placed', { cell: cellName(step.cell), digit: step.digit })
                     : step.label === 'noted'
-                      ? t('coach.rewind.noted', {
-                          cell: cellName(step.cell),
-                          digit: step.digit ?? 0,
-                        })
+                      ? t('coach.rewind.noted', { cell: cellName(step.cell), digit: step.digit })
                       : t('coach.rewind.unnoted', {
                           cell: cellName(step.cell),
-                          digit: step.digit ?? 0,
-                        })}
+                          digit: step.digit,
+                        })
+                  : step.label === 'cleared'
+                    ? t('coach.rewind.cleared', { cell: cellName(step.cell) })
+                    : step.label === 'notedAll'
+                      ? t('coach.rewind.notedAll', { cell: cellName(step.cell) })
+                      : t('coach.rewind.unnotedAll', { cell: cellName(step.cell) })}
               </li>
             ))}
           </ol>
