@@ -377,6 +377,15 @@ export function SettingsSheet({
                 checked={profile.settings.shadeDigitPeers}
                 onChange={(shadeDigitPeers) => onSettings({ shadeDigitPeers })}
               />
+              {/* The only aid in this group that ships on, because it is the
+                  only one that neither does the player's scanning nor edits
+                  their marks. It is here to be turned off by a thumb that
+                  keeps triggering it. */}
+              <Toggle
+                label={t('settings.promoteLoneNote')}
+                checked={profile.settings.promoteLoneNote}
+                onChange={(promoteLoneNote) => onSettings({ promoteLoneNote })}
+              />
             </>
           ) : active === 'general' ? (
             <>

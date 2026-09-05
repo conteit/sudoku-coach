@@ -291,6 +291,8 @@ export const en = {
 
   'settings.shadeDigitPeers': 'Shade where the digit cannot go',
 
+  'settings.promoteLoneNote': 'Hold a cell to place its last note',
+
   'keypad.sweeping': 'Sweeping {digit}',
   'keypad.captionSweep': 'Sweep',
   'keypad.labelSweeping': 'Keypad, sweeping {digit}',

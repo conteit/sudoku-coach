@@ -54,6 +54,9 @@ export const DEFAULT_PROFILE: PlayerProfile = {
     sweepOneDigit: false,
     // Off because it does a share of the player's scanning: a training wheel.
     shadeDigitPeers: false,
+    // On, unlike the aids above it: it places a conclusion the player already
+    // wrote down rather than doing any of their reasoning for them.
+    promoteLoneNote: true,
   },
 };
 
