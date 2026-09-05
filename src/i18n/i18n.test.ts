@@ -47,7 +47,10 @@ describe('dictionaries', () => {
     // the fourth kind: a loanword Italian actually uses, where inventing
     // "Profilo" would be a translation of a word rather than of a meaning.
     // `legal.privacy` is that same kind and has the stronger claim — "privacy"
-    // is the word Italian data-protection law uses of itself.
+    // is the word Italian data-protection law uses of itself. `coach.rewind
+    // .placed` is a fifth kind, and a coincidence rather than a rule: "in" is
+    // the one preposition this app's copy needs that is spelled the same way
+    // in both languages, so "{digit} in {cell}" was already written twice.
     // Everything else must actually have been written.
     expect(new Set(identical)).toEqual(
       new Set([
@@ -57,6 +60,7 @@ describe('dictionaries', () => {
         'cell.value',
         'account.title',
         'legal.privacy',
+        'coach.rewind.placed',
       ]),
     );
   });

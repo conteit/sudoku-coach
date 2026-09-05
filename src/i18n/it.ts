@@ -298,4 +298,11 @@ export const it: Dictionary = {
 
   'action.undoRewind': 'Annulla — una delle tue cifre è sbagliata',
   'keypad.captionRewind': 'Torna indietro',
+
+  'coach.rewind.active': 'Questa griglia non si può completare. Torna indietro con Annulla finché questo avviso non sparisce.',
+  'coach.rewind.done': 'Sei tornato a una griglia che funziona. Ecco cosa hai annullato.',
+  'coach.rewind.placed': '{digit} in {cell}',
+  'coach.rewind.cleared': 'svuotata {cell}',
+  'coach.rewind.noted': 'annotato {digit} in {cell}',
+  'coach.rewind.unnoted': 'tolta l\'annotazione {digit} da {cell}',
 };

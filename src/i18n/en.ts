@@ -300,4 +300,11 @@ export const en = {
 
   'action.undoRewind': 'Undo — one of your digits is wrong',
   'keypad.captionRewind': 'Rewind',
+
+  'coach.rewind.active': 'This board cannot be finished. Step back with Undo until this clears.',
+  'coach.rewind.done': 'Back to a board that works. Here is what you undid.',
+  'coach.rewind.placed': '{digit} in {cell}',
+  'coach.rewind.cleared': 'cleared {cell}',
+  'coach.rewind.noted': 'noted {digit} in {cell}',
+  'coach.rewind.unnoted': 'took the note {digit} off {cell}',
 } as const;

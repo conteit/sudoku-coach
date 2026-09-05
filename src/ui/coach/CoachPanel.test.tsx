@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { CandidateReview, Hint } from '../../coach/types';
 import type { DisclosureLevel } from '../../state/types';
-import { CoachPanel } from './CoachPanel';
+import { LocaleProvider } from '../../i18n/react';
+import { CoachPanel, type CoachPanelProps } from './CoachPanel';
 
 const hintAt = (level: DisclosureLevel, text: string, canEscalate = true): Hint => ({
   technique: 'hidden_single',
@@ -352,5 +353,50 @@ describe('setting a finding aside', () => {
     );
 
     expect(screen.queryByRole('button', { name: /show me another/i })).toBeNull();
+  });
+});
+
+describe('the rewind trail', () => {
+  const renderTrail = (props: Partial<CoachPanelProps>) =>
+    render(
+      <LocaleProvider locale="en">
+        <CoachPanel
+          hint={null}
+          onAsk={() => undefined}
+          onEscalate={() => undefined}
+          {...props}
+        />
+      </LocaleProvider>,
+    );
+
+  const TRAIL = [
+    { cell: 3, digit: 9 as const, label: 'placed' as const },
+    { cell: 2, digit: 7 as const, label: 'noted' as const },
+  ];
+
+  it('lists the undone moves newest first, and says the board is still wrong', () => {
+    renderTrail({ rewindTrail: TRAIL, rewinding: true });
+
+    const items = screen.getAllByRole('listitem');
+    expect(items[0].textContent).toContain('r1c4');
+    expect(items[1].textContent).toContain('r1c3');
+    expect(screen.getByText(/cannot be finished/)).toBeTruthy();
+  });
+
+  it('changes what it says once the board works again', () => {
+    renderTrail({ rewindTrail: TRAIL, rewinding: false });
+
+    expect(screen.getByText(/Back to a board that works/)).toBeTruthy();
+  });
+
+  it('shows nothing at all with no trail', () => {
+    // Not `queryByRole('list')`: the ladder above renders its own <ol>
+    // unconditionally (its four rungs have to be there to show "not taken
+    // yet"), so that role is never absent from this panel. The rewind
+    // block's own status lines are what must vanish with it.
+    renderTrail({ rewindTrail: [], rewinding: false });
+
+    expect(screen.queryByText(/cannot be finished/)).toBeNull();
+    expect(screen.queryByText(/Back to a board that works/)).toBeNull();
   });
 });

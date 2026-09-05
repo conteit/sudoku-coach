@@ -55,7 +55,7 @@ import { GameLayout } from './GameLayout';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, deadEndCells } from '../coach/triggers';
-import { nextRewindPhase, type RewindPhase } from './rewind';
+import { nextRewindPhase, rewindTrail, type RewindPhase, type RewindStep } from './rewind';
 import { triggerCells, useCoachSession } from './useCoachSession';
 import { useViewportTier } from './useViewportTier';
 
@@ -86,6 +86,9 @@ function downloadDiagnostics(report: string, gameId: string): void {
 
 /** One frozen empty reading, so turning the flag off does not rebuild 81 arrays. */
 const NO_STALE: readonly (readonly Digit[])[] = [];
+
+/** Nothing to show outside a rewind — one frozen array, not a new one per render. */
+const EMPTY_TRAIL: readonly RewindStep[] = [];
 
 /** The column's way back, so a swap can hand focus to it (and back again). */
 const LESSON_BACK_ID = 'lesson-back';
@@ -737,6 +740,8 @@ export function GameView({
           onCollapse={sheetOpen ? closeSheet : speaking ? coach.dismiss : undefined}
           nudge={coach.nudge}
           onDismissNudge={coach.dismissNudge}
+          rewindTrail={rewind === 'off' ? EMPTY_TRAIL : rewindTrail(game.redoStack)}
+          rewinding={rewind === 'active'}
           staleCount={staleCount}
           onClearStale={
             paused || solved ? undefined : () => dispatch({ type: 'clearStaleCandidates' })
