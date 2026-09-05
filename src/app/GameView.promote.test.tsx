@@ -173,6 +173,13 @@ describe('promoting a lone note', () => {
         act(() => {
           vi.advanceTimersByTime(LONG_PRESS_MS + 10);
         });
+        // The `data-slot` null check, not `textContent` alone: the pencil
+        // mark 4 already renders the character '4' inside the cell, so the
+        // text assertion on its own holds whether or not the promote fired.
+        // `Cell` drops the mark grid entirely once the cell holds a value, so
+        // the slot's absence is what actually separates a digit from a note —
+        // the same discriminator the sibling test above uses.
+        expect(cell(2).querySelector('[data-slot="4"]')).toBeNull();
         expect(cell(2).textContent).toContain('4');
         vi.useRealTimers();
       });
