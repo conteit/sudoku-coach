@@ -107,7 +107,8 @@ export interface CoachSessionInput {
 const coachCells = (game: LiveGame): CoachCell[] =>
   game.cells.map((cell) => ({ value: cell.value, candidates: cell.candidates }));
 
-const triggerCells = (game: LiveGame): TriggerCell[] =>
+/** Exported so the view's own trigger reads use the same shape, not a copy. */
+export const triggerCells = (game: LiveGame): TriggerCell[] =>
   game.cells.map((cell) => ({
     value: cell.value,
     candidates: cell.candidates,
