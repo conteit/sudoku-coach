@@ -172,6 +172,16 @@ has already read the front door.
    handler, never from an effect watching the board: an effect would fire
    again on the render after an undo restored the notes, and sweep them back
    out before the player saw them.
+
+   It does not run behind a placement that duplicates a peer. Such a placement
+   is a typo far more often than it is a move, and sweeping the notes it kills
+   costs the player work they then have to notice in time to undo. The test is
+   the *fact* of the conflict, never `settings.highlightConflicts`: turning a
+   colour off changes what the player sees, not what the app does for them.
+   Entries that are wrong but break no rule are still swept — the engine could
+   catch those from the solution, but notes surviving a placement would then be
+   a visible tell that the digit is wrong, which is invariant 2 leaking out
+   through a side effect instead of through text.
 2. **The solution string never leaves the engine.** It exists to verify
    uniqueness and to detect contradictions. It is never read to produce hint
    text, and never serialized to the coach in full (spec §5.6).
@@ -305,6 +315,27 @@ has already read the front door.
     measure stays bounded by something that is actually load-bearing. The
     game screen splits at the same tiers, for invariant 9's reason, not this
     one.
+
+11. **Recovery may point at a mistake; a hint may not.** The rewind
+    (`src/app/rewind.ts`) arms when `deadEndCells` finds an empty cell with no
+    digit left to take, and disarms when `contradictionAt` finds no wrong entry
+    — different conditions, and they cannot fight, because a dead end implies a
+    contradiction. It deliberately does not arm on a contradiction alone: that
+    is the nudge's job, and a board that can still be played is not a board in
+    recovery.
+
+    The amber going out tells the player which move was wrong, and in a cell
+    they had narrowed to two candidates that is the other digit. This is a
+    deliberate loosening, taken with Paolo's decision on the record: the nudge
+    already announces that a mistake exists, and stepping back until it clears
+    reaches the same place by hand. Invariant 4 is untouched — no cell is
+    rendered with a digit it does not hold, and no hint gains an assignment.
+    What changed is that a *control's colour* is derived from a contradiction
+    that was already announced. Nothing else may take that licence.
+
+    The trail is `redoStack` read backwards and capped, so it stores nothing
+    and lives exactly as long as the moves it describes are restorable. An
+    ordinary undo in normal play must raise none of it.
 
 ## Developer tools
 
