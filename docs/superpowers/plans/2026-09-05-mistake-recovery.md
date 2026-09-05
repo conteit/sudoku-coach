@@ -483,6 +483,13 @@ afterEach(() => {
   useGameStore.setState({ activeGameId: null, games: {}, hydrated: true });
 });
 
+/** Cells name themselves with `data-cell`, the same handle the e2e reads. */
+function cell(index: number): HTMLElement {
+  const node = document.querySelector<HTMLElement>(`[data-cell="${index}"]`);
+  if (node === null) throw new Error(`no cell ${index} on the board`);
+  return node;
+}
+
 function renderGame(game: LiveGame) {
   useGameStore.setState({ activeGameId: game.id, games: { [game.id]: game }, hydrated: true });
   useProfile.setState((state) => ({
@@ -534,6 +541,23 @@ describe('the amber rewind', () => {
 
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Undo — one of your digits is wrong' })).toBeNull();
+  });
+
+  it('redo puts the whole rewind back, for a player who was wrong about being wrong', async () => {
+    // Stepping back is the ordinary undo, so every step lands on redoStack and
+    // nothing about a rewind is one-way. This is why it needs no confirmation.
+    const { user } = renderGame(strandedGame());
+    const before = cell(2).textContent;
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Undo — one of your digits is wrong' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Redo' }));
+
+    expect(cell(2).textContent).toBe(before);
+    expect(
+      await screen.findByRole('button', { name: 'Undo — one of your digits is wrong' }),
+    ).toBeTruthy();
   });
 
   it('leaves the undo key alone on an ordinary board', () => {
@@ -752,17 +776,29 @@ MSG
 
 - [ ] **Step 2: Write the failing test**
 
-Append to `src/ui/coach/CoachPanel.test.tsx`, following that file's existing render helper and imports:
+Append to `src/ui/coach/CoachPanel.test.tsx`. Do not depend on that file's existing render helper — render the panel directly with only its required props, so this block is self-contained:
 
 ```tsx
 describe('the rewind trail', () => {
+  const renderTrail = (props: Partial<CoachPanelProps>) =>
+    render(
+      <LocaleProvider locale="en">
+        <CoachPanel
+          hint={null}
+          onAsk={() => undefined}
+          onEscalate={() => undefined}
+          {...props}
+        />
+      </LocaleProvider>,
+    );
+
   const TRAIL = [
     { cell: 3, digit: 9 as const, label: 'placed' as const },
     { cell: 2, digit: 7 as const, label: 'noted' as const },
   ];
 
   it('lists the undone moves newest first, and says the board is still wrong', () => {
-    renderPanel({ rewindTrail: TRAIL, rewinding: true });
+    renderTrail({ rewindTrail: TRAIL, rewinding: true });
 
     const items = screen.getAllByRole('listitem');
     expect(items[0].textContent).toContain('r1c4');
@@ -771,20 +807,20 @@ describe('the rewind trail', () => {
   });
 
   it('changes what it says once the board works again', () => {
-    renderPanel({ rewindTrail: TRAIL, rewinding: false });
+    renderTrail({ rewindTrail: TRAIL, rewinding: false });
 
     expect(screen.getByText(/Back to a board that works/)).toBeTruthy();
   });
 
   it('shows nothing at all with no trail', () => {
-    renderPanel({ rewindTrail: [], rewinding: false });
+    renderTrail({ rewindTrail: [], rewinding: false });
 
     expect(screen.queryByRole('list')).toBeNull();
   });
 });
 ```
 
-Adapt `renderPanel` to whatever that file's existing helper is called; if it takes a full props object, spread the existing required props (`hint: null`, `onAsk`, `onEscalate`) alongside these.
+`CoachPanelProps` and `LocaleProvider` are already imported in that file; add `render` from `@testing-library/react` if it is not.
 
 - [ ] **Step 3: Run and watch it fail**
 
@@ -1352,18 +1388,46 @@ MSG
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `src/ui/board/SudokuGrid.test.tsx`, following that file's existing render helper:
+Append to `src/ui/board/SudokuGrid.test.tsx`, self-contained — do not depend on that file's existing helpers:
 
 ```tsx
 describe('promoting a cell', () => {
+  const PUZZLE =
+    '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79';
+  /** r1c1 is a given 5; r1c3 is empty. Those are the two cells these tests use. */
+  const GIVEN_CELL = 0;
+  const EMPTY_CELL = 2;
+
+  const gridCells = () =>
+    [...PUZZLE].map((ch) => ({
+      value: ch === '.' ? null : (Number(ch) as Digit),
+      given: ch !== '.',
+      candidates: [] as Digit[],
+    }));
+
+  const renderGrid = (props: Partial<SudokuGridProps>) => {
+    render(
+      <LocaleProvider locale="en">
+        <SudokuGrid cells={gridCells()} selected={null} onSelect={() => undefined} {...props} />
+      </LocaleProvider>,
+    );
+    return { user: userEvent.setup() };
+  };
+
+  const cell = (index: number): HTMLElement => {
+    const node = document.querySelector<HTMLElement>(`[data-cell="${index}"]`);
+    if (node === null) throw new Error(`no cell ${index} on the board`);
+    return node;
+  };
+
   it('fires on Enter over the focused cell', async () => {
     const onPromote = vi.fn();
-    const { user } = renderGrid({ onPromote, selected: 4 });
+    const { user } = renderGrid({ onPromote, selected: EMPTY_CELL });
 
-    await user.click(cell(4));
+    await user.click(cell(EMPTY_CELL));
     await user.keyboard('{Enter}');
 
-    expect(onPromote).toHaveBeenCalledWith(4);
+    expect(onPromote).toHaveBeenCalledWith(EMPTY_CELL);
   });
 
   it('does not fire on Enter over a given', async () => {
@@ -1378,27 +1442,27 @@ describe('promoting a cell', () => {
     expect(onPromote).not.toHaveBeenCalled();
   });
 
-  it('fires on a held press', async () => {
+  it('fires on a held press', () => {
     vi.useFakeTimers();
     const onPromote = vi.fn();
     renderGrid({ onPromote });
 
-    fireEvent.pointerDown(cell(4), { clientX: 10, clientY: 10 });
+    fireEvent.pointerDown(cell(EMPTY_CELL), { clientX: 10, clientY: 10 });
     act(() => {
       vi.advanceTimersByTime(LONG_PRESS_MS + 10);
     });
 
-    expect(onPromote).toHaveBeenCalledWith(4);
+    expect(onPromote).toHaveBeenCalledWith(EMPTY_CELL);
     vi.useRealTimers();
   });
 
-  it('does not fire when the thumb drifts off', async () => {
+  it('does not fire when the thumb drifts off', () => {
     vi.useFakeTimers();
     const onPromote = vi.fn();
     renderGrid({ onPromote });
 
-    fireEvent.pointerDown(cell(4), { clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(cell(4), { clientX: 40, clientY: 40 });
+    fireEvent.pointerDown(cell(EMPTY_CELL), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(cell(EMPTY_CELL), { clientX: 40, clientY: 40 });
     act(() => {
       vi.advanceTimersByTime(LONG_PRESS_MS + 10);
     });
@@ -1409,7 +1473,7 @@ describe('promoting a cell', () => {
 });
 ```
 
-Import `LONG_PRESS_MS` from `../primitives/useLongPress`, plus `act`, `fireEvent` from `@testing-library/react` and `vi` from vitest. `GIVEN_CELL` is any index where that file's fixture puzzle has a given.
+Add to that file's imports as needed: `act`, `fireEvent`, `render` from `@testing-library/react`; `userEvent` from `@testing-library/user-event`; `vi` from vitest; `LONG_PRESS_MS` from `../primitives/useLongPress`; `LocaleProvider` from `../../i18n/react`; `type Digit` from `../../engine/types`; `type SudokuGridProps` from `./SudokuGrid`.
 
 - [ ] **Step 2: Run and watch them fail**
 
@@ -1618,7 +1682,7 @@ describe('promoting a lone note', () => {
     // not a note-taking action.
     vi.useRealTimers();
     return user
-      .click(screen.getByRole('button', { name: /notes/i }))
+      .click(screen.getByRole('button', { name: 'Notes' }))
       .then(() => {
         vi.useFakeTimers();
         fireEvent.pointerDown(cell(2), { clientX: 10, clientY: 10 });
@@ -1632,7 +1696,7 @@ describe('promoting a lone note', () => {
 });
 ```
 
-If the notes-mode toggle's accessible name does not match `/notes/i`, read it off `Keypad.tsx`'s pencil `IconButton` label and use that exact string.
+The notes toggle's accessible name is `t('action.notes')` = **'Notes'** (`src/i18n/en.ts:42`, used at `src/ui/keypad/Keypad.tsx:365`), so `screen.getByRole('button', { name: 'Notes' })` is the exact query.
 
 - [ ] **Step 3: Run and watch them fail**
 
