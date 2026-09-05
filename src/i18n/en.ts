@@ -307,4 +307,6 @@ export const en = {
   'coach.rewind.cleared': 'cleared {cell}',
   'coach.rewind.noted': 'noted {digit} in {cell}',
   'coach.rewind.unnoted': 'took the note {digit} off {cell}',
+  'coach.rewind.notedAll': 'filled in the notes in {cell}',
+  'coach.rewind.unnotedAll': 'cleared the notes in {cell}',
 } as const;

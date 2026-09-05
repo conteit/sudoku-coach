@@ -41,14 +41,30 @@ export function nextRewindPhase(phase: RewindPhase, input: RewindInput): RewindP
   return phase;
 }
 
-export type RewindLabel = 'placed' | 'cleared' | 'noted' | 'unnoted';
+export type DigitRewindLabel = 'placed' | 'noted' | 'unnoted';
+export type DigitlessRewindLabel = 'cleared' | 'notedAll' | 'unnotedAll';
 
-export interface RewindStep {
-  cell: CellIndex;
-  /** The digit the move was about, or null for one that cleared a cell. */
-  digit: Digit | null;
-  label: RewindLabel;
-}
+/**
+ * A discriminated union rather than one shape with an optional `digit`:
+ * `set`, `addCandidate` and `removeCandidate` always name a digit, while
+ * `clear`, `fillCandidates` and `clearCandidates` never do — replacing every
+ * mark or every value in a cell at once, not one digit's mark. Folding those
+ * into a single `digit: Digit | null` field left the null case indistinguishable
+ * from "a digit was expected but missing", which is exactly the gap that let
+ * `?? 0` fabricate one. Making the two variants distinct types means a digit
+ * can only be read where one is guaranteed to exist.
+ */
+export type RewindStep =
+  | {
+      cell: CellIndex;
+      /** The one digit the move placed, noted or un-noted. Never guessed. */
+      digit: Digit;
+      label: DigitRewindLabel;
+    }
+  // No `digit` field at all: `cleared` emptied the whole cell, and
+  // `notedAll`/`unnotedAll` touched every candidate in it, so none of the
+  // three is about any single digit.
+  | { cell: CellIndex; label: DigitlessRewindLabel };
 
 /**
  * How many undone moves the trail shows. A rewind out of a deep mistake can
@@ -58,13 +74,28 @@ export interface RewindStep {
  */
 export const MAX_TRAIL = 12;
 
-const LABELS: Record<Move['kind'], RewindLabel> = {
-  set: 'placed',
+/**
+ * Each digit-bearing kind's own fallback: the digit-less reading from the
+ * same family (single value / single note / single note-removal), for the
+ * boundary case in `rewindTrail` below. Not the same claim as the ordinary
+ * digit-less kinds — a `set` that arrived with no digit did not actually
+ * clear the cell — but it is the vaguest true statement available ("this
+ * cell changed") where the specific one ("this digit went here") cannot be
+ * made honestly.
+ */
+const DIGIT_LABELS: Record<
+  'set' | 'addCandidate' | 'removeCandidate',
+  { label: DigitRewindLabel; fallback: DigitlessRewindLabel }
+> = {
+  set: { label: 'placed', fallback: 'cleared' },
+  addCandidate: { label: 'noted', fallback: 'notedAll' },
+  removeCandidate: { label: 'unnoted', fallback: 'unnotedAll' },
+};
+
+const DIGITLESS_LABELS: Record<'clear' | 'fillCandidates' | 'clearCandidates', DigitlessRewindLabel> = {
   clear: 'cleared',
-  addCandidate: 'noted',
-  fillCandidates: 'noted',
-  removeCandidate: 'unnoted',
-  clearCandidates: 'unnoted',
+  fillCandidates: 'notedAll',
+  clearCandidates: 'unnotedAll',
 };
 
 /**
@@ -79,7 +110,20 @@ export function rewindTrail(redoStack: readonly Move[]): RewindStep[] {
   const out: RewindStep[] = [];
   for (let i = redoStack.length - 1; i >= 0 && out.length < MAX_TRAIL; i--) {
     const move = redoStack[i];
-    out.push({ cell: move.cell, digit: move.digit ?? null, label: LABELS[move.kind] });
+    if (move.kind === 'set' || move.kind === 'addCandidate' || move.kind === 'removeCandidate') {
+      const { label, fallback } = DIGIT_LABELS[move.kind];
+      // Belt and braces: these kinds always carry a digit in practice, but
+      // `Move.digit` is optional in the type for every kind. A move log that
+      // somehow disagrees produces the vaguer, digit-less copy rather than a
+      // fabricated digit — wrong copy is the one outcome this cannot have.
+      out.push(
+        move.digit === undefined
+          ? { cell: move.cell, label: fallback }
+          : { cell: move.cell, digit: move.digit, label },
+      );
+    } else {
+      out.push({ cell: move.cell, label: DIGITLESS_LABELS[move.kind] });
+    }
   }
   return out;
 }
