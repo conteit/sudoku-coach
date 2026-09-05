@@ -15,12 +15,13 @@
  * Presentational: it reads `values` to count, and reports every action up.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type { Digit } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { IconButton } from '../primitives/IconButton';
 import { EraserIcon, PencilIcon, RedoIcon, UndoIcon } from '../primitives/icons';
 import { cx } from '../primitives/cx';
+import { useLongPress } from '../primitives/useLongPress';
 import { useT } from '../../i18n/locale';
 
 /** A short vibration hint the host can route to the Vibration API. */
@@ -104,24 +105,6 @@ export interface KeypadProps {
   className?: string;
 }
 
-/**
- * Long enough that every ordinary tap — the key's primary, single-purpose
- * action now — resolves as a tap, short enough that arming a digit that
- * isn't on the board yet doesn't feel like a broken key.
- */
-const LONG_PRESS_MS = 500;
-
-/**
- * How far a pointer can drift before a held press is cancelled. Needed
- * specifically for touch: a touch pointer gets *implicit* capture on
- * `pointerdown`, so `pointerleave`/`pointerout` are not dispatched while the
- * finger is still down and moving across other keys — they are deferred
- * until release. `pointermove` is the only event that still reaches this key
- * while the finger has wandered off it, so it is the only reliable way to
- * honour a drag-off-to-cancel gesture on a touchscreen.
- */
-const MOVE_CANCEL_PX = 10;
-
 /** 9 minus placements, floored at 0 so a contradictory board never goes negative. */
 function remainingCounts(values: readonly (Digit | null)[]): Record<Digit, number> {
   const counts = { 1: 9, 2: 9, 3: 9, 4: 9, 5: 9, 6: 9, 7: 9, 8: 9, 9: 9 } as Record<Digit, number>;
@@ -164,77 +147,13 @@ export function Keypad({
     action();
   };
 
-  /**
-   * Only one key can be under a pointer at a time, so a single ref tracks the
-   * press in flight rather than one per digit. `fired` is what a click
-   * handler checks to tell a long-press's release from an ordinary tap: a
-   * pointer that was down long enough for the timer to fire still ends in a
-   * `click` on release (that is how buttons work, mouse or touch), and the
-   * long-press already did its thing — the click has to be swallowed, not
-   * treated as a second action. `x`/`y` are the down coordinates, for
-   * `trackMove` below.
-   */
-  const press = useRef<{
-    digit: Digit | null;
-    timer: ReturnType<typeof setTimeout> | null;
-    fired: boolean;
-    x: number;
-    y: number;
-  }>({
-    digit: null,
-    timer: null,
-    fired: false,
-    x: 0,
-    y: 0,
-  });
-
-  const startPress = (digit: Digit, x: number, y: number) => {
-    press.current.digit = digit;
-    press.current.fired = false;
-    press.current.x = x;
-    press.current.y = y;
-    press.current.timer = setTimeout(() => {
-      press.current.fired = true;
-      // Nothing to feel if there is nothing wired to do: firing the haptic
-      // unconditionally would vibrate for a press that has no effect at all.
+  const press = useLongPress<Digit>({
+    // Nothing to feel if there is nothing wired to do: firing the haptic
+    // unconditionally would vibrate for a press that has no effect at all.
+    onLongPress: (digit) => {
       if (onDigitLongPress) fire('toggle', () => onDigitLongPress(digit));
-    }, LONG_PRESS_MS);
-  };
-
-  const endPress = () => {
-    if (press.current.timer === null) return;
-    clearTimeout(press.current.timer);
-    press.current.timer = null;
-  };
-
-  /**
-   * A touch pointer keeps delivering `pointermove` to the key it started on
-   * even after the finger has wandered onto a neighbour (implicit capture —
-   * see `MOVE_CANCEL_PX`'s comment), so this is what makes "drag off to
-   * cancel" work on a touchscreen. `pointerleave` stays wired too, for a
-   * mouse, which gets no such capture.
-   */
-  const trackMove = (x: number, y: number) => {
-    if (press.current.timer === null) return;
-    const dx = x - press.current.x;
-    const dy = y - press.current.y;
-    if (dx * dx + dy * dy > MOVE_CANCEL_PX * MOVE_CANCEL_PX) endPress();
-  };
-
-  // A press left pending by an unmount (the game paused or exited mid-hold)
-  // is otherwise a live timer nothing ever clears — exactly the unbounded-
-  // timer hygiene a long-running session cannot afford. Captured as `state`
-  // rather than read via `press.current` inside the cleanup: `press` itself
-  // is never reassigned to a new object (only its fields mutate in place),
-  // so `state` and `press.current` are the same object for the component's
-  // whole life — this just satisfies the rule that a cleanup should not
-  // dereference `.current` directly, without losing the live timer id.
-  useEffect(() => {
-    const state = press.current;
-    return () => {
-      if (state.timer !== null) clearTimeout(state.timer);
-    };
-  }, []);
+    },
+  });
 
   return (
     <div
@@ -263,11 +182,11 @@ export function Keypad({
               key={digit}
               type="button"
               disabled={disabled || done}
-              onPointerDown={(event) => startPress(digit, event.clientX, event.clientY)}
-              onPointerMove={(event) => trackMove(event.clientX, event.clientY)}
-              onPointerUp={endPress}
-              onPointerLeave={endPress}
-              onPointerCancel={endPress}
+              onPointerDown={(event) => press.start(digit, event.clientX, event.clientY)}
+              onPointerMove={(event) => press.move(event.clientX, event.clientY)}
+              onPointerUp={press.end}
+              onPointerLeave={press.end}
+              onPointerCancel={press.end}
               // The platform's own long-press has to lose to this one: on
               // iOS Safari a 500ms hold on selectable text raises the
               // selection callout, and on Android Chrome it starts a text
@@ -278,20 +197,10 @@ export function Keypad({
               // component's own.
               onContextMenu={(event) => event.preventDefault()}
               onClick={(event) => {
-                // A long-press's release still ends in a click — that is how
-                // buttons work regardless of pointer type — and the press
-                // already did its one thing, so this tap is swallowed rather
-                // than also entering the digit. Gated on `event.detail !== 0`
-                // (0 for a keyboard activation, 1+ for a real pointer click):
-                // a press abandoned mid-gesture — dragged off and released
-                // somewhere that never dispatches this key's own click —
-                // leaves `fired` stale-true with no click here to clear it,
-                // and without this gate a later Enter/Space on the same key
-                // would silently swallow itself against that leftover state.
-                if (event.detail !== 0 && press.current.fired && press.current.digit === digit) {
-                  press.current.fired = false;
-                  return;
-                }
+                // A long press's release still ends in a click; swallow it.
+                // `event.detail !== 0` distinguishes a real pointer click from
+                // a keyboard-activated one, which never had a press.
+                if (event.detail !== 0 && press.consumeFired(digit)) return;
                 // The haptic for this one lives in the host: only it knows
                 // whether the tap actually has a cell to write into, and
                 // 'blocked' exists precisely so a no-op tap does not feel
