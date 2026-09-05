@@ -59,8 +59,11 @@ moment the player is actually stuck, and it is the moment Paolo asked for.
 
 `GameView` holds ephemeral component state, `rewinding`:
 
-- set true while `deadEndCells(...)` is non-empty
-- cleared when `contradictionAt(...)` returns null
+- set true on any render where `deadEndCells(...)` is non-empty
+- set false on any render where `contradictionAt(...)` returns null
+
+The two are evaluated in that order and cannot fight, because a dead end implies a contradiction:
+while the board is still stuck, the disarming condition is false by construction.
 
 Not persisted, and not added to `Game` — `Game` is a sync payload (invariant 5) and this is a
 transient view mode that a reload can recompute. After a reload mid-rewind the dead end is still
@@ -96,9 +99,17 @@ wrong about being wrong presses redo.
 
 ### The trail
 
-`redoStack` is the list of undone moves. While `rewinding`, and while it remains non-empty after a
-rewind, the coach panel renders it — newest first, each row naming the cell and what the move did,
-with the top entry marked as the placement that was wrong.
+`redoStack` is the list of undone moves. The coach panel renders it — newest first, each row
+naming the cell and what the move did, with the top entry marked as the placement that was wrong.
+
+It is shown while `rewinding`, and afterwards while a second ephemeral flag `rewound` holds. That
+flag is set the moment `rewinding` clears and is itself cleared when `redoStack` empties — which
+happens either because the player redid everything or because they made a new move, since
+`commit` invalidates the redo branch. So the trail outlives the rewind exactly as long as the moves
+it describes are still restorable, and no longer.
+
+The flag is what keeps an ordinary mid-game undo from raising a trail. Pressing undo once during
+normal play is not a rewind and must not look like one.
 
 **Known limitation, stated rather than hidden.** On a phone the coach panel is a sheet that covers
 the keypad. The trail is therefore read *after* stepping, not during it. That is an acceptable
@@ -185,6 +196,7 @@ restore it.
 | Amber clears on the undo that removes the wrong digit, not before | same |
 | Redo restores a rewind | same |
 | The trail lists undone moves, newest first | `src/ui/coach/CoachPanel.test.tsx` |
+| An ordinary undo during normal play raises no trail | `src/app/GameView.*.test.tsx` |
 | Auto-clear leaves notes alone behind a conflicting digit | `src/app/GameView.settings.test.tsx` |
 | Auto-clear still clears behind a clean digit | same |
 | The skip does not depend on `highlightConflicts` | same |
