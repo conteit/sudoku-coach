@@ -242,16 +242,19 @@ describe('clearing dead notes without being asked', () => {
       id: `settings-test-${counter++}`,
       running: true,
     });
-    const withNote = reduce(fresh, { type: 'addCandidate', cell: 2, digit: 9, at: 1100 });
+    // r2c6 (cell 23) and r2c4 (cell 21) are both empty and share row and box;
+    // 2 is not already given anywhere in either's row, column or box, so the
+    // placement below is a clean move rather than one the rules would flag.
+    const withNote = reduce(fresh, { type: 'addCandidate', cell: 23, digit: 2, at: 1100 });
     const { user } = renderGame({ autoClearDeadNotes: true }, withNote);
 
-    expect(cell(2).textContent).toContain('9');
+    expect(cell(23).textContent).toContain('2');
 
-    await user.click(cell(3));
-    await user.click(screen.getByRole('button', { name: 'Place 9' }));
+    await user.click(cell(21));
+    await user.click(screen.getByRole('button', { name: 'Place 2' }));
 
-    expect(cell(2).querySelector('[data-stale]')).toBeNull();
-    expect(cell(2).textContent).not.toContain('9');
+    expect(cell(23).querySelector('[data-stale]')).toBeNull();
+    expect(cell(23).textContent).not.toContain('2');
   });
 
   it('puts the notes back on one undo, and the digit stays', async () => {
@@ -266,14 +269,83 @@ describe('clearing dead notes without being asked', () => {
       id: `settings-test-${counter++}`,
       running: true,
     });
-    const withNote = reduce(fresh, { type: 'addCandidate', cell: 2, digit: 9, at: 1100 });
+    // Same clean placement as above: 2 into cell 21, a peer of the noted
+    // cell 23, breaks nothing.
+    const withNote = reduce(fresh, { type: 'addCandidate', cell: 23, digit: 2, at: 1100 });
     const { user } = renderGame({ autoClearDeadNotes: true }, withNote);
 
-    await user.click(cell(3));
-    await user.click(screen.getByRole('button', { name: 'Place 9' }));
+    await user.click(cell(21));
+    await user.click(screen.getByRole('button', { name: 'Place 2' }));
     await user.click(screen.getByRole('button', { name: 'Undo' }));
 
-    expect(cell(2).textContent).toContain('9');
-    expect(cell(3).textContent).toContain('9');
+    expect(cell(23).textContent).toContain('2');
+    expect(cell(21).textContent).toContain('2');
+  });
+
+  it('leaves the notes alone behind a digit that already breaks the rules', async () => {
+    // r1c1 is a given 5. Placing a second 5 in r1c3 is a typo the rules can
+    // see, and a typo must not cost the player their notes.
+    const fresh = newGame({
+      givens: PUZZLE,
+      solution: SOLVED,
+      difficulty: 'medium',
+      at: 1000,
+      id: `settings-test-${counter++}`,
+      running: true,
+    });
+    const withNote = reduce(fresh, { type: 'addCandidate', cell: 3, digit: 5, at: 1100 });
+    const { user } = renderGame({ autoClearDeadNotes: true }, withNote);
+
+    await user.click(cell(2));
+    await user.click(screen.getByRole('button', { name: 'Place 5' }));
+
+    expect(cell(3).textContent).toContain('5');
+  });
+
+  it('still clears behind a digit that breaks nothing', async () => {
+    const fresh = newGame({
+      givens: PUZZLE,
+      solution: SOLVED,
+      difficulty: 'medium',
+      at: 1000,
+      id: `settings-test-${counter++}`,
+      running: true,
+    });
+    // r2c6 (cell 23) and r2c4 (cell 21) share row and box; 2 is not given
+    // anywhere in either's row, column or box, so this placement is clean —
+    // unlike the digit-9-into-cell-3 pairing used elsewhere in this file,
+    // which collides with the given 9 at r2c5 (cell 13) and so cannot stand
+    // in for a rule-clean placement.
+    const withNote = reduce(fresh, { type: 'addCandidate', cell: 23, digit: 2, at: 1100 });
+    const { user } = renderGame({ autoClearDeadNotes: true }, withNote);
+
+    await user.click(cell(21));
+    await user.click(screen.getByRole('button', { name: 'Place 2' }));
+
+    expect(cell(23).textContent).not.toContain('2');
+  });
+
+  it('does not take its cue from the conflict colour being switched off', async () => {
+    // The skip is keyed on the fact of the conflict, not on whether the
+    // player has asked to see it. Turning a colour off changes what they see,
+    // never what the app does on their behalf.
+    const fresh = newGame({
+      givens: PUZZLE,
+      solution: SOLVED,
+      difficulty: 'medium',
+      at: 1000,
+      id: `settings-test-${counter++}`,
+      running: true,
+    });
+    const withNote = reduce(fresh, { type: 'addCandidate', cell: 3, digit: 5, at: 1100 });
+    const { user } = renderGame(
+      { autoClearDeadNotes: true, highlightConflicts: false },
+      withNote,
+    );
+
+    await user.click(cell(2));
+    await user.click(screen.getByRole('button', { name: 'Place 5' }));
+
+    expect(cell(3).textContent).toContain('5');
   });
 });
