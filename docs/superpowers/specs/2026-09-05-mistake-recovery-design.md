@@ -168,15 +168,36 @@ No new move kind, no batch, nothing outside the existing reducer. It places the 
 conclusion; if the note was wrong, the digit is wrong, and everything downstream — conflicts, the
 contradiction nudge, the amber rewind — behaves exactly as it does for a typed digit.
 
-### No setting
+### The setting
 
-The gesture is the opt-in. It cannot fire by accident and it does nothing at all on a cell that is
-not already down to one mark, so a switch would be a control whose off state is "the gesture
-silently does nothing". Paolo asked for an *optional* aid and this is the reading of optional that
-does not add a switch; he can override.
+`settings.promoteLoneNote`, **on by default**.
 
-It also stays deliberately one cell at a time. Promoting on selection, or promoting every lone note
-at once, would chain into an automatic solve — which he ruled out.
+The first draft of this design argued for no switch, on the grounds that the gesture is its own
+opt-in and that an off state of "the long press silently does nothing" is a control with no visible
+referent. That argument is wrong, and the reason it is wrong is worth keeping: **a slow tap on a
+phone is a long press.** The gesture can fire by accident, and when it does it places a digit. A
+player it keeps surprising cannot simply decline to use it, so the switch has a referent after
+all — it is the difference between a board that gains digits from a hesitant thumb and one that
+does not.
+
+On by default because it discloses nothing. Every aid that defaults off here —
+`autoClearDeadNotes`, `sweepOneDigit`, `shadeDigitPeers`, `highlightMatchingNotes` — defaults off
+because it does a share of the player's reasoning or edits their marks unasked. This does neither:
+it places a conclusion the player has already written down, as an ordinary undoable move. The
+annoyance it removes is the reason it was asked for, and an aid that has to be discovered in
+Settings before it helps has not helped.
+
+It stays deliberately one cell at a time. Promoting on selection, or promoting every lone note at
+once, would chain into an automatic solve — which Paolo ruled out.
+
+### The cost of the field
+
+`PlayerProfile.settings` lives in `src/state/types.ts`, a frozen contract, and the profile is a
+sync payload with no timestamp of its own. The change is additive and follows the path
+`sweepOneDigit` and `shadeDigitPeers` already took: a new boolean with its default in
+`src/state/mastery.ts`, so a profile written by an older build reads back with the default rather
+than `undefined`. Noted here because "frozen" means coordinated, not immovable, and this is the
+coordination.
 
 ### Shared gesture code
 
@@ -202,6 +223,8 @@ restore it.
 | The skip does not depend on `highlightConflicts` | same |
 | Long-press promotes at exactly one note | new `GameView.promote.test.tsx` |
 | Long-press does nothing at zero, two or more notes, or on a filled cell | same |
+| Long-press does nothing with `promoteLoneNote` off | same |
+| A profile stored without the field reads back with the default | `src/state/profile.test.ts` |
 
 ## Files
 
@@ -211,5 +234,7 @@ restore it.
 - `src/ui/board/Cell.tsx`, `src/ui/board/SudokuGrid.tsx` — long-press plumbing to the cell
 - `src/ui/coach/CoachPanel.tsx` — the rewind trail
 - `src/app/useBoardShortcuts.ts` — `Enter` promotes
+- `src/state/types.ts`, `src/state/mastery.ts` — `promoteLoneNote` and its default
+- `src/app/SettingsSheet.tsx` — the switch, beside the other play aids
 - `src/i18n/en.ts`, `src/i18n/it.ts` — new strings; the Italian goes on #65's pile
 - `docs/architecture.md` — invariant 1's exception, and the rewind's own note
