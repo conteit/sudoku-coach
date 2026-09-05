@@ -18,6 +18,7 @@ import type { Move } from '../state/types';
 import {
   constraintBreach,
   contradictionAt,
+  deadEndCells,
   DEFAULT_STUCK_MS,
   staleMarksAfterPlacement,
   teachableTriggers,
@@ -287,5 +288,38 @@ describe('a breach the rules can only see downstream', () => {
     for (const locale of ['en', 'it'] as const) {
       expect(constraintBreach(cells, cell, locale).reason).not.toMatch(/[1-9]/);
     }
+  });
+});
+
+describe('deadEndCells', () => {
+  /** The finished puzzle, as the triggers see it. */
+  const solvedCells = (): TriggerCell[] =>
+    [...PUZZLE.solution].map((ch) => ({
+      value: Number(ch) as Digit,
+      given: true,
+      candidates: new Set<Digit>(),
+    }));
+
+  it('is silent while every empty cell still has a digit it can take', () => {
+    expect(deadEndCells(BASE)).toEqual([]);
+  });
+
+  it('finds the cell a wrong entry has left with nothing', () => {
+    // r1c1 and r1c2 emptied, then r1c1 given r1c2's digit. The row now wants
+    // only r1c1's digit and r1c2's column already holds it, so r1c2 has
+    // nothing left. The rules alone prove that — nothing here reads the
+    // solution to reach the answer, only to build the fixture.
+    const cells = solvedCells();
+    cells[0] = { ...cells[0], value: Number(PUZZLE.solution[1]) as Digit, given: false };
+    cells[1] = { ...cells[1], value: null, given: false };
+
+    expect(deadEndCells(cells)).toEqual([1]);
+  });
+
+  it('says nothing about a filled cell, however wrong it is', () => {
+    const cells = solvedCells();
+    cells[0] = { ...cells[0], value: Number(PUZZLE.solution[1]) as Digit, given: false };
+
+    expect(deadEndCells(cells)).toEqual([]);
   });
 });
