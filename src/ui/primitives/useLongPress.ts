@@ -64,6 +64,19 @@ export function useLongPress<T>({
     y: number;
   }>({ payload: null, timer: null, fired: false, x: 0, y: 0 });
 
+  /*
+   * The callback the timer will run, read at fire time rather than captured
+   * at `pointerdown`. Half a second is long enough for the board to change
+   * underneath a hold: `Cell` fires `onActivate` *before* `press.start`, so in
+   * sweep mode the tap-half of the very same gesture mutates the cell, and a
+   * captured `onLongPress` would then resolve against a board that no longer
+   * exists — placing a digit the cell has no business receiving. Nothing about
+   * that is sweep-specific; any state change during the hold has the same
+   * shape.
+   */
+  const latest = useRef(onLongPress);
+  latest.current = onLongPress;
+
   const end = (): void => {
     if (press.current.timer === null) return;
     clearTimeout(press.current.timer);
@@ -89,7 +102,7 @@ export function useLongPress<T>({
       press.current.y = y;
       press.current.timer = setTimeout(() => {
         press.current.fired = true;
-        onLongPress(payload);
+        latest.current(payload);
       }, ms);
     },
     move: (x, y) => {
