@@ -137,6 +137,27 @@ export function constraintBreach(
 }
 
 /**
+ * Every empty cell with no digit left to take, ascending.
+ *
+ * The board cannot be finished from here, and a generated puzzle has exactly
+ * one solution — so this is proof that something already placed is wrong. It
+ * is proof the *rules* give, which is what makes it usable where
+ * `contradictionAt` is not: nothing here reads the solution.
+ *
+ * `constraintBreach` asks the same question of one cell's peers. This asks it
+ * of the board, because the player who needs the answer is the one who cannot
+ * find anywhere to write at all.
+ */
+export function deadEndCells(cells: readonly TriggerCell[]): CellIndex[] {
+  const board = Board.fromValues(cells.map((c) => c.value));
+  const out: CellIndex[] = [];
+  for (let cell = 0; cell < cells.length; cell++) {
+    if (board.values[cell] === null && board.trueCandidates(cell).size === 0) out.push(cell);
+  }
+  return out;
+}
+
+/**
  * Marks left behind by a placement: peers of the last placed cell that still
  * offer the digit it took, plus anything still noted under the digit itself.
  *
