@@ -355,7 +355,10 @@ export function CoachPanel({
           <p className="text-sm text-coach">
             {rewinding ? t('coach.rewind.active') : t('coach.rewind.done')}
           </p>
-          <ol className="mt-2 space-y-0.5">
+          {/* A handle rather than the bare `listitem` role: the ladder above
+              renders four <li>s of its own unconditionally, so a test reaching
+              for list items panel-wide is only ever right by JSX ordering. */}
+          <ol data-testid="rewind-trail" className="mt-2 space-y-0.5">
             {rewindTrail.map((step, i) => (
               <li
                 key={`${step.cell}-${step.label}-${i}`}

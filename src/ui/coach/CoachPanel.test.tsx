@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { CandidateReview, Hint } from '../../coach/types';
@@ -387,7 +387,14 @@ describe('the rewind trail', () => {
   it('lists the undone moves newest first, and says the board is still wrong', () => {
     renderTrail({ rewindTrail: TRAIL, rewinding: true });
 
-    const items = screen.getAllByRole('listitem');
+    // Scoped to the trail's own list: the ladder renders four <li>s
+    // unconditionally, and `hidden sm:block` does not hide it from jsdom, so a
+    // panel-wide `getAllByRole('listitem')` is correct only for as long as the
+    // trail keeps coming first in the JSX.
+    const items = within(screen.getByTestId('rewind-trail')).getAllByRole('listitem');
+    // The count is the assertion that makes the scoping load-bearing rather
+    // than decorative: unscoped, this query also collects the ladder's four.
+    expect(items).toHaveLength(TRAIL.length);
     expect(items[0].textContent).toContain('r1c4');
     expect(items[1].textContent).toContain('r1c3');
     expect(screen.getByText(/cannot be finished/)).toBeTruthy();
@@ -396,7 +403,7 @@ describe('the rewind trail', () => {
   it('describes every kind of undone move, and never invents a digit for the ones that have none', () => {
     renderTrail({ rewindTrail: TRAIL, rewinding: true });
 
-    const items = screen.getAllByRole('listitem');
+    const items = within(screen.getByTestId('rewind-trail')).getAllByRole('listitem');
     expect(items[0].textContent).toBe('9 in r1c4');
     expect(items[1].textContent).toBe('noted 7 in r1c3');
     expect(items[2].textContent).toBe('took the note 5 off r1c5');

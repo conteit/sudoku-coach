@@ -23,8 +23,15 @@ let counter = 0;
  * A game stranded the way a real one strands: every empty cell filled from
  * the solution except r1c3 and r1c4, then r1c3 given r1c4's digit. r1c4's row
  * now wants only r1c3's digit and its column already holds it, so nothing can
- * go there — and the digit in r1c3 conflicts with no peer, which is what makes
- * this the case the conflict colour cannot catch.
+ * go there.
+ *
+ * The 6 in r1c3 *does* conflict — with r2c1 (same box) and r5c3 (same column),
+ * both of which hold 6. On a board this full it cannot not: every digit occurs
+ * once per unit, so a wrong digit whose right home is one of the two empty
+ * cells collides with the copy standing in every other unit. That is fine for
+ * what these tests assert — the arming is driven by the dead end, not by the
+ * conflict — but it means this fixture cannot speak for the case `deadEndCells`
+ * exists for. `ruleCleanDeadEnd()` below is the one that does.
  */
 function strandedGame(): LiveGame {
   let game = newGame({
@@ -47,6 +54,44 @@ function strandedGame(): LiveGame {
   }
   game = reduce(game, { type: 'setValue', cell: 2, digit: Number(SOLVED[3]) as never, at: at++ });
   return game;
+}
+
+/**
+ * A dead end reached by a placement that breaks no rule at all — the case
+ * `deadEndCells` exists for, and the only one `Board.conflicts()` could never
+ * stand in for.
+ *
+ * Three cells stay empty: r1c3 (2), r1c9 (8) and r2c3 (11). The solution puts
+ * a 2 in the last two of those and a 4 in r1c3; the player puts the 2 in r1c3
+ * instead. Every unit that would object to it has had its 2 emptied — row 1's
+ * lives in r1c9, and the single cell that is both column 3's and box 1's lives
+ * in r2c3 — so the placement duplicates nothing and no cell is coloured.
+ *
+ * Two cells are stranded by it. Row 1 is then short only a 4, so r1c9 must
+ * take one, and column 9 already holds its 4 in r7c9. Row 2 is short only a 2,
+ * so r2c3 must take one, and column 3 now holds the player's. Neither has a
+ * digit left, and nothing on the board says so.
+ */
+function ruleCleanDeadEnd(): LiveGame {
+  let game = newGame({
+    givens: PUZZLE,
+    solution: SOLVED,
+    difficulty: 'medium',
+    at: 1000,
+    id: `rewind-test-${counter++}`,
+    running: true,
+  });
+  let at = 1100;
+  for (let cell = 0; cell < 81; cell++) {
+    if (PUZZLE[cell] !== '.' || cell === 2 || cell === 8 || cell === 11) continue;
+    game = reduce(game, {
+      type: 'setValue',
+      cell,
+      digit: Number(SOLVED[cell]) as never,
+      at: at++,
+    });
+  }
+  return reduce(game, { type: 'setValue', cell: 2, digit: 2, at: at++ });
 }
 
 const SETTINGS: PlayerProfile['settings'] = { ...DEFAULT_PROFILE.settings, haptics: false };
@@ -110,6 +155,19 @@ describe('the amber rewind', () => {
   it('turns the undo key amber when the board cannot be finished', async () => {
     renderGame(strandedGame());
 
+    expect(
+      await screen.findByRole('button', { name: 'Undo — one of your digits is wrong' }),
+    ).toBeTruthy();
+  });
+
+  it('arms on a dead end the rules cannot see, which is why it reads the solution and not the conflicts', async () => {
+    renderGame(ruleCleanDeadEnd());
+
+    // No peer holds the digit, so the conflict colour has nothing to say about
+    // it — asserted first, because without this the test would pass just as
+    // well against a `Board.conflicts()` implementation and would prove none of
+    // what it claims.
+    expect(cell(2).getAttribute('data-conflict')).toBeNull();
     expect(
       await screen.findByRole('button', { name: 'Undo — one of your digits is wrong' }),
     ).toBeTruthy();
