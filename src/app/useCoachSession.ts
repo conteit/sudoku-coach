@@ -107,9 +107,15 @@ export interface CoachSessionInput {
 const coachCells = (game: LiveGame): CoachCell[] =>
   game.cells.map((cell) => ({ value: cell.value, candidates: cell.candidates }));
 
-/** Exported so the view's own trigger reads use the same shape, not a copy. */
-export const triggerCells = (game: LiveGame): TriggerCell[] =>
-  game.cells.map((cell) => ({
+/**
+ * Exported so the view's own trigger reads use the same shape, not a copy.
+ *
+ * Takes the cells rather than the game because that is all it reads, and the
+ * caller that memoizes it needs a dependency that changes when a move does and
+ * not when a coach log or a sync merge does.
+ */
+export const triggerCells = (cells: LiveGame['cells']): TriggerCell[] =>
+  cells.map((cell) => ({
     value: cell.value,
     candidates: cell.candidates,
     given: cell.given,
@@ -241,7 +247,7 @@ export function useCoachSession({
         }
       }
 
-      const cells = triggerCells(game);
+      const cells = triggerCells(game.cells);
       const evaluate = (): void => {
         const top =
           teachableTriggers({

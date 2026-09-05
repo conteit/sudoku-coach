@@ -226,7 +226,12 @@ export function GameView({
    * replaces the game, which is the same budget `conflicts` above already
    * spends — one board scan per move, not one per render.
    */
-  const triggers = useMemo(() => triggerCells(game), [game]);
+  // Keyed on `game.cells`, not on `game`: the reducer replaces `game` for
+  // `setCoachLog`, pause/resume and a sync merge as well as for moves, and
+  // keying on the whole object put `deadEndCells`' 81 `trueCandidates` calls
+  // behind every one of those.
+  const cells = game.cells;
+  const triggers = useMemo(() => triggerCells(cells), [cells]);
   const deadEnd = useMemo(() => deadEndCells(triggers).length > 0, [triggers]);
   const contradicted = useMemo(
     () => contradictionAt(triggers, game.solution, game.undoStack) !== null,
