@@ -54,7 +54,9 @@ import { isDevUser } from './devTools';
 import { GameLayout } from './GameLayout';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
-import { useCoachSession } from './useCoachSession';
+import { contradictionAt, deadEndCells } from '../coach/triggers';
+import { nextRewindPhase, type RewindPhase } from './rewind';
+import { triggerCells, useCoachSession } from './useCoachSession';
 import { useViewportTier } from './useViewportTier';
 
 /** How long a vibration says each thing. Absent hardware simply ignores it. */
@@ -215,6 +217,24 @@ export function GameView({
     () => (settings.highlightConflicts ? Board.fromValues(values).conflicts() : []),
     [settings.highlightConflicts, values],
   );
+
+  /*
+   * The rewind's two inputs. Both are recomputed only when the reducer
+   * replaces the game, which is the same budget `conflicts` above already
+   * spends — one board scan per move, not one per render.
+   */
+  const triggers = useMemo(() => triggerCells(game), [game]);
+  const deadEnd = useMemo(() => deadEndCells(triggers).length > 0, [triggers]);
+  const contradicted = useMemo(
+    () => contradictionAt(triggers, game.solution, game.undoStack) !== null,
+    [triggers, game.solution, game.undoStack],
+  );
+  const [rewind, setRewind] = useState<RewindPhase>('off');
+  useEffect(() => {
+    setRewind((phase) =>
+      nextRewindPhase(phase, { deadEnd, contradicted, canRedo: game.redoStack.length > 0 }),
+    );
+  }, [deadEnd, contradicted, game.redoStack.length]);
 
   const onCoachLog = useCallback(
     (log: readonly CoachExchange[]) => dispatch({ type: 'setCoachLog', log }),
@@ -620,6 +640,7 @@ export function GameView({
       onRedo={() => dispatch({ type: 'redo' })}
       canUndo={game.undoStack.length > 0}
       canRedo={game.redoStack.length > 0}
+      rewinding={rewind === 'active'}
       // The pad as a whole stays live with nothing selected — a long press
       // still has to reach a digit with none of its nine placed yet — but
       // the eraser has nothing to erase, so it needs the gate the pad no

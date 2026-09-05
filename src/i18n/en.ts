@@ -297,4 +297,7 @@ export const en = {
 
   'offline.ready': 'Ready to play offline.',
   'offline.updateAvailable': 'An update is ready. Reload to use it.',
+
+  'action.undoRewind': 'Undo — one of your digits is wrong',
+  'keypad.captionRewind': 'Rewind',
 } as const;

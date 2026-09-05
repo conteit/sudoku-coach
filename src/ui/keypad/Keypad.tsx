@@ -57,6 +57,16 @@ export interface KeypadProps {
   canUndo?: boolean;
   canRedo?: boolean;
   /**
+   * The board cannot be finished and the wrong digit is still on it. Undo
+   * wears the coach's amber and says what it is for, and goes back to being
+   * an ordinary undo the press that takes the digit off the board.
+   *
+   * The state is in the accessible name, not only in the colour: a caption is
+   * inside a button whose `aria-label` overrides its contents, so a caption
+   * alone would say this to sighted players and nobody else.
+   */
+  rewinding?: boolean;
+  /**
    * There is a cell to erase — i.e. one is selected. The digits deliberately
    * stay live with nothing selected — a long-press still has to reach a
    * digit with none of its nine placed yet (R3) — but "erase" with no target
@@ -133,6 +143,7 @@ export function Keypad({
   onRedo,
   canUndo = true,
   canRedo = true,
+  rewinding = false,
   canErase = true,
   staleCount = 0,
   onClearStale,
@@ -416,9 +427,18 @@ export function Keypad({
           />
         )}
         <IconButton
-          label={t('action.undo')}
-          caption={t('keypad.captionUndo')}
+          label={rewinding ? t('action.undoRewind') : t('action.undo')}
+          caption={rewinding ? t('keypad.captionRewind') : t('keypad.captionUndo')}
           icon={<UndoIcon />}
+          // The clear-stale key's treatment, for the same reason and from the
+          // same token: amber is the coach's colour and means "something to do
+          // here". The `!` prefixes are load-bearing — IconButton sets its own
+          // border/bg/text and Tailwind's emission order decides the winner.
+          className={
+            rewinding
+              ? '!border-coach !bg-coach !text-paper hover:!border-coach hover:!text-paper'
+              : undefined
+          }
           disabled={!canUndo}
           onClick={() => fire('tap', onUndo)}
         />

@@ -295,4 +295,7 @@ export const it: Dictionary = {
 
   'offline.ready': 'Pronto per giocare offline.',
   'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
+
+  'action.undoRewind': 'Annulla — una delle tue cifre è sbagliata',
+  'keypad.captionRewind': 'Torna indietro',
 };
