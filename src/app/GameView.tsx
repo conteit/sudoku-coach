@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Board } from '../engine/board';
+import { Board, peersOf } from '../engine/board';
 import type { CellIndex, Digit, TechniqueId } from '../engine/types';
 import { getLesson } from '../coach/lessons';
 import { recap } from '../coach/recap';
@@ -362,13 +362,16 @@ export function GameView({
     [settings.haptics],
   );
 
-  const enter = useCallback(
+  /**
+   * Writes a digit, and runs the auto-clear the placement may have earned.
+   *
+   * Separate from `enter` because it is also what the promote gesture does:
+   * promoting a lone note places a digit whatever mode the player is in, so
+   * it cannot go through a path whose first decision is notes-or-values.
+   */
+  const place = useCallback(
     (cell: CellIndex, digit: Digit) => {
-      dispatch(
-        pencilMode
-          ? { type: 'toggleCandidate', cell, digit }
-          : { type: 'setValue', cell, digit },
-      );
+      dispatch({ type: 'setValue', cell, digit });
       /*
        * Auto-clear is dispatched here, as a consequence of the placement,
        * rather than by an effect watching the board. An effect would fire on
@@ -383,12 +386,36 @@ export function GameView({
        * behalf is visible and reversible on its own. `clearStaleCandidates`
        * no-ops when nothing is dead — `commit` returns the game untouched on
        * an empty batch — so this costs a scan and nothing else.
+       *
+       * And not behind a digit that already breaks the rules. A placement
+       * duplicating a peer is a typo far more often than it is a move, and
+       * sweeping the notes it "kills" costs the player work they then have to
+       * notice in time to undo. Read from the board rather than from
+       * `settings.highlightConflicts`: turning the colour off changes what the
+       * player sees, not what the app does for them.
+       *
+       * Wrong entries that break no rule are deliberately left alone. The
+       * solution could catch those, but notes surviving a placement would then
+       * be a visible tell that the digit is wrong — invariant 2 leaking out
+       * through a side effect instead of through text.
        */
-      if (!pencilMode && settings.autoClearDeadNotes) {
+      const breaksARule = peersOf(cell).some((peer) => values[peer] === digit);
+      if (settings.autoClearDeadNotes && !breaksARule) {
         dispatch({ type: 'clearStaleCandidates' });
       }
     },
-    [dispatch, pencilMode, settings.autoClearDeadNotes],
+    [dispatch, settings.autoClearDeadNotes, values],
+  );
+
+  const enter = useCallback(
+    (cell: CellIndex, digit: Digit) => {
+      if (pencilMode) {
+        dispatch({ type: 'toggleCandidate', cell, digit });
+        return;
+      }
+      place(cell, digit);
+    },
+    [dispatch, pencilMode, place],
   );
 
   /**
