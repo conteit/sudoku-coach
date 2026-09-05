@@ -59,6 +59,14 @@ export interface SudokuGridProps {
   onEnter?: (cell: CellIndex, digit: Digit) => void;
   /** Backspace / Delete on a cell. Never fired for a given. */
   onClear?: (cell: CellIndex) => void;
+  /**
+   * Turn a cell's last remaining note into its digit. Fired by a held press
+   * and by Enter — never by a tap, which has to stay free to move the caret.
+   *
+   * The grid only reports the gesture. Whether the cell qualifies, and
+   * whether the player has asked for this at all, is the caller's decision.
+   */
+  onPromote?: (cell: CellIndex) => void;
   /** Coach spotlight, disclosure level 3+. */
   spotlight?: readonly CellIndex[];
   /** Houses the coach is tinting, disclosure level 1+. */
@@ -162,6 +170,7 @@ export function SudokuGrid({
   onActivate,
   onEnter,
   onClear,
+  onPromote,
   spotlight,
   tintedHouses,
   conflicts,
@@ -289,6 +298,12 @@ export function SudokuGrid({
       // a change nobody is allowed to make (R2).
       if (cells[cell]?.given) return;
 
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        onPromote?.(cell);
+        return;
+      }
+
       if (key >= '1' && key <= '9') {
         event.preventDefault();
         onEnter?.(cell, Number(key) as Digit);
@@ -299,7 +314,7 @@ export function SudokuGrid({
         onClear?.(cell);
       }
     },
-    [cells, selected, move, onSelect, onEnter, onClear],
+    [cells, selected, move, onSelect, onEnter, onClear, onPromote],
   );
 
   // Keep DOM focus on the selected cell, but only once the grid already holds
@@ -355,6 +370,7 @@ export function SudokuGrid({
                 tabIndex={index === rovingCell ? 0 : -1}
                 onSelect={onSelect}
                 onActivate={onActivate}
+                onLongPress={onPromote}
               />
             );
           })}

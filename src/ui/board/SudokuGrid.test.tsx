@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { CellIndex, Digit } from '../../engine/types';
 import { cellName, parseGrid } from '../../engine/board';
-import { SudokuGrid, type GridCell } from './SudokuGrid';
+import { LocaleProvider } from '../../i18n/react';
+import { LONG_PRESS_MS } from '../primitives/useLongPress';
+import { SudokuGrid, type GridCell, type SudokuGridProps } from './SudokuGrid';
 
 const PUZZLE =
   '530070000600195000098000060800060003400803001700020006060000280000419005000080079';
@@ -334,5 +336,86 @@ describe('the win', () => {
 
     rerender(<Harness cells={cells} highlightDigit={4} celebrate />);
     expect(cellAt(1).getAttribute('data-match')).toBeNull();
+  });
+});
+
+describe('promoting a cell', () => {
+  const PUZZLE =
+    '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79';
+  /** r1c1 is a given 5; r1c3 is empty. Those are the two cells these tests use. */
+  const GIVEN_CELL = 0;
+  const EMPTY_CELL = 2;
+
+  const gridCells = () =>
+    [...PUZZLE].map((ch) => ({
+      value: ch === '.' ? null : (Number(ch) as Digit),
+      given: ch !== '.',
+      candidates: [] as Digit[],
+    }));
+
+  const renderGrid = (props: Partial<SudokuGridProps>) => {
+    render(
+      <LocaleProvider locale="en">
+        <SudokuGrid cells={gridCells()} selected={null} onSelect={() => undefined} {...props} />
+      </LocaleProvider>,
+    );
+    return { user: userEvent.setup() };
+  };
+
+  const cell = (index: number): HTMLElement => {
+    const node = document.querySelector<HTMLElement>(`[data-cell="${index}"]`);
+    if (node === null) throw new Error(`no cell ${index} on the board`);
+    return node;
+  };
+
+  it('fires on Enter over the focused cell', async () => {
+    const onPromote = vi.fn();
+    const { user } = renderGrid({ onPromote, selected: EMPTY_CELL });
+
+    await user.click(cell(EMPTY_CELL));
+    await user.keyboard('{Enter}');
+
+    expect(onPromote).toHaveBeenCalledWith(EMPTY_CELL);
+  });
+
+  it('does not fire on Enter over a given', async () => {
+    // Givens are not the player's to change, by the same guard the digit keys
+    // already go through.
+    const onPromote = vi.fn();
+    const { user } = renderGrid({ onPromote, selected: GIVEN_CELL });
+
+    await user.click(cell(GIVEN_CELL));
+    await user.keyboard('{Enter}');
+
+    expect(onPromote).not.toHaveBeenCalled();
+  });
+
+  it('fires on a held press', () => {
+    vi.useFakeTimers();
+    const onPromote = vi.fn();
+    renderGrid({ onPromote });
+
+    fireEvent.pointerDown(cell(EMPTY_CELL), { clientX: 10, clientY: 10 });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_MS + 10);
+    });
+
+    expect(onPromote).toHaveBeenCalledWith(EMPTY_CELL);
+    vi.useRealTimers();
+  });
+
+  it('does not fire when the thumb drifts off', () => {
+    vi.useFakeTimers();
+    const onPromote = vi.fn();
+    renderGrid({ onPromote });
+
+    fireEvent.pointerDown(cell(EMPTY_CELL), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(cell(EMPTY_CELL), { clientX: 40, clientY: 40 });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_MS + 10);
+    });
+
+    expect(onPromote).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
