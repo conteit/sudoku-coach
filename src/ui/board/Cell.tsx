@@ -26,6 +26,7 @@ import { DIGITS } from '../../engine/types';
 import { cellName, colOf, rowOf } from '../../engine/board';
 import { useT, type Translate } from '../../i18n/locale';
 import { cx } from '../primitives/cx';
+import { useLongPress } from '../primitives/useLongPress';
 import {
   CELL_CONFLICT,
   CELL_EXCLUDED,
@@ -70,6 +71,17 @@ export interface CellProps {
    * passing over a cell must never change it.
    */
   onActivate?: (cell: CellIndex) => void;
+  /**
+   * Held past the long-press threshold.
+   *
+   * A different gesture from `onActivate` on purpose: activation is a tap,
+   * and a tap must stay able to move the caret without writing anything.
+   *
+   * Like every other callback here this must be ONE stable function for all
+   * 81 cells (see the memo contract at the top of this file) — the cell index
+   * comes back as the argument.
+   */
+  onLongPress?: (cell: CellIndex) => void;
 }
 
 /**
@@ -157,9 +169,11 @@ function CellImpl({
   tabIndex,
   onSelect,
   onActivate,
+  onLongPress,
 }: CellProps) {
   const t = useT();
   const selected = has(flags, CELL_SELECTED);
+  const press = useLongPress<CellIndex>({ onLongPress: (c) => onLongPress?.(c) });
 
   return (
     <div
@@ -173,10 +187,18 @@ function CellImpl({
       aria-selected={selected}
       aria-label={describe(t, index, value, given, marks, stale)}
       tabIndex={tabIndex}
-      onPointerDown={() => {
+      onPointerDown={(event) => {
         onSelect(index);
         onActivate?.(index);
+        press.start(index, event.clientX, event.clientY);
       }}
+      onPointerMove={(event) => press.move(event.clientX, event.clientY)}
+      onPointerUp={press.end}
+      onPointerLeave={press.end}
+      onPointerCancel={press.end}
+      // The platform's own long press has to lose to this one, exactly as on
+      // the keypad: a held finger otherwise raises a selection callout.
+      onContextMenu={(event) => event.preventDefault()}
       // The delay rides a custom property rather than `animationDelay`
       // directly, so the timing stays the grid's business and the animation
       // itself stays in the stylesheet with the keyframes it belongs to.
