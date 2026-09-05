@@ -471,6 +471,27 @@ export function GameView({
     [game.cells, sweptDigit, enter],
   );
 
+  /**
+   * Turn a cell's last remaining note into its digit.
+   *
+   * Every guard is here rather than in the grid, so the rules about what may
+   * be placed stay in one place. It goes through `place` rather than `enter`
+   * because the gesture means one thing in both modes: a player holding a
+   * cell with one note left is placing a digit, not taking a note.
+   */
+  const promote = useCallback(
+    (cell: CellIndex) => {
+      if (!settings.promoteLoneNote) return;
+      const target = game.cells[cell];
+      if (target === undefined || target.given || target.value !== null) return;
+      if (target.candidates.size !== 1) return;
+      const [digit] = target.candidates;
+      haptic('tap');
+      place(cell, digit);
+    },
+    [game.cells, settings.promoteLoneNote, place, haptic],
+  );
+
   // "Speaking" is the panel having something the player asked for on screen.
   const speaking =
     coach.hint !== null || coach.review !== null || coach.drill !== null || coach.exhausted;
@@ -602,6 +623,7 @@ export function GameView({
           onActivate={activateCell}
           onEnter={enter}
           onClear={(cell) => dispatch({ type: 'clearCell', cell })}
+          onPromote={paused || solved ? undefined : promote}
           spotlight={spotlight}
           tintedHouses={coach.hint?.houses ?? []}
           conflicts={conflicts}

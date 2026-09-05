@@ -289,6 +289,8 @@ export const it: Dictionary = {
 
   'settings.shadeDigitPeers': 'Ombreggia dove la cifra non può andare',
 
+  'settings.promoteLoneNote': 'Tieni premuta una cella per inserire la sua ultima annotazione',
+
   'keypad.sweeping': 'Scansione del {digit}',
   'keypad.captionSweep': 'Scansione',
   'keypad.labelSweeping': 'Tastiera, scansione del {digit}',

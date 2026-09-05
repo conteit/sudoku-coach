@@ -186,5 +186,22 @@ export interface PlayerProfile {
      * would shade a cell that is perfectly available (invariant 3b).
      */
     shadeDigitPeers: boolean;
+    /**
+     * Hold a cell that has exactly one note left to place that digit.
+     *
+     * **On** by default, which none of the other aids here are — and the
+     * difference is the reason. `shadeDigitPeers` and `highlightMatchingNotes`
+     * do a share of the scanning the player came here to learn;
+     * `autoClearDeadNotes` edits their marks. This does neither. It places a
+     * conclusion the player has already written down, as an ordinary undoable
+     * move, and discloses nothing: if the note was wrong, the digit is wrong,
+     * and everything downstream treats it exactly like a typed one.
+     *
+     * The switch exists because **a slow tap on a phone is a long press**. The
+     * gesture can fire by accident, and a player it keeps surprising cannot
+     * simply decline to use it. That, and not the aid, is what the off state
+     * is for.
+     */
+    promoteLoneNote: boolean;
   };
 }
