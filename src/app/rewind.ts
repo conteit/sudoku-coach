@@ -33,12 +33,22 @@ export interface RewindInput {
   canRedo: boolean;
 }
 
+/*
+ * Branching on the phase before branching on `contradicted` is the whole
+ * safety property, not a stylistic ordering. A single `contradicted` test
+ * ahead of the phase reads as "a wrong digit sustains the amber", but from
+ * `done` it *re-arms* it — and `done` is a fully playable board. The player
+ * then types any digit anywhere and reads the answer off the undo key: amber
+ * means wrong, plain means right, undo the probe and ask again. One dead end
+ * would buy an unlimited solution oracle. So `contradicted` is consulted in
+ * exactly one place, inside `active`, where it can only sustain an amber a
+ * dead end already lit.
+ */
 export function nextRewindPhase(phase: RewindPhase, input: RewindInput): RewindPhase {
   if (input.deadEnd) return 'active';
-  if (input.contradicted) return phase === 'off' ? 'off' : 'active';
-  if (phase === 'active') return 'done';
-  if (phase === 'done' && !input.canRedo) return 'off';
-  return phase;
+  if (phase === 'active') return input.contradicted ? 'active' : 'done';
+  if (phase === 'done') return input.canRedo ? 'done' : 'off';
+  return 'off';
 }
 
 export type DigitRewindLabel = 'placed' | 'noted' | 'unnoted';

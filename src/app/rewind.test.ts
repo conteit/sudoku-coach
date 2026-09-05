@@ -52,6 +52,35 @@ describe('nextRewindPhase', () => {
       'active',
     );
   });
+
+  it('tells a rewound player nothing about a digit they probe with', () => {
+    // The cell the whole machine exists to get right. `done` is a board that
+    // plays: if a bare contradiction re-armed from here, the player could type
+    // a digit into any cell and read the answer off the undo key — amber for
+    // wrong, plain for right — undo the probe, repeat. That is a complete
+    // solution oracle bought with one dead end, and this app never tells a
+    // player whether a digit is right.
+    expect(nextRewindPhase('done', { deadEnd: false, contradicted: true, canRedo: true })).toBe(
+      'done',
+    );
+  });
+
+  it('does not keep a probe alive once the trail it belongs to is gone', () => {
+    // Same probe, after the redo branch has been spent. The contradiction is
+    // still there and still says nothing: the trail is what `done` is for, and
+    // without one there is nothing left to be in.
+    expect(nextRewindPhase('done', { deadEnd: false, contradicted: true, canRedo: false })).toBe(
+      'off',
+    );
+  });
+
+  it('stays off on a board with nothing wrong with it', () => {
+    // The resting cell, asserted so the table has no hole rather than because
+    // it is interesting: every `off` row must reach `off` without a dead end.
+    expect(nextRewindPhase('off', { deadEnd: false, contradicted: false, canRedo: true })).toBe(
+      'off',
+    );
+  });
 });
 
 describe('rewindTrail', () => {
