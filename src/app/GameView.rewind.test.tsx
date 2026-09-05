@@ -173,4 +173,21 @@ describe('the amber rewind', () => {
 
     expect(screen.queryByRole('button', { name: 'Undo — one of your digits is wrong' })).toBeNull();
   });
+
+  it('an ordinary undo during normal play raises no trail', async () => {
+    const plain = newGame({
+      givens: PUZZLE,
+      solution: SOLVED,
+      difficulty: 'medium',
+      at: 1000,
+      id: `rewind-test-${counter++}`,
+      running: true,
+    });
+    const played = reduce(plain, { type: 'setValue', cell: 2, digit: 4, at: 1100 });
+    const { user } = renderGame(played);
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+
+    expect(screen.queryByText(/what you undid/)).toBeNull();
+  });
 });

@@ -13,7 +13,7 @@
  * rule, honoured by the view as well as by the renderer.
  */
 
-import type { CellIndex, TechniqueId } from '../../engine/types';
+import type { CellIndex, Digit, TechniqueId } from '../../engine/types';
 import type { CandidateReview, Hint, TeachableTrigger } from '../../coach/types';
 import type { DisclosureLevel } from '../../state/types';
 import { cellName } from '../../engine/board';
@@ -107,7 +107,30 @@ export interface CoachPanelProps {
   /** Notes a placement has killed since they were written; drives the eraser. */
   staleCount?: number;
   onClearStale?: () => void;
+  /**
+   * What a rewind has undone, newest first. Empty outside a rewind.
+   *
+   * Read after stepping rather than during it: on a phone this panel is a
+   * sheet that covers the keypad the player is tapping. `redoStack` outlives
+   * the rewind, so the path is still here when they open it.
+   */
+  rewindTrail?: readonly RewindStep[];
+  /** The board is still unfinishable — a rewind in progress, not a record. */
+  rewinding?: boolean;
   className?: string;
+}
+
+/**
+ * Declared here rather than imported from `app/rewind` — `ui/` is rendered by
+ * `app/`, never the reverse, so the panel does not depend on the app layer.
+ * Structurally identical to `app/rewind`'s own `RewindStep`; the one place
+ * the two meet is `GameView` passing `rewindTrail(game.redoStack)` into this
+ * prop, where `tsc` catches any drift between them.
+ */
+export interface RewindStep {
+  cell: CellIndex;
+  digit: Digit | null;
+  label: 'placed' | 'cleared' | 'noted' | 'unnoted';
 }
 
 function Ladder({ level }: { level: DisclosureLevel }) {
@@ -243,6 +266,8 @@ export function CoachPanel({
   onDismissNudge,
   staleCount,
   onClearStale,
+  rewindTrail,
+  rewinding = false,
   className,
 }: CoachPanelProps) {
   const t = useT();
@@ -304,6 +329,49 @@ export function CoachPanel({
           <Button variant="ghost" onClick={onDismissNudge}>
             {t('action.dismiss')}
           </Button>
+        </div>
+      ) : null}
+
+      {/* Below the nudge and above the ladder: it is the more specific thing
+          to be looking at than the resting invitation, and less urgent than
+          the coach noticing something on its own. Inside the panel's own box,
+          so invariant 9 holds. */}
+      {rewindTrail !== undefined && rewindTrail.length > 0 ? (
+        <div className="mx-4 mt-3 rounded-cell border border-coach/35 bg-coach-wash px-4 py-3">
+          <p className="text-sm text-coach">
+            {rewinding ? t('coach.rewind.active') : t('coach.rewind.done')}
+          </p>
+          <ol className="mt-2 space-y-0.5">
+            {rewindTrail.map((step, i) => (
+              <li
+                key={`${step.cell}-${step.label}-${i}`}
+                className={cx(
+                  'text-[0.8125rem] tabular-nums',
+                  // The newest step is the one the player is still thinking
+                  // about, and once the amber is out it is the move that was
+                  // wrong.
+                  i === 0 ? 'text-coach' : 'text-ink-soft',
+                )}
+              >
+                {step.label === 'cleared'
+                  ? t('coach.rewind.cleared', { cell: cellName(step.cell) })
+                  : step.label === 'placed'
+                    ? t('coach.rewind.placed', {
+                        cell: cellName(step.cell),
+                        digit: step.digit ?? 0,
+                      })
+                    : step.label === 'noted'
+                      ? t('coach.rewind.noted', {
+                          cell: cellName(step.cell),
+                          digit: step.digit ?? 0,
+                        })
+                      : t('coach.rewind.unnoted', {
+                          cell: cellName(step.cell),
+                          digit: step.digit ?? 0,
+                        })}
+              </li>
+            ))}
+          </ol>
         </div>
       ) : null}
 
