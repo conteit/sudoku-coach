@@ -114,9 +114,20 @@ root-cause fix comes first and is not optional.
 
 The active game is not special-cased. Paolo's call: fix the re-stamp and let newest-wins decide.
 
-`changed` is cleared per game when the player opens it, and wholesale when they leave the library.
+`changed` is cleared for one game when the player opens it, and at no other time. "Leaving the
+library" was the first draft's rule and it is wrong: a player who glances at the list, switches to
+another app and comes back would find the marks gone without ever having looked at what moved. A
+mark earns its removal by being acted on.
+
+It is session state, so a reload clears it wholesale — which is honest, because after a reload
+every board on screen came from disk and none of it is news.
 
 ## 4 — Three surfaces, each where interrupting is cheapest
+
+The three are mutually exclusive by where the player is, which is what keeps them from stacking up.
+`App.tsx` already renders `OfflineNotice` only when there is no active game; the toast is its
+opposite — mounted only while a game is open — and the library's dot and header control exist only
+on the library. A player never sees two of these at once.
 
 **In a game: a toast.** `SyncNotice`'s twin, and its precedent — same fixed overlay, same
 pointer-transparency, same dismissal. It says what arrived ("2 games updated"), and unlike
@@ -163,6 +174,16 @@ before the reload and read after:
 `offline.updateAvailable` already exists in both locales, written for a prompt that was never
 wired. Its wording is for a prompt ("Reload to use it"), so it is **rewritten** for what actually
 happens rather than left to imply a button that does not exist.
+
+## This wants to be two changes, not one
+
+Section 1 is a **bug fix for silent data loss that is live right now**. Sections 2-5 are a feature.
+They are described together because the feature is unsafe without the fix, but they should not ship
+together: the fix is small, it is testable on its own, and every day it waits is a day a player can
+lose a game by opening it on the wrong device.
+
+Recommended: section 1 lands as its own change, immediately. Sections 2-5 follow as the feature,
+built on it. The implementation plan should be written for the second only once the first is in.
 
 ## Testing
 
