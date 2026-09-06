@@ -139,7 +139,8 @@ sync shipped, and nothing has needed them to change since.
 | `LearnView.tsx` | The rules, the coach's contract, and a page per technique rendered from the lesson library |
 | `NewGameSheet.tsx` | Difficulty choice, "let the coach choose", generation progress |
 | `SettingsSheet.tsx` | Language, theme, conflict flagging, haptics |
-| `OfflineNotice.tsx` | Says once when the precache makes offline play real |
+| `OfflineNotice.tsx` | Says once when the precache makes offline play real, and once after an update |
+| `serviceWorker.ts` | Registers the worker, checks for a new build on resume, marks that one took over |
 | `useCoachSession.ts` | The ladder, the note check, teachable nudges, and mastery credit |
 | `useGenerator.ts` | One worker per mounted app, aborted when nobody is waiting |
 
@@ -441,7 +442,12 @@ has already read the front door.
     names but whose file isn't in the folder, and the outcome must say what
     happened, not what was intended. `src/sync/store.ts` reads that outcome and holds two sets,
     `changed` and `announced`, and asks the game store to `refreshSummaries`
-    and re-read any downloaded game still open. Both sets are **session-only,
+    and re-read any downloaded game still open. `changed` takes the outcome's
+    departures out in the same step it puts its arrivals in — a game deleted
+    from another device must not be announced as having arrived, since the
+    deletion has already been applied and there is no row left to reconcile
+    the claim against — and a game the player is *in* counts as seen: the one
+    restored at launch, and the one they leave, both clear their own dot. Both sets are **session-only,
     never persisted and never written into a `Game`.** A per-game "arrived
     from sync" flag would itself sync to the other device, where it describes
     a screen nobody there was looking at — it is a fact about this session,
