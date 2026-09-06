@@ -175,8 +175,16 @@ describe('surviving a kill (R5)', () => {
     expect(parked.redoStack).toHaveLength(1);
   });
 
-  it('stops the clock while hidden and restarts it on return', async () => {
+  // Rewritten from "stops the clock while hidden and restarts it on return".
+  // The old rule mapped `visibilitychange` straight onto the player-action
+  // verbs, so a tab regaining visibility restarted the clock and stamped
+  // `updatedAt` — a screen unlock re-dating a game nobody played, which under
+  // newest-wins overwrites real play from another device. Returning is no
+  // longer an act of play; the first move is (invariant 13).
+  it('stops the clock while hidden, and leaves it stopped and undated on return', async () => {
     const id = await store.getState().startGame(PUZZLE_INPUT);
+    store.getState().dispatch({ type: 'setValue', cell: 2, digit: 4 });
+    const played = store.getState().activeGame()?.updatedAt;
     disposers.push(installLifecycleHooks(store));
     clock += 4000;
 
@@ -184,10 +192,19 @@ describe('surviving a kill (R5)', () => {
     await vi.waitFor(async () => {
       expect((await stored(id)).elapsedMs).toBe(4000);
     });
+    // Backgrounding banks the time without claiming the player did anything.
+    expect((await stored(id)).updatedAt).toBe(played);
 
     clock += 600_000; // the player left the app open in another tab all day
     setHidden(false);
     expect(store.getState().activeGame()?.elapsedMs).toBe(4000);
+    expect(store.getState().activeGame()?.runningSince).toBeNull();
+    expect(store.getState().activeGame()?.updatedAt).toBe(played);
+
+    // ...and the next real move is what starts it again. `GameView`'s
+    // `dispatchMove` is the funnel that issues this `resume`; the point here
+    // is that the clock the store handed back is one a move can restart.
+    store.getState().dispatch({ type: 'resume' });
     expect(store.getState().activeGame()?.runningSince).toBe(clock);
   });
 
@@ -298,6 +315,31 @@ describe('autosave', () => {
     expect((await stored(id)).cells[2].value).toBe(4);
   });
 
+  it('writes a running game out without re-dating it, and never backwards', async () => {
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    store.getState().dispatch({ type: 'setValue', cell: 2, digit: 4 });
+    const played = store.getState().activeGame()?.updatedAt;
+
+    // Five minutes of thought with the clock still running, then an autosave.
+    // The write freezes the record's clock — but freezing it with `pause`
+    // stamped `updatedAt` with the *write's* own timestamp, folding screen
+    // time into the field newest-wins sync compares.
+    clock += 300_000;
+    await store.getState().flush();
+    expect((await stored(id)).elapsedMs).toBe(300_000);
+    expect((await stored(id)).updatedAt).toBe(played);
+
+    // And once the clock is genuinely stopped, `pause` became a no-op and the
+    // next write persisted the older in-memory value — so the stored
+    // timestamp went backwards. Both writes now agree.
+    await store.getState().suspend();
+    clock += 60_000;
+    // Leaving for the library writes it out a second time, an hour of wall
+    // clock later, with the game's own clock already stopped.
+    await store.getState().closeGame();
+    expect((await stored(id)).updatedAt).toBe(played);
+  });
+
   it('does not dirty the record for a move that changes nothing', async () => {
     const id = await store.getState().startGame(PUZZLE_INPUT);
     await store.getState().flush();
@@ -313,9 +355,11 @@ describe('autosave', () => {
     expect((await stored(id)).undoStack).toEqual([]);
   });
 
+  // The `wake()` call this test also made is gone with `wake` itself: there
+  // is no foreground half of the lifecycle any more, so there is no
+  // no-active-game path through it left to assert.
   it('does nothing when there is no active game', () => {
     store.getState().dispatch({ type: 'setValue', cell: 2, digit: 4 });
-    store.getState().wake();
     expect(store.getState().activeGameId).toBeNull();
     expect(store.getState().games).toEqual({});
   });
@@ -372,6 +416,13 @@ describe('lazy loading', () => {
     clock += 5000;
     await store.getState().suspend();
     const before = await stored(id);
+
+    // The clock has to move between the write and the relaunch, or the
+    // `updatedAt` assertion below is vacuous: a stamp taken at the same
+    // `deps.now()` as the stored one is the same number, and the test passes
+    // whether the code stamps or not. Ten minutes on the shelf makes any
+    // stamp land on a value `before.updatedAt` cannot be.
+    clock += 600_000;
 
     // A cold start: new store, same database — the app relaunching, not the
     // player choosing to open this game.

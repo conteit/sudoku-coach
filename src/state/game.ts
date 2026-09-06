@@ -548,9 +548,10 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
         : { ...game, ...stopped(game, action.at), updatedAt: action.at };
 
     case 'idle':
-      return game.runningSince === null
-        ? game
-        : { ...game, elapsedMs: elapsedAt(game, action.at), runningSince: null };
+      // The same `stopped` the `pause` above applies, by construction rather
+      // than by two copies of the arithmetic agreeing: `idle` is a `pause`
+      // minus the stamp, and the doc says so (invariant 13).
+      return game.runningSince === null ? game : { ...game, ...stopped(game, action.at) };
 
     case 'setCoachLog': {
       // Re-reading a hint the player already took is not a new exchange, and

@@ -41,8 +41,13 @@ beforeEach(() => {
   })) as unknown as typeof window.matchMedia;
 });
 
+const setVisibility = (state: 'hidden' | 'visible'): void => {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+};
+
 afterEach(() => {
   window.matchMedia = defaultMatchMedia;
+  setVisibility('visible');
   useGameStore.setState({ activeGameId: null, games: {}, hydrated: true });
   vi.useRealTimers();
 });
@@ -189,6 +194,38 @@ describe('the idle timer', () => {
     expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
     expect(screen.getByRole('grid').className).not.toMatch(/blur-md/);
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('leaves a deliberately paused game paused across a tab switch', () => {
+    // The seam that produced the regression: `playerPaused` is local to this
+    // component, so nothing in it can see the store restart the clock. While
+    // `visibilitychange -> visible` still dispatched `resume`, pausing and
+    // switching tabs came back to a blurred board, a blocking Resume panel,
+    // disabled controls — and a timer counting behind all of it, with the
+    // idle timeout disarmed in exactly that state. The lifecycle hooks these
+    // events reach are the app store's own, installed at import.
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const game = freshGame();
+    renderGame(game);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(liveGame(game.id).runningSince).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+      setVisibility('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      vi.advanceTimersByTime(30_000);
+      setVisibility('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(liveGame(game.id).runningSince).toBeNull();
+    // Two of them while paused — the header toggle and the panel's own — so
+    // this asks that the pause UI is still up, not which button it is.
+    expect(screen.getAllByRole('button', { name: 'Resume' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('grid').className).toMatch(/blur-md/);
   });
 
   it('dispatches nothing if the screen is gone before the threshold', () => {
