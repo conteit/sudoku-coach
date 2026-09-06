@@ -276,6 +276,12 @@ describe('the arrival dot on a game the player is already in', () => {
     at('/play');
     render(<App />);
 
+    // The mount's own hydrate already calls `seen('g7')` for the boot race, so
+    // without this the assertion below passes on that call and proves nothing
+    // about leaving — the test stayed green with the leave-side call deleted.
+    await waitFor(() => expect(sync.state.seen).toHaveBeenCalled());
+    (sync.state.seen as ReturnType<typeof vi.fn>).mockClear();
+
     await userEvent.click(await screen.findByRole('button', { name: 'leave' }));
 
     expect(sync.state.seen).toHaveBeenCalledWith('g7');
