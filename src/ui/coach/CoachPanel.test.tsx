@@ -26,6 +26,7 @@ const hintAt = (level: DisclosureLevel, text: string, canEscalate = true): Hint 
 const PROGRESS: ReviewProgress = {
   checkedCells: 12,
   reported: 2,
+  stale: false,
   total: 2,
   open: 2,
   items: [
@@ -160,7 +161,7 @@ describe('the note check', () => {
     expect(screen.getByText('6 is missing')).toBeInTheDocument();
   });
 
-  it('says plainly that nothing was corrected', () => {
+  it('promises that the check itself writes nothing, and promises no more than that', () => {
     render(
       <CoachPanel
         hint={null}
@@ -170,7 +171,12 @@ describe('the note check', () => {
       />,
     );
 
-    expect(screen.getByText(/Nothing has been changed for you/)).toBeInTheDocument();
+    // This line renders unconditionally, "Fix them all" included — and that
+    // button rewrites the player's marks. It used to read "Nothing has been
+    // changed for you," which the app could contradict one click later. The
+    // invariant it actually defends is that *checking* never writes.
+    expect(screen.getByText(/Checking never changes your notes/)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing has been changed for you/)).toBeNull();
   });
 
   it('celebrates a clean set of notes without listing anything', () => {
@@ -179,7 +185,7 @@ describe('the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        progress={{ items: [], open: 0, total: 0, checkedCells: 30, reported: 0 }}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 30, reported: 0, stale: false }}
       />,
     );
 
@@ -213,7 +219,7 @@ it('says there is nothing to check when the player has made no notes', () => {
       hint={null}
       onAsk={() => undefined}
       onEscalate={() => undefined}
-      progress={{ items: [], open: 0, total: 0, checkedCells: 0, reported: 0 }}
+      progress={{ items: [], open: 0, total: 0, checkedCells: 0, reported: 0, stale: false }}
     />,
   );
 
@@ -292,7 +298,7 @@ describe('applying the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        progress={{ items: [], open: 0, total: 0, checkedCells: 2, reported: 0 }}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 2, reported: 0, stale: false }}
         onFixNotes={() => undefined}
       />,
     );
@@ -451,6 +457,7 @@ describe('the note check as it ages', () => {
   // retired" apart. Neither issue here has retired, so it equals `total`.
   const PROGRESS: ReviewProgress = {
     checkedCells: 12,
+    stale: false,
     total: 2,
     open: 1,
     reported: 2,
@@ -552,7 +559,7 @@ describe('when a note check has nothing left to show', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 0 }}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 0, stale: false }}
       />,
     );
 
@@ -566,12 +573,106 @@ describe('when a note check has nothing left to show', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 2 }}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 2, stale: false }}
       />,
     );
 
     expect(screen.getByText(/Nothing from that check still applies/)).toBeInTheDocument();
     expect(screen.queryByText(/exactly right/)).toBeNull();
+  });
+
+  it('stops certifying a clean set of notes once the notes have changed', () => {
+    // A report with no issues has nothing to age, so left alone it says "your
+    // notes are exactly right" over a board it has not seen since. `stale` is
+    // the only thing that can expire it.
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 0, stale: true }}
+      />,
+    );
+
+    expect(screen.getByText(/out of date/)).toBeInTheDocument();
+    expect(screen.queryByText(/exactly right/)).toBeNull();
+  });
+
+  it('stops saying there are no notes once the player has made some', () => {
+    // Same defect, other branch: "you have not made any notes yet" is frozen
+    // at snapshot time too, and it is falsified by the very act it invites.
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 0, reported: 0, stale: true }}
+      />,
+    );
+
+    expect(screen.getByText(/out of date/)).toBeInTheDocument();
+    expect(screen.queryByText(/nothing to check/)).toBeNull();
+  });
+});
+
+/*
+ * "All fixed." is a claim about the whole check, not about the rows left on
+ * screen. `total < reported` means issues left the list without being fixed —
+ * the board moved and the report gave up on proving them — so the player did
+ * not clear the check and nobody can now say what was in the part that went.
+ */
+describe('when every remaining issue is fixed', () => {
+  const fixedIssue = {
+    state: 'fixed' as const,
+    issue: {
+      cell: 6,
+      kind: 'invalid' as const,
+      digit: 9 as const,
+      reason: 'Column 7 already has a 9 at r7c7.',
+      witness: [60],
+    },
+  };
+
+  it('says the check is closed only when nothing retired unproven', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{
+          items: [fixedIssue],
+          open: 0,
+          total: 1,
+          checkedCells: 12,
+          reported: 1,
+          stale: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/All fixed\./)).toBeInTheDocument();
+  });
+
+  it('does not claim the whole check when some of it retired instead', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{
+          items: [fixedIssue],
+          open: 0,
+          total: 1,
+          // Born with three; two left the list without the player fixing them.
+          checkedCells: 12,
+          reported: 3,
+          stale: false,
+        }}
+      />,
+    );
+
+    expect(screen.queryByText(/All fixed\./)).toBeNull();
+    expect(screen.getByText(/The rest of that check no longer applies/)).toBeInTheDocument();
   });
 });
 

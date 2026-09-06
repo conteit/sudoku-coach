@@ -251,7 +251,7 @@ export const en = {
   'coach.marksNone': 'You have not made any notes yet, so there is nothing to check.',
   'coach.marksAllClean': 'All {count} cells checked — your notes are exactly right.',
   'coach.marksNeedLook': '{count} of {total} checked cells need a second look.',
-  'coach.marksUnchanged': 'Nothing has been changed for you.',
+  'coach.marksUnchanged': 'Checking never changes your notes.',
   'coach.tagInvalid': "{digit} can't be here",
   'coach.tagMissing': '{digit} is missing',
 
@@ -317,4 +317,6 @@ export const en = {
   'coach.marksAllFixed': 'All fixed.',
   'coach.tagFixed': 'fixed',
   'coach.marksNothingLeft': 'Nothing from that check still applies — the board has moved on. Run it again for a fresh reading.',
+  'coach.marksFixedRestGone': 'Everything still on this list is fixed. The rest of that check no longer applies — the board moved on before you got to it.',
+  'coach.marksStale': 'That reading is out of date — things have changed since you ran it. Run the check again.',
 } as const;

@@ -125,9 +125,9 @@ export interface CoachPanelProps {
   /** The board is still unfinishable — a rewind in progress, not a record. */
   rewinding?: boolean;
   /**
-   * No digit fits anywhere on this board, so nothing the catalog finds is
-   * worth acting on. The coach declines to teach rather than spend a rung on
-   * a board the player has to repair first.
+   * Some cell on this board has no digit left that fits, so nothing the
+   * catalog finds is worth acting on. The coach declines to teach rather than
+   * spend a rung on a board the player has to repair first.
    *
    * This is the dead end itself, not the rewind phase. The two come apart: the
    * phase stays armed while any entry still contradicts the solution, and a
@@ -216,6 +216,15 @@ function IssueList({
   onSpotlight?: (cells: CellIndex[]) => void;
 }) {
   const t = useT();
+
+  // A report that found nothing has no issues to age, so on its own it would
+  // keep certifying notes it has not seen for an hour. `marksNothingLeft`
+  // below covers the `reported > 0` half; this is the other one, and it is
+  // the only branch where the snapshot's marks are what expire the claim.
+  if (progress.reported === 0 && progress.stale) {
+    return <p className="py-3 text-sm text-ink-soft">{t('coach.marksStale')}</p>;
+  }
+
   // "All 0 cells checked — your notes are exactly right" is true and useless:
   // a player with no notes was told they had done something perfectly.
   if (progress.checkedCells === 0) {
@@ -240,9 +249,15 @@ function IssueList({
   return (
     <>
       <p className="py-2.5 text-sm text-ink-soft">
-        {progress.open === 0
-          ? t('coach.marksAllFixed')
-          : t('coach.marksProgress', { open: progress.open, total: progress.total })}{' '}
+        {/* "All fixed" has to mean the check is closed, and it only is when
+            every issue the report was born with is on this list. Fewer rows
+            than `reported` means the rest retired unproven — the player did
+            not fix them and nobody can now say whether they needed fixing. */}
+        {progress.open > 0
+          ? t('coach.marksProgress', { open: progress.open, total: progress.total })
+          : progress.total < progress.reported
+            ? t('coach.marksFixedRestGone')
+            : t('coach.marksAllFixed')}{' '}
         <span className="text-ink-faint">{t('coach.marksUnchanged')}</span>
       </p>
       <ul className="divide-y divide-rule border-t border-rule">
