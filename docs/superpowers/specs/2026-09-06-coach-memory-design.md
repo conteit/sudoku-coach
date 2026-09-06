@@ -88,6 +88,8 @@ export interface ReviewProgress {
   items: TrackedIssue[];
   open: number;
   total: number;
+  /** Carried through from the report, so the panel needs no second prop. */
+  checkedCells: number;
 }
 
 export function trackReview(
@@ -112,12 +114,27 @@ Evaluated against the live board. A `Board` is built once per call from the cell
 | `invalid`, and the digit has become possible | dropped | A later change made the mark legitimate. |
 | otherwise | `open` | Still to do. |
 
+**The rows are tested in that order and the first match wins.** It matters: a `missing` digit the
+player noted *and* whose cell they then filled is dropped, not counted as fixed. The cell being
+settled is the stronger fact, and crediting a fix for a question that stopped existing would
+inflate the count the player is reading.
+
 **The list can only shrink.** Nothing is ever added — a new issue requires a new check, which
 requires the player to ask. That is the property that keeps this from becoming a report nobody
 requested, and it is why "drop" and "fixed" are the only two ways an item can leave `open`.
 
 `open` and `total` count `items`, so a dropped issue leaves both — "2 of 4 left" rather than
 "2 of 5 left" with one invisible. Honest, and it avoids a total the player cannot account for.
+
+### Who calls it
+
+`GameView` does, in a `useMemo` keyed on the review and `game.cells`, alongside the board-derived
+memos it already holds. It passes `progress: ReviewProgress | null` to `CoachPanel` **in place of**
+the current `review` prop — `checkedCells` rides along on `ReviewProgress` so the panel still has
+everything the "N cells checked" copy needs, and the panel gains no second source of truth.
+
+`CoachPanel` therefore stays a renderer and learns nothing about boards or candidates, which is the
+same division `reviewProgress.ts` and `candidates.ts` have between them.
 
 ### What the panel shows
 
@@ -168,8 +185,9 @@ exists and should be reused rather than re-derived.
 ## Files
 
 - `src/coach/reviewProgress.ts` — new, plus its tests
-- `src/ui/coach/CoachPanel.tsx` — the `unfinishable` prop, the gated controls, the progress list,
-  the banner's condition
+- `src/ui/coach/CoachPanel.tsx` — the `unfinishable` prop, `progress` replacing `review`, the gated
+  controls, the progress list, the banner's condition. Its `IssueList` currently branches on
+  `review.checkedCells` and `review.issues`; it reads the same values off `ReviewProgress`.
 - `src/app/GameView.tsx` — pass `unfinishable`, stop dismissing on close, delete `recheckAfterFix`
 - `src/i18n/en.ts`, `src/i18n/it.ts` — the new strings; Italian to #65's pile
 - `docs/architecture.md` — the coach's state lifetime, and why the sheet is a viewport
