@@ -398,3 +398,57 @@ describe('lazy loading', () => {
     expect(reopened.getState().activeGameId).toBeNull();
   });
 });
+
+describe('catching up after a sync (refreshGames)', () => {
+  it('replaces a loaded game with what is now on disk', async () => {
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    await store.getState().flush();
+    // Stands in for what `syncOnce` does: write a downloaded copy straight to
+    // Dexie, bypassing the store entirely. Stored games are always paused
+    // (see the header), so a genuine downloaded record has `runningSince: null`.
+    await conn.games.update(id, { updatedAt: 9_000_000, elapsedMs: 42_000, runningSince: null });
+
+    await store.getState().refreshGames([id]);
+
+    const game = store.getState().games[id];
+    expect(game?.updatedAt).toBe(9_000_000);
+    expect(game?.elapsedMs).toBe(42_000);
+  });
+
+  it('replaces the active game too — not special-cased', async () => {
+    // Documents the trade named in the design: the active game can be
+    // mid-move when a background sync lands, and this action does not check
+    // for that. Newest-wins is left to decide, per the accepted risk.
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    expect(store.getState().activeGame()?.runningSince).not.toBeNull();
+    await conn.games.update(id, { runningSince: null, elapsedMs: 7000 });
+
+    await store.getState().refreshGames([id]);
+
+    expect(store.getState().activeGameId).toBe(id);
+    expect(store.getState().activeGame()?.runningSince).toBeNull();
+    expect(store.getState().activeGame()?.elapsedMs).toBe(7000);
+  });
+
+  it('leaves an id nobody has open alone — nothing to refresh, nothing loaded', async () => {
+    // Evict the first game out of `games` by opening past the cap, the same
+    // way the "bounded number of full games" test does — closeGame does not
+    // unload, only eviction does.
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    for (let i = 0; i < MAX_LOADED_GAMES; i++) await store.getState().startGame(PUZZLE_INPUT);
+    expect(store.getState().games[id]).toBeUndefined();
+
+    await store.getState().refreshGames([id]);
+
+    expect(store.getState().games[id]).toBeUndefined();
+  });
+
+  it('does nothing for an id that vanished from storage in the interim', async () => {
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    const before = store.getState().games[id];
+    await conn.games.delete(id);
+
+    await expect(store.getState().refreshGames([id])).resolves.toBeUndefined();
+    expect(store.getState().games[id]).toBe(before);
+  });
+});

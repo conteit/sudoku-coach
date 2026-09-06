@@ -69,6 +69,19 @@ export interface GameStore {
   /** Reads the game list and, unless told otherwise, reopens the last game. */
   hydrate: (options?: { resumeLast?: boolean }) => Promise<void>;
   refreshSummaries: () => Promise<void>;
+  /**
+   * Sync's catch-up call: re-reads the given ids from storage, replacing
+   * whichever of them are currently loaded. An id nobody has open is skipped
+   * outright — there is no in-memory copy for it to be wrong about, and
+   * loading one just to have it evicted again would be pure cost.
+   *
+   * Not special-cased for the active game. A remote copy judged newer by
+   * `sync/plan.ts` replaces it exactly like any other loaded game, which can
+   * overwrite an edit made in memory but not yet flushed to Dexie. That is
+   * the accepted trade behind "newest wins" (see the sync design), not a bug
+   * introduced here — but it is real, so it is named where the code does it.
+   */
+  refreshGames: (ids: readonly string[]) => Promise<void>;
   startGame: (input: Omit<NewGameInput, 'at'>) => Promise<string>;
   /**
    * Opens a game as the active one. `resume: false` restores it stopped —
@@ -204,6 +217,23 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
 
       refreshSummaries: async () => {
         set({ summaries: await listSummaries(deps.now(), deps.conn) });
+      },
+
+      refreshGames: async (ids) => {
+        const loaded = ids.filter((id) => id in get().games);
+        if (loaded.length === 0) return;
+        const stored = await Promise.all(loaded.map((id) => loadGame(id, deps.conn)));
+        set((state) => {
+          const games = { ...state.games };
+          loaded.forEach((id, i) => {
+            const record = stored[i];
+            // Gone by the time this runs (deleted locally in the interim) —
+            // leave the stale copy alone rather than manufacture a game from
+            // nothing; `removeGame` is the only path that should drop an id.
+            if (record !== undefined) games[id] = toLive(record);
+          });
+          return { games };
+        });
       },
 
       hydrate: async (options) => {

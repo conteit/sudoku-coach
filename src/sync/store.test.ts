@@ -8,6 +8,15 @@ import { DriveError } from './drive';
 const syncOnce = vi.hoisted(() => vi.fn());
 vi.mock('./engine', () => ({ syncOnce }));
 
+// The game store is mocked rather than run for real: what matters here is
+// whether the sync store *asks* it to catch up, and how many times — not
+// what catching up does once asked, which is `state/store.test.ts`'s job.
+const refreshSummaries = vi.hoisted(() => vi.fn());
+const refreshGames = vi.hoisted(() => vi.fn());
+vi.mock('../state/store', () => ({
+  useGameStore: { getState: () => ({ refreshSummaries, refreshGames }) },
+}));
+
 const { createSyncStore, forgetGrant } = await import('./store');
 
 /**
@@ -45,19 +54,26 @@ const storeWith = (
     offline: () => offline,
   });
 
+/** A no-op outcome: the shape `syncOnce` returns when the plan was empty. */
+const EMPTY_OUTCOME = {
+  at: 1000,
+  uploaded: 0,
+  downloaded: 0,
+  removedLocal: 0,
+  removedRemote: 0,
+  profile: 'none' as const,
+  downloadedIds: [],
+  droppedLocalIds: [],
+};
+
 beforeEach(() => {
   forgetGrant();
   syncOnce.mockReset();
-  syncOnce.mockResolvedValue({
-    at: 1000,
-    uploaded: 0,
-    downloaded: 0,
-    removedLocal: 0,
-    removedRemote: 0,
-    profile: 'none',
-    downloadedIds: [],
-    droppedLocalIds: [],
-  });
+  syncOnce.mockResolvedValue(EMPTY_OUTCOME);
+  refreshSummaries.mockReset();
+  refreshSummaries.mockResolvedValue(undefined);
+  refreshGames.mockReset();
+  refreshGames.mockResolvedValue(undefined);
   useAccount.setState({ account: { uid: 'u1', email: 'a@b.c', displayName: null } });
 });
 
@@ -196,16 +212,7 @@ describe('the sync store', () => {
       if (running > 1) overlapped = true;
       await Promise.resolve();
       running -= 1;
-      return {
-        at: 1000,
-        uploaded: 0,
-        downloaded: 0,
-        removedLocal: 0,
-        removedRemote: 0,
-        profile: 'none',
-        downloadedIds: [],
-        droppedLocalIds: [],
-      };
+      return EMPTY_OUTCOME;
     });
 
     const useStore = storeWith(device());
@@ -266,5 +273,81 @@ describe('the sync store', () => {
     await useStore.getState().enable();
 
     expect(JSON.stringify(useStore.getState())).not.toContain(grant.token);
+  });
+
+  describe('what changed', () => {
+    it('holds the ids a sync actually pulled from the remote', async () => {
+      syncOnce.mockResolvedValue({
+        ...EMPTY_OUTCOME,
+        downloaded: 2,
+        downloadedIds: ['g1', 'g2'],
+      });
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(useStore.getState().changed).toEqual(new Set(['g1', 'g2']));
+    });
+
+    it('stays empty after a sync that downloaded nothing', async () => {
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(useStore.getState().changed.size).toBe(0);
+    });
+
+    it('seen(id) removes one id and leaves the rest', async () => {
+      syncOnce.mockResolvedValue({
+        ...EMPTY_OUTCOME,
+        downloaded: 2,
+        downloadedIds: ['g1', 'g2'],
+      });
+      const useStore = storeWith(device());
+      await useStore.getState().enable();
+
+      useStore.getState().seen('g1');
+
+      expect(useStore.getState().changed).toEqual(new Set(['g2']));
+    });
+
+    it('asks the game store to catch up exactly once after a sync that applied something', async () => {
+      syncOnce.mockResolvedValue({
+        ...EMPTY_OUTCOME,
+        downloaded: 1,
+        downloadedIds: ['g1'],
+      });
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(refreshSummaries).toHaveBeenCalledTimes(1);
+      expect(refreshGames).toHaveBeenCalledTimes(1);
+      expect(refreshGames).toHaveBeenCalledWith(['g1']);
+    });
+
+    it('does not ask the game store to catch up after a no-op sync', async () => {
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(refreshSummaries).not.toHaveBeenCalled();
+      expect(refreshGames).not.toHaveBeenCalled();
+    });
+
+    it('catches up on an upload-only sync too, even with nothing to download', async () => {
+      // `changed` is specifically "pulled from elsewhere", but the library
+      // list still needs a repaint — an upload can be paired with a remote
+      // deletion elsewhere in the same plan, and either way "applied
+      // something" is the catch-up trigger, not "downloaded something".
+      syncOnce.mockResolvedValue({ ...EMPTY_OUTCOME, uploaded: 1 });
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(refreshSummaries).toHaveBeenCalledTimes(1);
+      expect(refreshGames).toHaveBeenCalledWith([]);
+      expect(useStore.getState().changed.size).toBe(0);
+    });
   });
 });

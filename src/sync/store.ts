@@ -18,8 +18,9 @@
 import { create } from 'zustand';
 import { db, readSyncRecord, writeSyncRecord, type SudokuCoachDB } from '../state/db';
 import { useAccount } from '../state/account';
+import { useGameStore } from '../state/store';
 import { DriveError, driveFor } from './drive';
-import { syncOnce } from './engine';
+import { syncOnce, type SyncOutcome } from './engine';
 import { requestGrant, syncAvailable, usable, type Grant } from './token';
 import { isOffline } from './connectivity';
 
@@ -43,6 +44,15 @@ export interface SyncStore {
   enabled: boolean;
   status: SyncStatus;
   lastSyncedAt: number | null;
+  /**
+   * Games this session has pulled from another device and not yet shown.
+   * Session state on purpose: never persisted, and never written into a
+   * `Game` record — a per-game "arrived from sync" flag would itself sync to
+   * the other device, where it describes nobody's screen. A reload clears it
+   * wholesale, which is honest: everything on screen after a reload came
+   * from disk, and none of it is news.
+   */
+  changed: ReadonlySet<string>;
   /** Reads the stored switch. Syncs straight away if it is on. */
   hydrate: () => Promise<void>;
   /** From a real click: this is the one path allowed to open a popup. */
@@ -50,6 +60,8 @@ export interface SyncStore {
   disable: () => Promise<void>;
   /** Silent. Safe to call on a timer, on wake, or on the way out. */
   syncNow: () => Promise<void>;
+  /** A mark earns its removal by being acted on — opened, not merely glanced at. */
+  seen: (id: string) => void;
   /**
    * Drops the token and rests, without touching the switch. Signing out is
    * not a decision to stop syncing — it is the end of a session — so the
@@ -57,6 +69,20 @@ export interface SyncStore {
    */
   forget: () => void;
 }
+
+/**
+ * Whether `run` actually moved anything — as opposed to a plan that turned
+ * out empty, which still touches `lastSyncedAt` but nothing else. Gates the
+ * catch-up below: the whole point of the trigger design (sync on load,
+ * sign-in, reconnect and both edges of tab visibility) is that a no-op sync
+ * is cheap, and an unconditional summary rebuild would tax every tab switch.
+ */
+const appliedSomething = (outcome: SyncOutcome): boolean =>
+  outcome.downloadedIds.length > 0 ||
+  outcome.droppedLocalIds.length > 0 ||
+  outcome.uploaded > 0 ||
+  outcome.removedRemote > 0 ||
+  outcome.profile !== 'none';
 
 /** Held here rather than in the store. See the header. */
 let grant: Grant | null = null;
@@ -121,6 +147,16 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
         }
         const outcome = await syncOnce({ drive: driveFor(token), conn: deps.conn, now: deps.now });
         set({ status: 'idle', lastSyncedAt: outcome.at });
+        if (appliedSomething(outcome)) {
+          if (outcome.downloadedIds.length > 0) {
+            set((state) => ({ changed: new Set([...state.changed, ...outcome.downloadedIds]) }));
+          }
+          // Order doesn't matter to the game store — each call reads storage
+          // for itself — but the summary rebuild is what the library repaints
+          // from, so it goes first.
+          await useGameStore.getState().refreshSummaries();
+          await useGameStore.getState().refreshGames(outcome.downloadedIds);
+        }
       } catch (error) {
         // An expired or withdrawn grant is the one failure with a next step,
         // so it gets its own state and the dead token is dropped rather than
@@ -145,6 +181,7 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
       enabled: false,
       status: 'off',
       lastSyncedAt: null,
+      changed: new Set(),
 
       hydrate: async () => {
         const record = await readSyncRecord(deps.conn);
@@ -171,6 +208,14 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
       },
 
       syncNow: () => queue(''),
+
+      seen: (id) =>
+        set((state) => {
+          if (!state.changed.has(id)) return state;
+          const changed = new Set(state.changed);
+          changed.delete(id);
+          return { changed };
+        }),
 
       forget: () => {
         grant = null;
