@@ -70,7 +70,12 @@ export interface GameStore {
   hydrate: (options?: { resumeLast?: boolean }) => Promise<void>;
   refreshSummaries: () => Promise<void>;
   startGame: (input: Omit<NewGameInput, 'at'>) => Promise<string>;
-  openGame: (id: string) => Promise<void>;
+  /**
+   * Opens a game as the active one. `resume: false` restores it stopped —
+   * for the app's own startup restore, not for a player choosing to play
+   * (see `hydrate`); every other caller wants the default.
+   */
+  openGame: (id: string, options?: { resume?: boolean }) => Promise<void>;
   /**
    * Leaves the active game for the library: parks it (clock stopped, written
    * out) and clears the selection. Summaries are refreshed on the way out so
@@ -207,7 +212,11 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
         if (options?.resumeLast === false) return;
         // `summaries` is newest-first, so this is the game the player left.
         const last = summaries.find((s) => s.completedAt === null);
-        if (last !== undefined) await get().openGame(last.id);
+        // The app is choosing to reopen this game at launch, not the player —
+        // resuming here would start the clock and stamp `updatedAt` with
+        // nobody having done anything. Restored stopped instead; the
+        // player's first interaction resumes it (`GameView`'s `dispatchMove`).
+        if (last !== undefined) await get().openGame(last.id, { resume: false });
       },
 
       startGame: async (input) => {
@@ -220,7 +229,7 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
         return game.id;
       },
 
-      openGame: async (id) => {
+      openGame: async (id, options) => {
         if (get().activeGameId === id) return;
         await parkActive();
         if (get().games[id] === undefined) {
@@ -231,8 +240,13 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
         set({ activeGameId: id });
         touch(id);
         await evict();
-        // Records are stored paused; opening one is what starts its clock (R5).
-        apply(id, { type: 'resume', at: deps.now() });
+        // Records are stored paused; opening one is what starts its clock
+        // (R5) — unless the caller is `hydrate` restoring the last game on
+        // launch, which is the app deciding, not the player, and must not
+        // stamp `updatedAt` for a resume nobody asked for.
+        if (options?.resume !== false) {
+          apply(id, { type: 'resume', at: deps.now() });
+        }
         schedule(id, deps.clockAutosaveMs);
       },
 
