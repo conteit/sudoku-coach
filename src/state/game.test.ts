@@ -697,3 +697,29 @@ describe('applying the note check', () => {
     expect(marks(game, OPEN)).toEqual([]);
   });
 });
+
+describe('idle', () => {
+  it('folds the running stretch and stops the clock', () => {
+    const idled = reduce(start({ running: true }), { type: 'idle', at: 4000 });
+    expect([idled.elapsedMs, idled.runningSince]).toEqual([3000, null]);
+  });
+
+  it('leaves updatedAt alone, because nobody did anything', () => {
+    // The whole point. `pause` means the player put the game down and stamps
+    // accordingly; going idle means they did not touch it, and a game must not
+    // re-date itself — nor climb the library's ordering — while its player is
+    // out of the room.
+    const idled = reduce(start({ running: true }), { type: 'idle', at: 4000 });
+    expect(idled.updatedAt).toBe(1000);
+  });
+
+  it('is a no-op on a game that is already stopped', () => {
+    const paused = reduce(start({ running: false }), { type: 'idle', at: 4000 });
+    expect(paused).toBe(reduce(paused, { type: 'idle', at: 9000 }));
+  });
+
+  it('still stamps updatedAt when the player pauses deliberately', () => {
+    const paused = reduce(start({ running: true }), { type: 'pause', at: 4000 });
+    expect(paused.updatedAt).toBe(4000);
+  });
+});

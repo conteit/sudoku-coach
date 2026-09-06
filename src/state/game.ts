@@ -92,6 +92,19 @@ export type GameAction =
   | { type: 'redo'; at: number }
   | { type: 'tick'; at: number }
   | { type: 'pause'; at: number }
+  /**
+   * The player has not touched this game for long enough that the clock is
+   * measuring absence rather than thought. Folds the running stretch into
+   * `elapsedMs` and stops.
+   *
+   * Deliberately NOT `pause`. `pause` means the player put the game down, and
+   * stamps `updatedAt` to say so. Going idle is the opposite — nobody did
+   * anything — so it leaves `updatedAt`, and therefore the game list's
+   * ordering, alone. `tick` already draws exactly this distinction and gives
+   * exactly this reason; this is the same rule for the moment the clock stops
+   * rather than the moment it folds.
+   */
+  | { type: 'idle'; at: number }
   | { type: 'resume'; at: number }
   /**
    * The coaching log, recomputed by the coach layer and handed back whole.
@@ -533,6 +546,11 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
       return game.runningSince === null
         ? game
         : { ...game, ...stopped(game, action.at), updatedAt: action.at };
+
+    case 'idle':
+      return game.runningSince === null
+        ? game
+        : { ...game, elapsedMs: elapsedAt(game, action.at), runningSince: null };
 
     case 'setCoachLog': {
       // Re-reading a hint the player already took is not a new exchange, and
