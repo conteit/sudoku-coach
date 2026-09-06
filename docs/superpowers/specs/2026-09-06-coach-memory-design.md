@@ -83,6 +83,15 @@ export interface TrackedIssue {
   state: IssueState;
 }
 
+/**
+ * A report plus the board it was run against. The values are what let a
+ * `missing` issue retire honestly — see "The placement problem" below.
+ */
+export interface ReviewSnapshot {
+  report: CandidateReview;
+  values: readonly (Digit | null)[];
+}
+
 export interface ReviewProgress {
   /** The issues still worth showing, in the order they were reported. */
   items: TrackedIssue[];
@@ -93,10 +102,34 @@ export interface ReviewProgress {
 }
 
 export function trackReview(
-  review: CandidateReview,
+  snapshot: ReviewSnapshot,
   cells: readonly CoachCell[],
 ): ReviewProgress;
 ```
+
+### The placement problem
+
+`missing` does not mean "this digit is possible". It means "possible **and** no technique in the
+catalog refutes it" — `reviewMarks` excludes anything `eliminableCandidates` can prove impossible,
+deliberately, because reporting those punished exactly the play the app teaches.
+
+That second half is a fixed-point run over the whole catalog, and it is what makes a re-check
+expensive. It also means a cheap revalidation is not merely stale but **wrong**: place a digit
+while a report is open, unlock a new elimination, and the panel keeps telling the player to note a
+digit that is now provably impossible. They would write it, and nothing downstream would flag it —
+`invalid` only catches basic elimination. The coach would have caused a bad mark.
+
+Re-running the fixed point on every board change is the cost we are avoiding. So instead the report
+remembers the values it was run against, and **a `missing` issue retires the moment its cell or any
+of its twenty peers changes value.** A placement in the neighbourhood is exactly the event that can
+invalidate the technique reasoning, and once the neighbourhood has moved the report stops asserting
+anything about that cell rather than asserting something it can no longer prove.
+
+`invalid` needs none of this. It rests on basic elimination alone — a peer holding the digit — so
+revalidating it against the live board is exact.
+
+The result keeps the property that matters: **the list only ever shrinks, and every row still
+showing is one the report can still prove.**
 
 It lives beside `candidates.ts` rather than inside it: that module's job is producing a report, and
 this one's is aging it. Two purposes, two files, each testable alone.
@@ -109,9 +142,9 @@ Evaluated against the live board. A `Board` is built once per call from the cell
 | --- | --- | --- |
 | The cell now holds a digit | dropped entirely | The cell is settled; a question about its pencil marks no longer means anything. |
 | `missing`, and the digit is now noted | `fixed` | The player did the thing the report asked for. |
-| `missing`, and the digit is no longer a true candidate | dropped | No longer true. Not the player's doing, and not something to take credit for. |
-| `invalid`, and the note is gone | `fixed` | Same. |
-| `invalid`, and the digit has become possible | dropped | A later change made the mark legitimate. |
+| `missing`, and the cell or any peer changed value since the report | dropped | The neighbourhood moved, so the technique reasoning behind "missing" may no longer hold. See "The placement problem". |
+| `invalid`, and the note is gone | `fixed` | The player did the thing the report asked for. |
+| `invalid`, and the digit is now a true candidate | dropped | A peer was cleared; the mark has become legitimate through no fault of the report. |
 | otherwise | `open` | Still to do. |
 
 **The rows are tested in that order and the first match wins.** It matters: a `missing` digit the
@@ -125,6 +158,14 @@ requested, and it is why "drop" and "fixed" are the only two ways an item can le
 
 `open` and `total` count `items`, so a dropped issue leaves both — "2 of 4 left" rather than
 "2 of 5 left" with one invisible. Honest, and it avoids a total the player cannot account for.
+
+### Where the snapshot comes from
+
+`checkMarks` in `src/app/useCoachSession.ts` captures the values alongside the report, so
+`CoachSession.review` becomes `ReviewSnapshot | null`. `coachCells` there is currently private and
+takes a whole `LiveGame`; it gains the same treatment `triggerCells` already had — exported, and
+taking `cells` — so the view can memoize on the dependency that changes when a move does and not
+when a coach log or a sync merge does. Its own doc comment already argues for exactly that.
 
 ### Who calls it
 
@@ -185,6 +226,8 @@ exists and should be reused rather than re-derived.
 ## Files
 
 - `src/coach/reviewProgress.ts` — new, plus its tests
+- `src/app/useCoachSession.ts` — `review` becomes a `ReviewSnapshot`; `coachCells` exported and
+  re-signatured to take cells
 - `src/ui/coach/CoachPanel.tsx` — the `unfinishable` prop, `progress` replacing `review`, the gated
   controls, the progress list, the banner's condition. Its `IssueList` currently branches on
   `review.checkedCells` and `review.issues`; it reads the same values off `ReviewProgress`.
