@@ -55,6 +55,8 @@ beforeEach(() => {
     removedLocal: 0,
     removedRemote: 0,
     profile: 'none',
+    downloadedIds: [],
+    droppedLocalIds: [],
   });
   useAccount.setState({ account: { uid: 'u1', email: 'a@b.c', displayName: null } });
 });
@@ -194,7 +196,16 @@ describe('the sync store', () => {
       if (running > 1) overlapped = true;
       await Promise.resolve();
       running -= 1;
-      return { at: 1000, uploaded: 0, downloaded: 0, removedLocal: 0, removedRemote: 0, profile: 'none' };
+      return {
+        at: 1000,
+        uploaded: 0,
+        downloaded: 0,
+        removedLocal: 0,
+        removedRemote: 0,
+        profile: 'none',
+        downloadedIds: [],
+        droppedLocalIds: [],
+      };
     });
 
     const useStore = storeWith(device());

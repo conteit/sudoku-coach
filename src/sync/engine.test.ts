@@ -278,6 +278,33 @@ describe('syncOnce', () => {
     expect((await readSyncRecord(a)).lastSyncedAt).toBe(5000);
   });
 
+  it('reports only the ids actually pulled, not the ones the manifest merely names', async () => {
+    // The manifest can outrun the folder — e.g. a crash between writing a game
+    // file and the index that lists it on a *different* device. `g2`'s file
+    // never lands here; only `g1`'s does. The outcome must say so, not just
+    // count `plan.download.length`.
+    const drive = fakeDrive();
+    const a = device();
+    const b = device();
+    await saveGame(gameAt('g1', 1000), a);
+    await saveGame(gameAt('g2', 1000), a);
+    await syncOnce({ drive, conn: a, now: () => 5000 });
+
+    // Simulate the manifest running ahead: it claims g2, but its file is gone.
+    const manifest = indexOf(drive);
+    const g2File = [...drive.files.entries()].find(([, f]) => f.name === gameFile('g2'));
+    expect(g2File).toBeDefined();
+    drive.files.delete(g2File![0]);
+    expect(manifest.games).toEqual({ g1: 1000, g2: 1000 });
+
+    const outcome = await syncOnce({ drive, conn: b, now: () => 6000 });
+
+    expect(outcome.downloadedIds).toEqual(['g1']);
+    expect(outcome.downloaded).toBe(1);
+    expect(await loadGame('g1', b)).toBeDefined();
+    expect(await loadGame('g2', b)).toBeUndefined();
+  });
+
   it('treats a manifest it cannot read as an empty remote, and re-uploads', async () => {
     const drive = fakeDrive();
     const a = device();
