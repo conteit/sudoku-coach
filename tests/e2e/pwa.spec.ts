@@ -74,6 +74,7 @@ test('checks for an update when the tab is resumed rather than navigated', async
   // the fix for a resumed (not reloaded) PWA sitting on an old build.
   await page.addInitScript(() => {
     (window as unknown as { __updateCalls: number }).__updateCalls = 0;
+    (window as unknown as { __registered: boolean }).__registered = false;
     const proto = window.ServiceWorkerRegistration?.prototype;
     if (proto) {
       const original = proto.update;
@@ -82,6 +83,18 @@ test('checks for an update when the tab is resumed rather than navigated', async
         return original.call(this);
       };
     }
+    // `onRegisteredSW` (the callback that hands the component its
+    // registration) fires as a `.then` on the same promise `register()`
+    // returns, so a flag set on our own `.then` of that promise settles
+    // strictly before the component's — deterministic proof registration
+    // has happened, in place of a duration that is merely usually enough.
+    const container = navigator.serviceWorker;
+    const originalRegister = container.register.bind(container);
+    container.register = ((...args: Parameters<typeof originalRegister>) =>
+      originalRegister(...args).then((registration) => {
+        (window as unknown as { __registered: boolean }).__registered = true;
+        return registration;
+      })) as typeof container.register;
   });
 
   await page.goto('/play');
@@ -91,10 +104,15 @@ test('checks for an update when the tab is resumed rather than navigated', async
       timeout: 20_000,
     })
     .toBe(true);
-  // `onRegisteredSW` fires asynchronously after `register()` resolves; give
-  // it a moment to hand the registration to the component before the tab is
-  // "hidden", or there is nothing yet for `visibilitychange` to call into.
-  await page.waitForTimeout(500);
+  // Wait for the registration itself, not for a duration that usually
+  // covers it — the previous `waitForTimeout(500)` here could miss the
+  // window on a slower run, and nothing after it could recover a toggle
+  // that already fired too early.
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __registered: boolean }).__registered), {
+      timeout: 20_000,
+    })
+    .toBe(true);
 
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
