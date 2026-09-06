@@ -387,6 +387,54 @@ has already read the front door.
     (`src/app/useCoachSession.ts` resets it on the first two; nothing persists
     it past the third). It is a reading of one board in one sitting.
 
+13. **`updatedAt` means the player changed the board, and only that.** It is
+    what newest-wins sync compares, so it must track play — not screen time,
+    not app behaviour. `pause` (`src/state/game.ts`) stamps it because putting
+    a game down is something the player did. `idle` folds the running stretch
+    into `elapsedMs` and stops the clock exactly as `pause` does, but
+    deliberately does **not** stamp: nobody touched the board, so the game
+    must not re-date itself, nor climb the library's ordering, while its
+    player is out of the room. The same reasoning restores the last game at
+    startup stopped rather than resumed — `hydrate` calls `openGame(id,
+    { resume: false })` — because the app opening a game on launch is the app
+    deciding, not the player playing it.
+
+    A deliberate pause and a silently stopped clock are different things, and
+    the UI keys on the difference rather than on `runningSince`. `GameView`
+    tracks `playerPaused` as its own local flag: the blurred board and the
+    blocking Resume panel appear only when the player chose to put the game
+    down, never for an idle timeout or a startup restore, or every two
+    minutes of thought and every cold launch would demand a tap before
+    reading the board. A `dispatchMove` funnel resumes the clock — dispatching
+    `resume`, which does stamp — on the first player move after any silent
+    stop, so play picks back up the instant it's used and the pause/idle
+    distinction never leaks into what the reducer does with a real move.
+
+    **Sync results reach the UI through the sync store, never through the
+    engine.** `src/sync/engine.ts` imports only `db` and shared types — no
+    store, by design, so one sync run stays a pure read-execute-write cycle
+    that a test can call without a React tree. `SyncOutcome` carries
+    `downloadedIds` and `droppedLocalIds`, collected inside the engine's loops
+    at the point each id's work actually succeeds, not copied from the
+    `SyncPlan` that only proposed it: the download loop skips an id the manifest
+    names but whose file isn't in the folder, and the outcome must say what
+    happened, not what was intended. `src/sync/store.ts` reads that outcome and holds two sets,
+    `changed` and `announced`, and asks the game store to `refreshSummaries`
+    and re-read any downloaded game still open. Both sets are **session-only,
+    never persisted and never written into a `Game`.** A per-game "arrived
+    from sync" flag would itself sync to the other device, where it describes
+    a screen nobody there was looking at — it is a fact about this session,
+    not about the game.
+
+    **The residual risk this shifts but does not close, recorded rather than
+    solved:** play on the phone at 10:00, then at 11:00 deliberately open the
+    same game on a laptop holding yesterday's board. The laptop stamps 11:00
+    on an open the player genuinely chose, wins the next sync on newest-wins,
+    and the hour of play on the phone is gone. Startup-restores-stopped
+    removes the variant where nobody chose anything; it does not touch the
+    one where someone did. Paolo was shown this trade and took it knowingly —
+    it is written here so the next reader finds a decision, not an oversight.
+
 ## Developer tools
 
 Two entries appear in the game menu for a signed-in account named in
