@@ -136,7 +136,12 @@ test.describe('one puzzle, end to end', () => {
 
     const coach = await openCoach(page);
     await coach.getByRole('button', { name: 'Check my notes' }).click();
-    await expect(coach.getByText(/need a second look/)).toBeVisible();
+    // `coach.marksNeedLook` — what this used to assert — stopped rendering when
+    // the report became something that ages: the panel now counts what is still
+    // open against what it found. The claim is the same one, in the copy the
+    // panel actually has, plus the promise that goes with it.
+    await expect(coach.getByText(/still to fix/)).toBeVisible();
+    await expect(coach.getByText(/Checking never changes your notes/)).toBeVisible();
 
     // R8: the review reports, it never corrects.
     const after = await readBoard(page);
