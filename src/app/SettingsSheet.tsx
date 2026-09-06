@@ -79,6 +79,7 @@ function Choices<T extends string>({
 function AccountSection() {
   const t = useT();
   const account = useAccount((state) => state.account);
+  const ready = useAccount((state) => state.ready);
   const busy = useAccount((state) => state.busy);
   const failed = useAccount((state) => state.failed);
   const signIn = useAccount((state) => state.signIn);
@@ -91,7 +92,16 @@ function AccountSection() {
       <h3 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
         {t('account.title')}
       </h3>
-      {account === null ? (
+      {/* `ready` gets its own branch on purpose (issue #126): before the
+          first `onAuthStateChanged` answer arrives, `account` is `null`
+          exactly like a deliberate sign-out. A restore that failed silently
+          — a chunk 404 after an update is the mechanism — used to render
+          identically to "you signed out", which sent players looking for a
+          switch that was never turned off. This says "still checking"
+          instead of asserting either state before the app actually knows. */}
+      {!ready ? (
+        <p className="text-sm text-ink-soft">{t('account.checking')}</p>
+      ) : account === null ? (
         <>
           <Button variant="secondary" size="lg" block disabled={busy} onClick={() => void signIn()}>
             {busy ? t('account.busy') : t('account.signIn')}

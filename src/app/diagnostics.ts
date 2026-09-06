@@ -18,6 +18,7 @@ import { DIGITS, type CellIndex, type Digit } from '../engine/types';
 import type { Finding } from '../engine/types';
 import type { CandidateReview } from '../coach/types';
 import type { Hint } from '../coach/types';
+import { authAvailable, useAccount } from '../state/account';
 import type { LiveGame, PlayerProfile } from '../state/types';
 
 /** A finding, flattened to the parts a reader of the report needs. */
@@ -31,6 +32,23 @@ export interface ReportedFinding {
 export interface DiagnosticReport {
   at: string;
   app: { locale: string; tier: string; viewport: string };
+  /**
+   * Issue #126 was invisible from a console: a session that silently failed
+   * to restore renders identically to a deliberate sign-out, with nothing in
+   * either state to tell them apart. This is the checkable version — never
+   * the email, and never the Drive access token, which lives in a
+   * module-local variable in `sync/store.ts` for exactly the reason that it
+   * must never be reachable from a report a player is invited to paste
+   * somewhere.
+   */
+  auth: {
+    /** Whether this build has Firebase configured at all. */
+    configured: boolean;
+    /** Whether the first `onAuthStateChanged` answer has arrived. */
+    ready: boolean;
+    /** Whether an account is currently held — not who it is. */
+    signedIn: boolean;
+  };
   game: {
     id: string;
     difficulty: string;
@@ -142,6 +160,11 @@ export function buildDiagnosticReport(input: DiagnosticInput): DiagnosticReport 
   return {
     at: (input.now ?? new Date()).toISOString(),
     app: { locale: profile.locale, tier: input.tier, viewport: input.viewport },
+    auth: {
+      configured: authAvailable(),
+      ready: useAccount.getState().ready,
+      signedIn: useAccount.getState().account !== null,
+    },
     game: {
       id: game.id,
       difficulty: game.difficulty,

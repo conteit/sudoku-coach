@@ -74,7 +74,7 @@ vi.mock('./state/account', () => ({
 }));
 vi.mock('./sync/store', () => ({
   useSync: Object.assign((select: (s: unknown) => unknown) => select({ enabled: false, status: 'off' }), {
-    getState: () => ({ hydrate: vi.fn(), syncNow: vi.fn(), forget: vi.fn() }),
+    getState: () => ({ hydrate: vi.fn(async () => undefined), syncNow: vi.fn(), forget: vi.fn() }),
   }),
 }));
 
