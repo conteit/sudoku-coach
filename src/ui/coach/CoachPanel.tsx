@@ -568,7 +568,10 @@ export function CoachPanel({
             has already worked this pattern in their notes has nowhere else
             to go — the engine reads placed digits, so it keeps offering what
             it can still see. */}
-        {onAnother && hint !== null ? (
+        {/* `!unfinishable` as well as the callback `GameView` withholds: a
+            panel that is refusing to teach must not be drawing an offer to
+            teach something else in the same row, whatever it was handed. */}
+        {onAnother && hint !== null && !unfinishable ? (
           <Button variant="ghost" size="lg" onClick={onAnother}>
             {t('coach.another')}
           </Button>

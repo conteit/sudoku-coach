@@ -703,6 +703,33 @@ describe('a board that cannot be finished', () => {
     expect(screen.getByRole('button', { name: 'Where should I look?' })).toBeInTheDocument();
   });
 
+  it('offers no way to a different hint either', () => {
+    // "Show me another" runs a fresh detector pass and logs the disclosure,
+    // which is the same charge the missing Ask button is refusing. `GameView`
+    // withholds the callback as well; drawing a button here for a caller that
+    // still passes one would put the offer back beside the refusal.
+    render(
+      <CoachPanel
+        {...base}
+        hint={hintAt(1, 'Look at box 4.')}
+        unfinishable
+        onAnother={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Not that one — show me another' })).toBeNull();
+  });
+
+  it('offers another hint on a board that can still be finished', () => {
+    // The control: the button must be reachable at all for its absence above
+    // to mean anything.
+    render(<CoachPanel {...base} hint={hintAt(1, 'Look at box 4.')} onAnother={() => undefined} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Not that one — show me another' }),
+    ).toBeInTheDocument();
+  });
+
   it('says the board is stuck even with nothing undone yet', () => {
     // The banner used to need a non-empty trail, so a dead end reached without
     // undoing anything left the panel silent while the undo key sat amber.

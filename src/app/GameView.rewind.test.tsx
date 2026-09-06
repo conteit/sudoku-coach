@@ -1,7 +1,7 @@
 // Dexie captures the global `indexedDB` on import and `GameView` reaches it
 // transitively — same reasoning as `GameView.layout.test.tsx`.
 import 'fake-indexeddb/auto';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
@@ -95,6 +95,35 @@ function ruleCleanDeadEnd(): LiveGame {
 }
 
 /**
+ * `ruleCleanDeadEnd()` one move earlier: r1c3, r1c9 and r2c3 still empty, and
+ * nothing wrong on the board yet. r2c3 is a naked single, so the coach has a
+ * real hint to give — which is the point. The stranding move is then made
+ * through the store, and what the panel does with the hint it already gave is
+ * what the tests below are about.
+ */
+function oneMoveFromDeadEnd(): LiveGame {
+  let game = newGame({
+    givens: PUZZLE,
+    solution: SOLVED,
+    difficulty: 'medium',
+    at: 1000,
+    id: `rewind-test-${counter++}`,
+    running: true,
+  });
+  let at = 1100;
+  for (let cell = 0; cell < 81; cell++) {
+    if (PUZZLE[cell] !== '.' || cell === 2 || cell === 8 || cell === 11) continue;
+    game = reduce(game, {
+      type: 'setValue',
+      cell,
+      digit: Number(SOLVED[cell]) as never,
+      at: at++,
+    });
+  }
+  return game;
+}
+
+/**
  * `ruleCleanDeadEnd()` plus a second, independent wrong digit at r5c3 (cell
  * 38) — 4 where the solution has 6 — placed *before* the dead-end move so it
  * survives the single Undo that removes it. That digit conflicts with two
@@ -127,6 +156,40 @@ function strandedWithSurvivingWrongDigit(): LiveGame {
   }
   game = reduce(game, { type: 'setValue', cell: 38, digit: 4, at: at++ });
   return reduce(game, { type: 'setValue', cell: 2, digit: 2, at: at++ });
+}
+
+/**
+ * A dead end on a board still full of teachable patterns — one digit at r1c9,
+ * and the rest of the puzzle untouched.
+ *
+ * `ruleCleanDeadEnd()` cannot stand in for this. It strands a board with three
+ * empty cells left, on which the technique catalog finds nothing at all, so a
+ * test that pressed "h" there would pass whether or not anything gated it —
+ * the ungated code produces no hint either. Here the coach has 49 empty cells
+ * and a naked single to talk about, so a hint is what "h" gets unless
+ * something stops it.
+ *
+ * The 4 breaks no rule (the solution wants a 2 and no peer holds a 4), and it
+ * leaves r7c9 with no digit that fits: column 9 then holds 4 in r1c9 and the
+ * givens put the rest of what row 7 and box 9 will accept out of reach.
+ * `withCorrectDigit` places the solution's own 2 instead — same shape, same
+ * move count, no dead end — which is what makes it the control.
+ */
+function deadEndWithHintsLeft(withCorrectDigit = false): LiveGame {
+  const game = newGame({
+    givens: PUZZLE,
+    solution: SOLVED,
+    difficulty: 'medium',
+    at: 1000,
+    id: `rewind-test-${counter++}`,
+    running: true,
+  });
+  return reduce(game, {
+    type: 'setValue',
+    cell: 8,
+    digit: withCorrectDigit ? 2 : 4,
+    at: 1100,
+  });
 }
 
 const SETTINGS: PlayerProfile['settings'] = { ...DEFAULT_PROFILE.settings, haptics: false };
@@ -303,5 +366,67 @@ describe('the amber rewind', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'Where should I look?' })).toBeInTheDocument();
+  });
+
+  it('will not answer the hint shortcut on a board that cannot be finished', async () => {
+    // Hiding the panel's Ask button left "h" wired straight through to
+    // `coach.ask`. The coach log is the assertion that matters rather than the
+    // absence of text on screen: a hint taken this way is *recorded* and
+    // charged to mastery, so a refusal that still logs is not a refusal.
+    const stranded = deadEndWithHintsLeft();
+    const { user } = renderGame(stranded);
+    await screen.findByText(/No technique can help/);
+
+    await user.keyboard('h');
+
+    expect(useGameStore.getState().games[stranded.id]?.coachLog).toEqual([]);
+    expect(screen.getByText(/No technique can help/)).toBeInTheDocument();
+  });
+
+  it('answers the hint shortcut on the same board with the right digit in it', async () => {
+    // The control, and it is not optional: "h" broken outright, or a board
+    // the catalog has nothing to say about, would satisfy the assertion above
+    // exactly as well as a refusal does. Same fixture, one digit different.
+    const playable = deadEndWithHintsLeft(true);
+    const { user } = renderGame(playable);
+
+    await user.keyboard('h');
+
+    expect(useGameStore.getState().games[playable.id]?.coachLog).toHaveLength(1);
+  });
+
+  it('takes a hint down when the board becomes unfinishable, and the way to another with it', async () => {
+    // A hint asked for before the dead end is not worth acting on after it,
+    // and leaving it up put a technique and its spotlight directly above the
+    // panel refusing to give one. "Not that one — show me another" was the
+    // other live route to `coach.another` on an unfinishable board.
+    const game = oneMoveFromDeadEnd();
+    const { user } = renderGame(game);
+
+    await user.click(await screen.findByRole('button', { name: 'Where should I look?' }));
+    expect(
+      await screen.findByRole('button', { name: 'Not that one — show me another' }),
+    ).toBeInTheDocument();
+    // The panel is speaking, so its resting prose is not on screen.
+    expect(screen.queryByText(/the smallest useful nudge first/)).toBeNull();
+
+    act(() => {
+      useGameStore.setState((state) => ({
+        games: {
+          ...state.games,
+          [game.id]: reduce(state.games[game.id] as LiveGame, {
+            type: 'setValue',
+            cell: 2,
+            digit: 2,
+            at: 9000,
+          }),
+        },
+      }));
+    });
+
+    expect(await screen.findByText(/No technique can help/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Not that one — show me another' })).toBeNull();
+    // Back to rest: the hint text is gone, not merely covered.
+    expect(screen.getByText(/the smallest useful nudge first/)).toBeInTheDocument();
   });
 });
