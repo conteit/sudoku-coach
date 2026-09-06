@@ -75,7 +75,19 @@ export function useLongPress<T>({
    * shape.
    */
   const latest = useRef(onLongPress);
-  latest.current = onLongPress;
+  /*
+   * Assigned in an effect rather than during render. Render must stay pure —
+   * React may discard a render it has begun, and a discarded render that had
+   * already written the ref would leave it pointing at a callback from a tree
+   * that was never committed. No concurrent feature is in this app today, so
+   * the hazard is latent rather than live; the effect costs nothing and the
+   * rule holds whether or not one arrives. Safe without a dependency array
+   * because effects run after commit and before any pointer event the user
+   * can raise, so `start` never reads a stale callback.
+   */
+  useEffect(() => {
+    latest.current = onLongPress;
+  });
 
   const end = (): void => {
     if (press.current.timer === null) return;
