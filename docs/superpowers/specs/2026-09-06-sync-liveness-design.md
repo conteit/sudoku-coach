@@ -21,59 +21,81 @@ of them.
   discards the rest on the next line.
 - **Nothing renders a success.** `SyncNotice` covers `consent` and `error` only.
 
-## 1 — `updatedAt` must mean "the board changed"
+## 1 — What "active" means, and when a game is not
 
-### The bug this fixes is data loss, and it is on production now
+### Paolo's framing, and what it replaces
 
-`store.ts`'s `write` persists through `saveGame(toStored(reduce(game, { type: 'pause', at })))`,
-and the reducer's `pause` case stamps `updatedAt: at`. So every write of a *running* game re-dates
-it, whatever happened to the board. The paths that do this include `openGame` (via `parkActive`,
-and again via its own `resume` plus the scheduled autosave), `closeGame`, `suspend`, `wake`,
-`flush` after a bare clock tick, `evict`, and `hydrate` — which resumes the last game at startup.
+The first draft of this section proposed changing what `updatedAt` means — `pause` and `resume`
+would stop stamping it. **That is rejected.** `updatedAt` keeps its current semantics. The question
+worth answering instead is the one underneath: when is a game actually being played, and when is it
+merely on screen?
 
-**Merely opening a game to look at it makes it newer than every other copy of it.**
+Today the app has no answer. `openGame` resumes, `hydrate` auto-opens and resumes the last game at
+startup, `wake` resumes on tab visibility, and a game left open with nobody touching it counts time
+forever. "Active" is currently a synonym for "rendered".
 
-Against newest-wins-per-whole-game, that is silent data loss:
+### The model
 
-1. Play on the phone at 10:00.
-2. At 11:00, open the laptop — which holds yesterday's board — and touch nothing.
-3. The laptop re-dates its stale record to 11:00 and wins the next sync.
-4. The hour of play on the phone is gone, and nothing anywhere said so.
+**Opening a game starts its clock**, exactly as R5 says today. That rule stands.
 
-The reducer already holds the correct instinct and states it. From the `tick` case:
+**A game with no interaction for `DEFAULT_STUCK_MS` (2 minutes) goes idle** — the clock folds into
+`elapsedMs` and stops. Any board interaction starts it again. The threshold is the coach's own
+stall constant, reused rather than invented: that module already defines 2 minutes as "long enough
+that it is not a pause for thought", which is exactly the judgement being made here.
 
-> Not a player action, so it leaves `updatedAt` — and therefore the game list's ordering — alone.
+**Backgrounding still pauses**, as `suspend` already does, and coming back to the board resumes it.
 
-`pause` and `resume` are not player actions either. They are clock bookkeeping, and they are the
-only reason `write` re-dates anything.
+### Idling is not pausing, and must not stamp
 
-### The change
+These two requirements collide, and the collision is the whole reason this section is subtle.
+`pause` stamps `updatedAt`. If an idle timeout dispatched `pause`, a game sitting untouched would
+re-date itself on a timer — inventing exactly the phantom activity the model exists to eliminate,
+and doing it while the player is out of the room.
 
-`pause` and `resume` stop writing `updatedAt`. Everything that genuinely changes the record keeps
-it: every board move (through `commit`, which already no-ops on an empty batch), `undo`, `redo`,
-and `setCoachLog`.
+So idling gets **its own action**:
 
-Nothing else changes. The clock still runs, still folds into `elapsedMs`, and is still persisted —
-`suspend`'s comment about a player banking five minutes of thought stays true, because the write
-still happens. What stops is that write claiming the board moved.
+```ts
+| { type: 'idle'; at: number }
+```
 
-### What this costs, stated plainly
+It folds the running stretch into `elapsedMs` and clears `runningSince`, and it leaves `updatedAt`
+alone. That is precisely what `tick` already does, minus the part where the clock keeps running,
+and `tick`'s comment already states the principle: *not a player action, so it leaves `updatedAt` —
+and therefore the game list's ordering — alone.*
 
-- **Elapsed time alone no longer wins a sync.** Sit on one device for an hour without placing a
-  digit, and that hour will lose to a device that placed one digit. Newest-wins is per whole game,
-  so the clock rides along with the board rather than competing with it. Losing minutes of clock is
-  a far smaller harm than losing moves, and it is the direction the current bug gets wrong.
-- **The library stops re-ordering when you open a game.** Rows are ordered by `updatedAt`, so today
-  merely opening a game floats it to the top. After this it moves when you *play*. The row's own
-  copy already calls this "last played", so the label becomes true rather than aspirational.
+`pause` is untouched, keeps stamping, and keeps meaning "the player put this down".
 
-Both are behaviour changes a player can notice. They are the point, not side effects.
+### Where the timer lives
 
-### It needs a test it never had
+In the app layer, not in `state/`. Architecture invariant 6 says `state/` never imports `coach/`,
+and `DEFAULT_STUCK_MS` lives in `src/coach/triggers.ts`. `GameView` already knows every interaction
+the player makes and already holds this kind of timer; it dispatches `idle` and nothing in `state/`
+learns about the coach.
 
-There is currently no test asserting that `pause` bumps `updatedAt` — the behaviour is unpinned,
-which is why it survived. The new tests pin the opposite, and one of them is the scenario above,
-written as a two-device sequence against the real planner.
+The timer is reset by the same events that count as activity, and cleared on unmount — this app
+cares specifically about timers that outlive what created them.
+
+### Startup restores the last game paused
+
+One narrow addition, offered as inside Paolo's rule rather than against it. `hydrate` currently
+auto-opens the last unfinished game, which resumes it and stamps `updatedAt` **with no player
+action whatsoever** — the app decided, not the person.
+
+A player opening a game is activity. The app restoring one on launch is not. So startup restores
+the board paused, and the player's first interaction starts the clock. Opening a game *by choice*
+still starts it immediately, so R5 is untouched for every deliberate open.
+
+### The residual risk, recorded rather than solved
+
+With `updatedAt` semantics unchanged, this remains true and is accepted:
+
+> Play on the phone at 10:00. At 11:00 open the same game on the laptop, which holds yesterday's
+> board, and deliberately open it. The laptop stamps 11:00, wins the next sync, and the hour of
+> play on the phone is gone.
+
+Startup-restores-paused removes the variant where nobody chose anything. A deliberate open on a
+stale device still loses the newer board. Paolo was shown this trade and took it; it is written
+here so the next reader finds a decision rather than an oversight.
 
 ## 2 — The outcome carries ids, not just counts
 
@@ -175,23 +197,21 @@ before the reload and read after:
 wired. Its wording is for a prompt ("Reload to use it"), so it is **rewritten** for what actually
 happens rather than left to imply a button that does not exist.
 
-## This wants to be two changes, not one
+## Staging
 
-Section 1 is a **bug fix for silent data loss that is live right now**. Sections 2-5 are a feature.
-They are described together because the feature is unsafe without the fix, but they should not ship
-together: the fix is small, it is testable on its own, and every day it waits is a day a player can
-lose a game by opening it on the wrong device.
-
-Recommended: section 1 lands as its own change, immediately. Sections 2-5 follow as the feature,
-built on it. The implementation plan should be written for the second only once the first is in.
+Section 1 is a behaviour change to the clock; sections 2-5 are the sync surfaces. They are
+independent — nothing in the surfaces depends on the activity model, and vice versa — so they can
+land as two changes in either order. One plan can cover both, with section 1 first because it is
+the smaller and touches the reducer everything else reads.
 
 ## Testing
 
-- The reducer: `pause` and `resume` leave `updatedAt` alone; a move still stamps it. Mutation: put
-  the stamp back and watch the two-device test fail.
-- **The data-loss scenario end to end**, against the real planner: device A plays, device B opens
-  the stale copy without playing, sync, and A's board must survive. This is the test the whole of
-  change 1 exists for, and it must be watched fail first.
+- The reducer: `idle` folds the clock and stops it **without** moving `updatedAt`; `pause` still
+  stamps. Mutation: make `idle` stamp, and watch the ordering test fail.
+- The idle timer: no interaction for the threshold stops the clock; an interaction before it does
+  not; an interaction after it starts the clock again. The timer is cleared on unmount.
+- Startup restores the last game paused, and its `updatedAt` is unchanged by the restore. Mutation:
+  resume on restore, and watch it move.
 - The engine: applied ids, including that an id skipped by the `continue` does not appear.
 - The sync store: `changed` after a download; empty after a no-op sync; the game store asked to
   refresh exactly once.
@@ -204,7 +224,9 @@ built on it. The implementation plan should be written for the second only once 
 
 ## Files
 
-- `src/state/game.ts` — `pause`/`resume` stop stamping `updatedAt`
+- `src/state/game.ts` — the `idle` action, which stops the clock without stamping
+- `src/state/store.ts` — `hydrate` restores the last game paused
+- `src/app/GameView.tsx` — the idle timer, reset by interaction
 - `src/sync/engine.ts` — `SyncOutcome` carries applied ids
 - `src/sync/store.ts` — keeps the outcome, holds `changed`, drives the read-back
 - `src/state/store.ts` — an action to re-read named games from Dexie
