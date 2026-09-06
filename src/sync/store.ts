@@ -53,6 +53,25 @@ export interface SyncStore {
    * from disk, and none of it is news.
    */
   changed: ReadonlySet<string>;
+  /**
+   * Ids the toast has already put in front of the player. Session state, same
+   * lifetime and the same reason as `changed`: it is a receipt for something
+   * that happened on this screen, not a fact about a game, so it is never
+   * persisted and never written into a `Game` record.
+   *
+   * It exists so the toast can be shown only for `changed \ announced` —
+   * ids that have arrived and not yet been put in front of anyone — rather
+   * than for the whole of `changed`. Without it, the toast's own read receipt
+   * would have to live in the component, which breaks two ways: `seen()`
+   * removing an *opened* game's id from `changed` changes what is left in the
+   * set, which the component can't tell apart from a *new* arrival, so it
+   * reopens to announce games the player hasn't touched — at the exact moment
+   * a game is open, which is the one surface this is never allowed to
+   * interrupt. And the component unmounts between games, so its receipt
+   * doesn't survive leaving and reopening one, and "news, once" turns into
+   * "news, every time you look".
+   */
+  announced: ReadonlySet<string>;
   /** Reads the stored switch. Syncs straight away if it is on. */
   hydrate: () => Promise<void>;
   /** From a real click: this is the one path allowed to open a popup. */
@@ -62,6 +81,15 @@ export interface SyncStore {
   syncNow: () => Promise<void>;
   /** A mark earns its removal by being acted on — opened, not merely glanced at. */
   seen: (id: string) => void;
+  /**
+   * Marks the current contents of `changed` as announced — called when the
+   * toast is dismissed or times out, never when a game is opened (`seen()`
+   * is the only thing that clears `changed` itself). Sets rather than unions:
+   * bounding `announced` by `changed` means an id `seen()` has since dropped
+   * from `changed` is not still sitting in `announced` forever, growing a set
+   * nothing will ever read again.
+   */
+  announce: () => void;
   /**
    * Drops the token and rests, without touching the switch. Signing out is
    * not a decision to stop syncing — it is the end of a session — so the
@@ -182,6 +210,7 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
       status: 'off',
       lastSyncedAt: null,
       changed: new Set(),
+      announced: new Set(),
 
       hydrate: async () => {
         const record = await readSyncRecord(deps.conn);
@@ -216,6 +245,8 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
           changed.delete(id);
           return { changed };
         }),
+
+      announce: () => set((state) => ({ announced: new Set(state.changed) })),
 
       forget: () => {
         grant = null;

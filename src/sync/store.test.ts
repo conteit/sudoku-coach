@@ -311,6 +311,41 @@ describe('the sync store', () => {
       expect(useStore.getState().changed).toEqual(new Set(['g2']));
     });
 
+    it('announce() marks the current changed ids as announced', async () => {
+      syncOnce.mockResolvedValue({
+        ...EMPTY_OUTCOME,
+        downloaded: 2,
+        downloadedIds: ['g1', 'g2'],
+      });
+      const useStore = storeWith(device());
+      await useStore.getState().enable();
+
+      useStore.getState().announce();
+
+      expect(useStore.getState().announced).toEqual(new Set(['g1', 'g2']));
+      // announce() is a receipt, not a clear: what was pulled is still pulled.
+      expect(useStore.getState().changed).toEqual(new Set(['g1', 'g2']));
+    });
+
+    it('announce() replaces the receipt rather than growing it, pruning ids seen() already dropped', async () => {
+      syncOnce.mockResolvedValue({
+        ...EMPTY_OUTCOME,
+        downloaded: 2,
+        downloadedIds: ['g1', 'g2'],
+      });
+      const useStore = storeWith(device());
+      await useStore.getState().enable();
+
+      useStore.getState().announce();
+      useStore.getState().seen('g1');
+      useStore.getState().announce();
+
+      // g1 left `changed` via seen(), so the second announce() must not carry
+      // it forward — a set() rather than a union() is what keeps `announced`
+      // bounded by `changed` instead of accreting ids nothing reads again.
+      expect(useStore.getState().announced).toEqual(new Set(['g2']));
+    });
+
     it('asks the game store to catch up exactly once after a sync that applied something', async () => {
       syncOnce.mockResolvedValue({
         ...EMPTY_OUTCOME,

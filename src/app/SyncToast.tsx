@@ -15,21 +15,32 @@
  * mounts those only while the library is showing, and mounts this only while
  * a game is open. A sync that moved nothing must stay silent — sync is
  * best-effort by the spec's standing rule, and nothing may interrupt a game —
- * so an empty `changed` set renders nothing at all.
+ * so an empty pending set renders nothing at all.
  *
- * Dismissing or timing out does not call `seen()` and does not touch
- * `changed`. That set is also what the library's per-game dots (a later task)
- * read to show *which* games moved, and a player who glanced past this toast
- * — or was in a different game when it arrived — has not seen that yet. Only
- * opening the specific game that changed earns its removal, which is what the
- * store's own doc comment for `seen` says ("opened, not merely glanced at").
- * What this component tracks instead is its own read receipt — the exact set
- * of ids it has already shown — so the same arrival is not re-announced on
- * every re-render, while a genuinely new arrival (the set growing) shows
- * again with the current, larger count.
+ * What it shows is `changed \ announced`, not `changed` itself, and the read
+ * receipt (`announced`) lives in the sync store rather than here. Two things
+ * follow from that, and both were bugs in an earlier version that kept the
+ * receipt as local component state:
+ *
+ * - Opening a game from the library calls `seen()`, which shrinks `changed`.
+ *   That must never reopen this toast to announce the games the player
+ *   *hasn't* opened yet — the one thing this component can never do is
+ *   interrupt the game that is currently on screen. Deriving from the
+ *   difference handles this for free: removing an id from `changed` can only
+ *   shrink the pending set, never grow it, so it cannot cause a reopen.
+ * - A genuinely new arrival — `changed` growing past what `announced` already
+ *   covers — must still show, even if the player is mid-game and already
+ *   dismissed an earlier one. Comparing against a store-held `announced`
+ *   handles this too, and it survives this component unmounting between
+ *   games, where local state would not.
+ *
+ * Dismissing or timing out calls `announce()`, never `seen()`: putting an
+ * id in front of the player is not the same as the player having opened that
+ * game, and only opening it earns the id's removal from `changed` (see that
+ * store's doc comment).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useT } from '../i18n/locale';
 import { useSync } from '../sync/store';
 import { IconButton } from '../ui/primitives/IconButton';
@@ -38,23 +49,28 @@ import { CloseIcon } from '../ui/primitives/icons';
 /** Same duration as `OfflineNotice`: long enough to read twice. */
 const VISIBLE_MS = 6000;
 
-/** A stable fingerprint for "this particular arrival" — order-independent. */
-const fingerprint = (ids: ReadonlySet<string>): string => [...ids].sort().join(',');
+/** `changed` minus `announced` — arrived, and not yet put in front of anyone. */
+const pending = (changed: ReadonlySet<string>, announced: ReadonlySet<string>): string[] =>
+  [...changed].filter((id) => !announced.has(id));
 
 export function SyncToast() {
   const t = useT();
   const changed = useSync((state) => state.changed);
-  const current = fingerprint(changed);
-  const [shown, setShown] = useState<string | null>(null);
-  const visible = changed.size > 0 && current !== shown;
+  const announced = useSync((state) => state.announced);
+  const ids = pending(changed, announced);
+  const count = ids.length;
+  // Which ids, not just how many — two different arrivals that happen to be
+  // the same size must each restart the timeout rather than being confused
+  // for one that already ran its course.
+  const key = ids.slice().sort().join(',');
 
   useEffect(() => {
-    if (!visible) return;
-    const handle = setTimeout(() => setShown(current), VISIBLE_MS);
+    if (count === 0) return;
+    const handle = setTimeout(() => useSync.getState().announce(), VISIBLE_MS);
     return () => clearTimeout(handle);
-  }, [visible, current]);
+  }, [key, count]);
 
-  if (!visible) return null;
+  if (count === 0) return null;
 
   return (
     <div
@@ -62,16 +78,14 @@ export function SyncToast() {
       className="pointer-events-none fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center gap-3 rounded-cell border border-rule-strong bg-paper-raised px-4 py-3 shadow-lg"
     >
       <p className="min-w-0 flex-1 text-sm text-ink">
-        {changed.size === 1
-          ? t('sync.toast.gamesOne')
-          : t('sync.toast.games', { count: changed.size })}
+        {count === 1 ? t('sync.toast.gamesOne') : t('sync.toast.games', { count })}
       </p>
       <IconButton
         size="sm"
         className="pointer-events-auto"
         label={t('action.close')}
         icon={<CloseIcon />}
-        onClick={() => setShown(current)}
+        onClick={() => useSync.getState().announce()}
       />
     </div>
   );
