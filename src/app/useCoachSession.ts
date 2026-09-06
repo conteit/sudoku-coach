@@ -92,6 +92,15 @@ export interface CoachSession {
    */
   another: () => void;
   checkMarks: () => void;
+  /**
+   * Takes a hint off the screen without touching the note check.
+   *
+   * `dismiss` is the player putting the panel away. This is the board making
+   * the hint not worth acting on underneath them — reached only when the grid
+   * becomes unfinishable. The review survives because it reads the player's
+   * own marks, which no dead end can invalidate.
+   */
+  clearHint: () => void;
   /** Puts the panel back to rest; the log keeps what was already disclosed. */
   dismiss: () => void;
   dismissNudge: () => void;
@@ -369,6 +378,11 @@ export function useCoachSession({
     });
   }, [game.cells, locale]);
 
+  const clearHint = useCallback(() => {
+    setHint(null);
+    setExhausted(false);
+  }, []);
+
   const dismiss = useCallback(() => {
     setHint(null);
     setReview(null);
@@ -394,6 +408,7 @@ export function useCoachSession({
     startDrill,
     dismissDrill,
     checkMarks,
+    clearHint,
     dismiss,
     dismissNudge,
   };

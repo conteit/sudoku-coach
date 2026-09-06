@@ -251,6 +251,17 @@ export function GameView({
   );
   const coach = useCoachSession({ game, locale, onCoachLog });
 
+  /*
+   * A hint asked for before the dead end is not worth acting on after it, and
+   * leaving it up puts a technique and its spotlight directly above the panel
+   * refusing to give one. The board, not the player, made it stale, so this
+   * clears the hint alone — the note check reads their own marks and survives.
+   */
+  const clearHint = coach.clearHint;
+  useEffect(() => {
+    if (deadEnd) clearHint();
+  }, [deadEnd, clearHint]);
+
   const coached = useMemo(() => coachCells(cells), [cells]);
   const progress = useMemo(
     () => (coach.review === null ? null : trackReview(coach.review, coached)),
@@ -507,6 +518,12 @@ export function GameView({
     // add the modal machinery to a control that never needed it.
     onHint: () => {
       if (isNarrow) openSheet();
+      // The refusal has to bite here, not only where the button is hidden.
+      // `coach.ask` records the disclosure and charges mastery, so a hint
+      // taken by keyboard on an unfinishable board costs the player a rung
+      // for advice the panel two inches away is declining to give. Opening
+      // the sheet first is deliberate: it is where the reason is written.
+      if (deadEnd) return;
       coach.ask();
     },
     // A dialog is a question; answering it with "u" should not rewind the board
@@ -755,7 +772,11 @@ export function GameView({
           onDrill={coach.startDrill}
           onDismissDrill={coach.dismissDrill}
           onLearn={onLearn}
-          onAnother={coach.another}
+          // Undefined rather than hidden by the panel: "Show me another" ran
+          // a fresh detector pass on the unfinishable board and logged it,
+          // which is the same charge `onHint` above refuses. Withholding the
+          // callback is what makes the refusal real rather than cosmetic.
+          onAnother={deadEnd ? undefined : coach.another}
           onFixNotes={
             paused || solved
               ? undefined
