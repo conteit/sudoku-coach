@@ -297,6 +297,23 @@ describe('the sync store', () => {
       expect(useStore.getState().changed.size).toBe(0);
     });
 
+    it('drops an id the same sync deleted locally, so the toast cannot claim it arrived', async () => {
+      // Sync 1 pulls g1 while the player is in the library, where the toast
+      // is not mounted — so nothing announces it and it sits in `changed`.
+      syncOnce.mockResolvedValue({ ...EMPTY_OUTCOME, downloaded: 1, downloadedIds: ['g1'] });
+      const useStore = storeWith(device());
+      await useStore.getState().enable();
+      expect(useStore.getState().changed).toEqual(new Set(['g1']));
+
+      // The other device then deletes g1, and sync 2 applies that deletion:
+      // the game is gone from the library. Announcing "1 game was updated
+      // from another device" now would be a claim about nothing.
+      syncOnce.mockResolvedValue({ ...EMPTY_OUTCOME, removedLocal: 1, droppedLocalIds: ['g1'] });
+      await useStore.getState().syncNow();
+
+      expect(useStore.getState().changed.size).toBe(0);
+    });
+
     it('seen(id) removes one id and leaves the rest', async () => {
       syncOnce.mockResolvedValue({
         ...EMPTY_OUTCOME,

@@ -14,6 +14,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const account = vi.hoisted(() => ({
@@ -38,6 +39,7 @@ const sync = vi.hoisted(() => ({
     enable: vi.fn(),
     disable: vi.fn(),
     syncNow: vi.fn(async () => undefined),
+    seen: vi.fn(),
     forget: vi.fn(),
   },
 }));
@@ -82,8 +84,8 @@ const games = vi.hoisted(() => ({
   state: {
     hydrated: true,
     summaries: [],
-    activeGameId: null,
-    games: {},
+    activeGameId: null as string | null,
+    games: {} as Record<string, unknown>,
     hydrate: vi.fn(async () => undefined),
     flush: vi.fn(async () => undefined),
     startGame: vi.fn(async () => 'g1'),
@@ -110,7 +112,13 @@ vi.mock('./state/db', () => ({
 // generator worker.
 vi.mock('./app/LandingView', () => ({ LandingView: () => <div>landing</div> }));
 vi.mock('./app/LibraryView', () => ({ LibraryView: () => <div>library</div> }));
-vi.mock('./app/GameView', () => ({ GameView: () => <div>game</div> }));
+vi.mock('./app/GameView', () => ({
+  GameView: ({ onExit }: { onExit: () => void }) => (
+    <div>
+      game<button onClick={onExit}>leave</button>
+    </div>
+  ),
+}));
 vi.mock('./app/LearnView', () => ({ LearnView: () => <div>learn</div> }));
 vi.mock('./app/LegalView', () => ({ LegalView: () => <div>legal</div> }));
 vi.mock('./app/NewGameSheet', () => ({ NewGameSheet: () => null }));
@@ -130,6 +138,9 @@ beforeEach(() => {
   sync.state.syncNow.mockClear();
   profile.state.hydrate.mockClear();
   games.state.hydrate.mockClear();
+  sync.state.seen.mockClear();
+  games.state.activeGameId = null;
+  games.state.games = {};
 });
 
 afterEach(() => at('/'));
@@ -231,5 +242,43 @@ describe('what the app starts', () => {
     await screen.findByText('library');
 
     expect(sync.state.hydrate).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The library's arrival dot means "this came from another device and you have
+ * not opened it". Two paths reach a game without a tap on its row, which is
+ * the only thing that used to clear one: the app restoring the last game at
+ * launch, and an arrival landing while that game is already open. Both leave
+ * a dot on a game the player has been looking at. Wired here because App is
+ * where the two stores meet — neither can see the other on its own.
+ */
+describe('the arrival dot on a game the player is already in', () => {
+  it('clears for the game restored at launch', async () => {
+    const original = games.state.hydrate;
+    games.state.hydrate = vi.fn(async () => {
+      games.state.activeGameId = 'g7';
+    });
+    try {
+      at('/play');
+      render(<App />);
+
+      await screen.findByText('library');
+      await waitFor(() => expect(sync.state.seen).toHaveBeenCalledWith('g7'));
+    } finally {
+      games.state.hydrate = original;
+    }
+  });
+
+  it('clears for the game the player leaves, for an arrival that landed while it was open', async () => {
+    games.state.activeGameId = 'g7';
+    games.state.games = { g7: { id: 'g7' } };
+    at('/play');
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'leave' }));
+
+    expect(sync.state.seen).toHaveBeenCalledWith('g7');
+    expect(games.state.closeGame).toHaveBeenCalled();
   });
 });
