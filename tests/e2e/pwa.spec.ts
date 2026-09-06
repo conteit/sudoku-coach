@@ -67,6 +67,76 @@ test('says when it is ready to play offline', async ({ page }) => {
   });
 });
 
+test('checks for an update when the tab is resumed rather than navigated', async ({ page }) => {
+  // `immediate: true` alone only checks for a new worker on navigation.
+  // `onRegisteredSW` hands back the registration so a `visibilitychange`
+  // listener can call `update()` at the same moment sync already checks in —
+  // the fix for a resumed (not reloaded) PWA sitting on an old build.
+  await page.addInitScript(() => {
+    (window as unknown as { __updateCalls: number }).__updateCalls = 0;
+    const proto = window.ServiceWorkerRegistration?.prototype;
+    if (proto) {
+      const original = proto.update;
+      proto.update = function (this: ServiceWorkerRegistration) {
+        (window as unknown as { __updateCalls: number }).__updateCalls++;
+        return original.call(this);
+      };
+    }
+  });
+
+  await page.goto('/play');
+
+  await expect
+    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null), {
+      timeout: 20_000,
+    })
+    .toBe(true);
+  // `onRegisteredSW` fires asynchronously after `register()` resolves; give
+  // it a moment to hand the registration to the component before the tab is
+  // "hidden", or there is nothing yet for `visibilitychange` to call into.
+  await page.waitForTimeout(500);
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __updateCalls: number }).__updateCalls))
+    .toBeGreaterThan(0);
+});
+
+test('says it updated, once, after the service worker takes over', async ({ page }) => {
+  // `autoUpdate` reloads on its own the instant a new worker takes control —
+  // silently, which is the point for a puzzle in progress, but it left a real
+  // regression (#126) with no trace at all. `controllerchange` is simulated
+  // here rather than produced by an actual second build, which the e2e
+  // pipeline has no second build to install; the event itself, fired with a
+  // controller already in place, is exactly what the component's listener
+  // reacts to either way.
+  await page.goto('/play');
+
+  await expect
+    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null), {
+      timeout: 20_000,
+    })
+    .toBe(true);
+
+  await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event('controllerchange')));
+  await page.reload();
+
+  await expect(page.getByRole('status')).toContainText('Updated to the latest version', {
+    timeout: 20_000,
+  });
+
+  // One-shot: the mark is cleared the moment it is read, so a plain reload
+  // afterwards — nothing having changed again — has nothing left to say.
+  await page.reload();
+  await expect(page.getByText('Updated to the latest version.')).toHaveCount(0);
+});
+
 test('plays with the network off', async ({ page, context }) => {
   await page.goto('/play');
 

@@ -169,6 +169,7 @@ export const en = {
 
   'settings.title': 'Settings',
   'account.title': 'Account',
+  'account.checking': 'Checking your sign-in…',
   'account.signIn': 'Sign in with Google',
   'account.signOut': 'Sign out',
   'account.signedInAs': 'Signed in as {who}',
@@ -307,7 +308,7 @@ export const en = {
   'keypad.labelSweeping': 'Keypad, sweeping {digit}',
 
   'offline.ready': 'Ready to play offline.',
-  'offline.updateAvailable': 'An update is ready. Reload to use it.',
+  'offline.updateAvailable': 'Updated to the latest version.',
 
   'action.undoRewind': 'Undo — one of your digits is wrong',
   'keypad.captionRewind': 'Rewind',

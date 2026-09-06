@@ -34,6 +34,7 @@ afterEach(() => {
   state.account = null;
   state.busy = false;
   state.failed = false;
+  state.ready = true;
   available.mockReturnValue(true);
   state.signIn.mockReset();
   state.signOut.mockReset();
@@ -101,6 +102,19 @@ describe('the account section', () => {
 
     expect(screen.getByText('Sign-in did not complete.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: /sign/i })).toBeNull();
+  });
+
+  it('says it is still checking rather than offering to sign in, before the first answer arrives', async () => {
+    // Issue #126: `account` is `null` before the restore finishes, exactly
+    // as it is after a deliberate sign-out. Without `ready` this state was
+    // indistinguishable from "you are signed out" — which is what sent a
+    // failed restore looking like an intentional one.
+    state.ready = false;
+    await renderSettings();
+
+    expect(screen.getByText('Checking your sign-in…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in with Google' })).toBeNull();
+    expect(screen.queryByText(/Optional\./)).toBeNull();
   });
 
   it('holds the button while an attempt is in flight', async () => {

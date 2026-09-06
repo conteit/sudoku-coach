@@ -167,6 +167,7 @@ export const it: Dictionary = {
 
   'settings.title': 'Impostazioni',
   'account.title': 'Account',
+  'account.checking': 'Verifica dell’accesso…',
   'account.signIn': 'Accedi con Google',
   'account.signOut': 'Esci',
   'account.signedInAs': 'Hai effettuato l’accesso come {who}',
@@ -300,7 +301,7 @@ export const it: Dictionary = {
   'keypad.labelSweeping': 'Tastiera, scansione del {digit}',
 
   'offline.ready': 'Pronto per giocare offline.',
-  'offline.updateAvailable': 'C’è un aggiornamento pronto. Ricarica la pagina per usarlo.',
+  'offline.updateAvailable': 'Aggiornato all’ultima versione.',
 
   'action.undoRewind': 'Annulla — una delle tue cifre è sbagliata',
   'keypad.captionRewind': 'Torna indietro',

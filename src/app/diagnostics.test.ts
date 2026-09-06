@@ -8,7 +8,8 @@
  * the true candidates, and whether the catalog sees the pattern at all.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { useAccount } from '../state/account';
 import { newGame, reduce } from '../state/game';
 import { DEFAULT_PROFILE } from '../state/mastery';
 import type { LiveGame } from '../state/types';
@@ -109,7 +110,50 @@ describe('the diagnostic report', () => {
     const text = formatDiagnosticReport(buildDiagnosticReport(input(start())));
     const parsed = JSON.parse(text) as Record<string, unknown>;
 
-    expect(Object.keys(parsed).sort()).toEqual(['app', 'at', 'coach', 'engine', 'game', 'settings']);
+    expect(Object.keys(parsed).sort()).toEqual([
+      'app',
+      'at',
+      'auth',
+      'coach',
+      'engine',
+      'game',
+      'settings',
+    ]);
     expect(text).not.toContain('mastery');
+  });
+});
+
+describe('the auth section', () => {
+  afterEach(() => {
+    useAccount.setState({ account: null, ready: true });
+  });
+
+  it('is configured, ready and signed-out in a build with no Firebase env', () => {
+    // This test file has no VITE_FIREBASE_* variables set, so the module's
+    // own `authAvailable()` and the account store's initial state are both
+    // "no auth" — the same build shape a bug report from a signed-out
+    // player would carry.
+    const report = buildDiagnosticReport(input(start()));
+
+    expect(report.auth).toEqual({ configured: false, ready: true, signedIn: false });
+  });
+
+  it('reports a held account as signed in without naming who', () => {
+    useAccount.setState({
+      account: { uid: 'u1', email: 'someone@example.com', displayName: 'Someone' },
+      ready: true,
+    });
+    const text = formatDiagnosticReport(buildDiagnosticReport(input(start())));
+
+    expect(JSON.parse(text).auth.signedIn).toBe(true);
+    expect(text).not.toContain('someone@example.com');
+    expect(text).not.toContain('Someone');
+  });
+
+  it('distinguishes "have not asked yet" from "signed out" — the whole point of #126', () => {
+    useAccount.setState({ account: null, ready: false });
+    const report = buildDiagnosticReport(input(start()));
+
+    expect(report.auth).toEqual({ configured: false, ready: false, signedIn: false });
   });
 });

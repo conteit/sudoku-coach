@@ -183,6 +183,36 @@ describe('what the app starts', () => {
     expect(games.state.hydrate).toHaveBeenCalled();
   });
 
+  it('does not leave an unhandled rejection when the sync record fails to load', async () => {
+    // Issue #126: a rejected read of the sync record (a Dexie open that
+    // never opens is the mechanism, but any rejection has the same shape)
+    // used to be an unhandled rejection nobody saw. Vitest fails a run that
+    // produces one — but only for a *real* rejection: `vi.fn().mockRejectedValueOnce`
+    // has its own internal `.then` for call-result tracking, which quietly
+    // counts as "handled" no matter what App.tsx does, so it cannot exercise
+    // this claim. A plain function standing in for one call is what makes
+    // the assertion mean something.
+    let called = false;
+    const original = sync.state.hydrate;
+    sync.state.hydrate = (() => {
+      called = true;
+      return Promise.reject(new Error('dexie blocked'));
+    }) as typeof sync.state.hydrate;
+
+    try {
+      at('/play');
+      render(<App />);
+
+      await screen.findByText('library');
+      await waitFor(() => expect(called).toBe(true));
+      // Give the rejected promise a turn of the event loop to surface as an
+      // unhandled rejection if nothing is catching it.
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } finally {
+      sync.state.hydrate = original;
+    }
+  });
+
   it('bootstraps sync once a load, not once a visit', async () => {
     // Bouncing between the front door and the board is not a reason to ask
     // Google for another token — and a token request is what opens a popup.

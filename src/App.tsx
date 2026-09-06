@@ -143,7 +143,16 @@ export default function App() {
     // and the board is not a reason to ask Google for a token each time.
     if (!syncBooted.current) {
       syncBooted.current = true;
-      void useSync.getState().hydrate();
+      // Like the storage hydrate above: a rejected read of the sync record
+      // (issue #126) must not become a silent unhandled rejection. There is
+      // no dedicated failure state to set here — `enabled` simply stays at
+      // its initial `false` while storage may say otherwise — but a caught
+      // failure at least leaves the switch flippable again instead of the
+      // page carrying a dangling promise nothing ever resolves for it.
+      void useSync
+        .getState()
+        .hydrate()
+        .catch(() => undefined);
     }
 
     // Sync follows the session rather than the other way round. Signing out

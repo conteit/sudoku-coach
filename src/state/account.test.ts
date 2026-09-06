@@ -6,8 +6,29 @@
  * lives behind `firebase.ts` for exactly this reason.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountOf, configFromEnv, createAccountStore } from './account';
+
+// `watch()`'s dynamic imports are mocked at module scope so a per-test flag
+// can flip the first one from a rejection to a success — the exact shape of
+// a chunk 404 followed by a working retry (issue #126).
+const restore = vi.hoisted(() => ({
+  onAuthStateChanged: vi.fn(),
+  fails: true,
+}));
+
+vi.mock('firebase/auth', () => ({
+  onAuthStateChanged: (...args: unknown[]) => restore.onAuthStateChanged(...args),
+}));
+
+vi.mock('./firebase', () => ({
+  authOf: async () => {
+    if (restore.fails) throw new Error('chunk 404');
+    return {};
+  },
+}));
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('whether this build has auth at all', () => {
   it('is a config, and a partial one does not count', () => {
@@ -90,6 +111,45 @@ describe('the account it keeps', () => {
       email: null,
       displayName: null,
     });
+  });
+});
+
+describe('watch(), when the session restore fails partway through', () => {
+  const config = { apiKey: 'k', authDomain: 'd', projectId: 'p', appId: 'a' };
+
+  beforeEach(() => {
+    restore.fails = true;
+    restore.onAuthStateChanged.mockClear();
+  });
+
+  it('does not latch permanently, so a later call — the next entry to /play — retries', async () => {
+    const store = createAccountStore(config);
+
+    store.getState().watch();
+    await flush();
+    // The import rejected before `onAuthStateChanged` was ever reached.
+    expect(restore.onAuthStateChanged).not.toHaveBeenCalled();
+
+    // The chunk is fetchable now — the retry a later `watch()` call is
+    // supposed to get.
+    restore.fails = false;
+    store.getState().watch();
+    await flush();
+
+    expect(restore.onAuthStateChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a call made while the first attempt is still in flight', async () => {
+    // Two calls back to back, before either await resolves — `pending`
+    // exists so this cannot register two listeners once the retry succeeds.
+    restore.fails = false;
+    const store = createAccountStore(config);
+
+    store.getState().watch();
+    store.getState().watch();
+    await flush();
+
+    expect(restore.onAuthStateChanged).toHaveBeenCalledTimes(1);
   });
 });
 

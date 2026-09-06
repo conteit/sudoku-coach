@@ -78,7 +78,18 @@ export const accountOf = (user: {
 }): Account => ({ uid: user.uid, email: user.email, displayName: user.displayName });
 
 export const createAccountStore = (config: FirebaseConfig | null = FIREBASE_CONFIG) => {
+  // `watching` latches once `onAuthStateChanged` is actually registered — not
+  // before — and `pending` covers the gap while an attempt is in flight.
+  //
+  // The two dynamic imports below are the app's only network dependency at
+  // boot, and `cleanupOutdatedCaches` means an update can 404 exactly one of
+  // them: the old chunk is gone and the new one has not been fetched yet. A
+  // latch set *before* those imports (the previous shape of this function)
+  // is a latch that a single 404 sets forever — `watch()` is called again on
+  // every entry to `/play`, but with `watching` already true it is a no-op,
+  // so the session simply never restores and nothing says why (issue #126).
   let watching = false;
+  let pending = false;
 
   return create<AccountStore>()((set) => ({
     account: null,
@@ -89,18 +100,34 @@ export const createAccountStore = (config: FirebaseConfig | null = FIREBASE_CONF
     failed: false,
 
     watch: () => {
-      if (config === null || watching) return;
+      if (config === null || watching || pending) return;
       // Idempotent, because it is now called on entering the app rather than
       // once at boot — a player who goes to the front door and back would
       // otherwise stack a fresh `onAuthStateChanged` listener every round
-      // trip, and nothing ever removes them.
-      watching = true;
+      // trip, and nothing ever removes them. `pending` extends that guard
+      // across the awaits below, so a second call made while the first is
+      // still resolving cannot register a second listener either.
+      pending = true;
       void (async () => {
-        const { onAuthStateChanged } = await import('firebase/auth');
-        const { authOf } = await import('./firebase');
-        onAuthStateChanged(await authOf(config), (user) => {
-          set({ account: user === null ? null : accountOf(user), ready: true });
-        });
+        try {
+          const { onAuthStateChanged } = await import('firebase/auth');
+          const { authOf } = await import('./firebase');
+          const auth = await authOf(config);
+          // Only now, with the listener about to be attached, does this
+          // become permanent — a failure above must leave `watching` false
+          // so the next call (the next visit to `/play`) gets a real retry.
+          watching = true;
+          onAuthStateChanged(auth, (user) => {
+            set({ account: user === null ? null : accountOf(user), ready: true });
+          });
+        } catch {
+          // A chunk 404 or a network hiccup fetching the auth SDK. Not fatal
+          // and not reported here — there is no error state for "have not
+          // restored yet" and inventing one is out of scope for this fix —
+          // but it must not leave `watching` true, which is the whole bug.
+        } finally {
+          pending = false;
+        }
       })();
     },
 
