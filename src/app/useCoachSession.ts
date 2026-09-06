@@ -33,7 +33,7 @@ import {
   type HintLevel,
 } from '../coach/coach';
 import { teachableTriggers, type TriggerCell } from '../coach/triggers';
-import type { ReviewSnapshot } from '../coach/reviewProgress';
+import { markMask, type ReviewSnapshot } from '../coach/reviewProgress';
 import type { Hint, TeachableTrigger } from '../coach/types';
 import { useProfile } from '../state/profile';
 import type { CoachExchange, LiveGame, Locale } from '../state/types';
@@ -362,6 +362,10 @@ export function useCoachSession({
     setReview({
       report: createCoach({ cells, locale }).reviewCandidates(),
       values: cells.map((c) => c.value),
+      // The marks too: a check that finds nothing has no issues to age, so
+      // these are the only thing that can later tell the panel its clean bill
+      // of health has expired.
+      marks: cells.map((c) => markMask(c.candidates)),
     });
   }, [game.cells, locale]);
 

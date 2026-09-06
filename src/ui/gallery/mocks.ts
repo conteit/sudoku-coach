@@ -151,6 +151,10 @@ export const DEMO_REVIEW: CandidateReview = {
  * never catch a regression in that half of the list.
  */
 export const DEMO_PROGRESS: ReviewProgress = {
+  // The gallery shows the panel mid-report, which is the state a real check
+  // is in while the player works it — a stale reading renders a one-line
+  // "run it again" and none of the list this mock exists to exercise.
+  stale: false,
   checkedCells: DEMO_REVIEW.checkedCells,
   reported: DEMO_REVIEW.issues.length,
   total: DEMO_REVIEW.issues.length,

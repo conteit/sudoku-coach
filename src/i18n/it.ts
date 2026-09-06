@@ -249,7 +249,7 @@ export const it: Dictionary = {
   'coach.marksNone': 'Non hai ancora messo annotazioni, quindi non c\u2019è niente da controllare.',
   'coach.marksAllClean': 'Celle controllate: {count}. Le tue annotazioni sono esatte.',
   'coach.marksNeedLook': '{count} celle su {total} controllate meritano una seconda occhiata.',
-  'coach.marksUnchanged': 'Non è stato cambiato nulla al posto tuo.',
+  'coach.marksUnchanged': 'Controllare non cambia mai le tue annotazioni.',
   'coach.tagInvalid': '{digit} non può stare qui',
   'coach.tagMissing': 'manca {digit}',
 
@@ -315,4 +315,6 @@ export const it: Dictionary = {
   'coach.marksAllFixed': 'Tutto sistemato.',
   'coach.tagFixed': 'sistemato',
   'coach.marksNothingLeft': 'Niente di quel controllo vale ancora — la griglia è cambiata. Rifallo per una lettura aggiornata.',
+  'coach.marksFixedRestGone': 'Tutto quello che è ancora in questa lista è sistemato. Il resto di quel controllo non vale più — la griglia è cambiata prima che ci arrivassi.',
+  'coach.marksStale': 'Questa lettura non è più aggiornata — da quando l’hai fatta qualcosa è cambiato. Rifai il controllo.',
 };
