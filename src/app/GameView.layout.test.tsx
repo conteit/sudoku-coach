@@ -600,9 +600,13 @@ describe('the coach sheet', () => {
     expect(coachPanel().getByRole('button', { name: /clear 1 dead note/i })).toBeInTheDocument();
   });
 
-  it('withholds the eraser while paused, even though the notes are still dead', () => {
-    // `renderGame` starts paused by default — see `makeGame`.
-    renderGame({ deadNotes: true });
+  it('withholds the eraser while paused, even though the notes are still dead', async () => {
+    // A merely-stopped clock (idle, or the app's own startup restore) no
+    // longer blocks the board at all — only the player's own pause does, so
+    // the test has to perform that act rather than lean on a game whose
+    // clock never started (see the design correction to this task).
+    const { user } = renderGame({ deadNotes: true, running: true });
+    await user.click(screen.getByRole('button', { name: 'Pause' }));
     expect(
       coachPanel().queryByRole('button', { name: /clear \d+ dead notes?/i }),
     ).not.toBeInTheDocument();

@@ -152,8 +152,10 @@ describe('surviving a kill (R5)', () => {
     expect(after?.undoStack).toEqual(before?.undoStack);
     expect(after?.redoStack).toEqual(before?.redoStack);
     expect(after?.elapsedMs).toBe(12_000);
-    // The record was stored paused; opening it is what restarts the clock.
-    expect(after?.runningSince).toBe(clock);
+    // The record was stored paused, and `hydrate`'s own restore no longer
+    // resumes it — that is the app reopening the game the player left, not
+    // the player choosing to play it (see the `hydrate` test below).
+    expect(after?.runningSince).toBeNull();
     expect(reopened.getState().hydrated).toBe(true);
   });
 
@@ -347,7 +349,13 @@ describe('lazy loading', () => {
     expect(store.getState().activeGame()?.id).toBe(ids[0]);
   });
 
-  it('resumes the last unfinished game and leaves finished ones closed', async () => {
+  // Renamed from "resumes the last unfinished game and leaves finished ones
+  // closed": with only a finished game on disk there is no unfinished one to
+  // reopen, so this test only ever exercised the second half of that claim.
+  // The first half — restoring the last unfinished game — has its own test
+  // below, and restoring no longer means resuming it (see the design
+  // correction to this task).
+  it('leaves a finished game closed, with nothing unfinished to reopen', async () => {
     const finished = await store.getState().startGame(PUZZLE_INPUT);
     await store.getState().flush();
     await conn.games.update(finished, { completedAt: 1234, updatedAt: 9_000_000 });
@@ -356,6 +364,27 @@ describe('lazy loading', () => {
     await reopened.getState().hydrate();
     expect(reopened.getState().summaries.map((s) => s.id)).toEqual([finished]);
     expect(reopened.getState().activeGameId).toBeNull();
+  });
+
+  it('restores the last unfinished game stopped, without touching its updatedAt', async () => {
+    const id = await store.getState().startGame(PUZZLE_INPUT);
+    store.getState().dispatch({ type: 'setValue', cell: 2, digit: 4 });
+    clock += 5000;
+    await store.getState().suspend();
+    const before = await stored(id);
+
+    // A cold start: new store, same database — the app relaunching, not the
+    // player choosing to open this game.
+    const reopened = makeStore();
+    await reopened.getState().hydrate();
+    const after = reopened.getState().activeGame();
+
+    expect(after?.id).toBe(id);
+    // The app decided to reopen this game; the player did not, so there is
+    // no clock to start and no `updatedAt` to stamp. `openGame`'s own
+    // `resume: false` is what `hydrate` passes to get here.
+    expect(after?.runningSince).toBeNull();
+    expect(after?.updatedAt).toBe(before.updatedAt);
   });
 
   it('can list games without opening any of them', async () => {

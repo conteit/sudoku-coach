@@ -22,6 +22,7 @@ import { deadNotes } from '../state/deadNotes';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useProfile } from '../state/profile';
 import { useGameStore } from '../state/store';
+import type { UiAction } from '../state/store';
 import { formatList } from '../i18n';
 import { useT } from '../i18n/locale';
 import { SudokuGrid } from '../ui/board/SudokuGrid';
@@ -55,7 +56,7 @@ import { isDevUser } from './devTools';
 import { GameLayout } from './GameLayout';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
-import { contradictionAt, deadEndCells } from '../coach/triggers';
+import { contradictionAt, DEFAULT_STUCK_MS, deadEndCells } from '../coach/triggers';
 import { nextRewindPhase, rewindTrail, type RewindPhase, type RewindStep } from './rewind';
 import { coachCells, triggerCells, useCoachSession } from './useCoachSession';
 import { useViewportTier } from './useViewportTier';
@@ -131,6 +132,22 @@ export function GameView({
   // (see `selectCell` below); selecting an empty cell leaves it alone.
   const [highlightDigit, setHighlightDigit] = useState<Digit | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
+  /*
+   * Whether the PLAYER put this game down — not whether the clock happens to
+   * be stopped. The clock also stops silently for idling and for the app's
+   * own startup restore, and neither of those is a deliberate pause: the
+   * blur, the blocking "Resume" panel and the header's toggle key on this
+   * flag alone, so an idle or freshly-restored board stays exactly as
+   * readable and playable as a running one (design correction to this task).
+   *
+   * Local state, not derived from `game.runningSince`, and starting `false`
+   * on every mount is deliberate rather than an oversight: a remounted game
+   * is stopped and was not just paused by looking at it, which is exactly
+   * the startup case this flag exists to leave alone. A deliberate pause
+   * lost across a remount is the one inconsistency this accepts, and it is
+   * harmless — the game is genuinely stopped either way.
+   */
+  const [playerPaused, setPlayerPaused] = useState(false);
   const [confirming, setConfirming] = useState<'restart' | 'delete' | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   /*
@@ -367,6 +384,50 @@ export function GameView({
   );
 
   /**
+   * Every move the player makes goes through this instead of the raw store
+   * dispatch. A move on a board whose clock is stopped for a reason the
+   * player did not choose — the idle timeout below, or the app's own
+   * startup restore — is the moment play resumes, so resuming is folded in
+   * here once rather than left for every handler to remember.
+   *
+   * Gated on `playerPaused` rather than on the clock alone: a deliberately
+   * paused game reaches no handler that calls this at all (every one of them
+   * is disabled while `playerPaused` is true), so the guard only ever fires
+   * for the two silent stops it exists for.
+   */
+  const dispatchMove = useCallback(
+    (action: UiAction) => {
+      if (!playerPaused && game.runningSince === null && game.completedAt === null) {
+        dispatch({ type: 'resume' });
+      }
+      dispatch(action);
+    },
+    [dispatch, playerPaused, game.runningSince, game.completedAt],
+  );
+
+  /*
+   * A board nobody has touched for `DEFAULT_STUCK_MS` is not a pause for
+   * thought — the coach's own stall threshold (`coach/triggers.ts`) already
+   * makes exactly this judgement, reused rather than invented. Move count
+   * plus the current selection is the honest read of "the player did
+   * something": both change on every action worth resetting for and on
+   * nothing else, so the timer restarts without this effect having to
+   * enumerate every handler that counts as activity.
+   *
+   * Guarded against a clock that is not running for any reason — paused,
+   * solved or already idle — so this can never dispatch into one of those:
+   * `idle` is a no-op there, but a pointless dispatch still marks the record
+   * dirty. Cleared in the cleanup on every dependency change and on unmount:
+   * a timer nobody clears outlives the screen that armed it, which is the
+   * exact failure mode this project names.
+   */
+  useEffect(() => {
+    if (playerPaused || game.completedAt !== null || game.runningSince === null) return;
+    const timeout = setTimeout(() => dispatch({ type: 'idle' }), DEFAULT_STUCK_MS);
+    return () => clearTimeout(timeout);
+  }, [game.undoStack.length, selected, playerPaused, game.completedAt, game.runningSince, dispatch]);
+
+  /**
    * Writes a digit, and runs the auto-clear the placement may have earned.
    *
    * Separate from `enter` because it is also what the promote gesture does:
@@ -375,7 +436,7 @@ export function GameView({
    */
   const place = useCallback(
     (cell: CellIndex, digit: Digit) => {
-      dispatch({ type: 'setValue', cell, digit });
+      dispatchMove({ type: 'setValue', cell, digit });
       /*
        * Auto-clear is dispatched here, as a consequence of the placement,
        * rather than by an effect watching the board. An effect would fire on
@@ -405,21 +466,21 @@ export function GameView({
        */
       const breaksARule = peersOf(cell).some((peer) => values[peer] === digit);
       if (settings.autoClearDeadNotes && !breaksARule) {
-        dispatch({ type: 'clearStaleCandidates' });
+        dispatchMove({ type: 'clearStaleCandidates' });
       }
     },
-    [dispatch, settings.autoClearDeadNotes, values],
+    [dispatchMove, settings.autoClearDeadNotes, values],
   );
 
   const enter = useCallback(
     (cell: CellIndex, digit: Digit) => {
       if (pencilMode) {
-        dispatch({ type: 'toggleCandidate', cell, digit });
+        dispatchMove({ type: 'toggleCandidate', cell, digit });
         return;
       }
       place(cell, digit);
     },
-    [dispatch, pencilMode, place],
+    [dispatchMove, pencilMode, place],
   );
 
   /**
@@ -512,7 +573,6 @@ export function GameView({
   // "Speaking" is the panel having something the player asked for on screen.
   const speaking =
     coach.hint !== null || coach.review !== null || coach.drill !== null || coach.exhausted;
-  const paused = game.runningSince === null && game.completedAt === null;
   const solved = game.completedAt !== null;
 
   // The coach's spotlight is the hint's, unless the player is pointing at a
@@ -521,8 +581,8 @@ export function GameView({
 
   useBoardShortcuts({
     onToggleNotes: () => setPencilMode((on) => !on),
-    onUndo: () => dispatch({ type: 'undo' }),
-    onRedo: () => dispatch({ type: 'redo' }),
+    onUndo: () => dispatchMove({ type: 'undo' }),
+    onRedo: () => dispatchMove({ type: 'redo' }),
     // On a narrow screen, asking by keyboard has to open the sheet itself, or
     // "h" fires a hint into a panel the player cannot see. On a wide screen
     // the panel is already visible and static — it was never behind
@@ -545,7 +605,7 @@ export function GameView({
     // this task, and `onHint` above opens it deliberately, so "h" twice would
     // otherwise re-capture the focus-restore target and strand focus on
     // Escape. A paused or finished board takes no moves either.
-    enabled: confirming === null && !paused && !solved && !modalOpen && !menuOpen,
+    enabled: confirming === null && !playerPaused && !solved && !modalOpen && !menuOpen,
   });
 
   const header = (
@@ -568,11 +628,18 @@ export function GameView({
       </div>
       <Timer elapsedMs={game.elapsedMs} runningSince={game.runningSince} size="md" />
       <IconButton
-        label={paused ? t('action.resume') : t('action.pause')}
-        icon={paused ? <PlayIcon /> : <PauseIcon />}
+        label={playerPaused ? t('action.resume') : t('action.pause')}
+        icon={playerPaused ? <PlayIcon /> : <PauseIcon />}
         className="flex-none"
         disabled={solved}
-        onClick={() => dispatch({ type: paused ? 'resume' : 'pause' })}
+        // The one place `playerPaused` and the clock's own pause/resume are
+        // set together: pressing this is the deliberate act the flag exists
+        // to record, unlike the idle timeout and the startup restore, which
+        // stop the clock without it.
+        onClick={() => {
+          setPlayerPaused((was) => !was);
+          dispatch({ type: playerPaused ? 'resume' : 'pause' });
+        }}
       />
       {/*
         * Lives in the header, not floating over the board's own corner (it
@@ -645,8 +712,8 @@ export function GameView({
           onSelect={selectCell}
           onActivate={activateCell}
           onEnter={enter}
-          onClear={(cell) => dispatch({ type: 'clearCell', cell })}
-          onPromote={paused || solved ? undefined : promote}
+          onClear={(cell) => dispatchMove({ type: 'clearCell', cell })}
+          onPromote={playerPaused || solved ? undefined : promote}
           spotlight={spotlight}
           tintedHouses={coach.hint?.houses ?? []}
           conflicts={conflicts}
@@ -661,11 +728,18 @@ export function GameView({
           // purely a reward, so the board says so itself rather than leaving
           // it to the sheet that opens over it.
           celebrate={solved || previewWin}
-          className={paused ? 'pointer-events-none blur-md select-none' : undefined}
+          className={playerPaused ? 'pointer-events-none blur-md select-none' : undefined}
         />
-        {paused ? (
+        {playerPaused ? (
           <div className="absolute inset-0 grid place-items-center bg-paper/80">
-            <Button variant="primary" size="lg" onClick={() => dispatch({ type: 'resume' })}>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => {
+                setPlayerPaused(false);
+                dispatch({ type: 'resume' });
+              }}
+            >
               {t('action.resume')}
             </Button>
           </div>
@@ -709,10 +783,10 @@ export function GameView({
       onEndSweep={() => setHighlightDigit(null)}
       onDigitLongPress={(digit) => setHighlightDigit((current) => toggleHighlight(digit, current))}
       onErase={() => {
-        if (selected !== null) dispatch({ type: 'clearCell', cell: selected });
+        if (selected !== null) dispatchMove({ type: 'clearCell', cell: selected });
       }}
-      onUndo={() => dispatch({ type: 'undo' })}
-      onRedo={() => dispatch({ type: 'redo' })}
+      onUndo={() => dispatchMove({ type: 'undo' })}
+      onRedo={() => dispatchMove({ type: 'redo' })}
       canUndo={game.undoStack.length > 0}
       canRedo={game.redoStack.length > 0}
       rewinding={rewind === 'active'}
@@ -726,8 +800,8 @@ export function GameView({
       // a phone player's thumb is already on it, where the panel's copy is a
       // notification, a sheet and a tap away.
       staleCount={staleCount}
-      onClearStale={() => dispatch({ type: 'clearStaleCandidates' })}
-      disabled={paused || solved}
+      onClearStale={() => dispatchMove({ type: 'clearStaleCandidates' })}
+      disabled={playerPaused || solved}
       highlighted={highlightDigit}
       onHaptic={haptic}
     />
@@ -791,10 +865,10 @@ export function GameView({
           // callback is what makes the refusal real rather than cosmetic.
           onAnother={deadEnd ? undefined : coach.another}
           onFixNotes={
-            paused || solved
+            playerPaused || solved
               ? undefined
               : () => {
-                  dispatch({
+                  dispatchMove({
                     type: 'applyNoteFixes',
                     fixes:
                       progress?.items
@@ -819,7 +893,7 @@ export function GameView({
           unfinishable={deadEnd}
           staleCount={staleCount}
           onClearStale={
-            paused || solved ? undefined : () => dispatch({ type: 'clearStaleCandidates' })
+            playerPaused || solved ? undefined : () => dispatchMove({ type: 'clearStaleCandidates' })
           }
         />
       </div>
@@ -1086,7 +1160,7 @@ export function GameView({
         confirmLabel={t('action.restart')}
         cancelLabel={t('action.cancel')}
         onConfirm={() => {
-          dispatch({ type: 'reset' });
+          dispatchMove({ type: 'reset' });
           coach.dismiss();
           setConfirming(null);
         }}
