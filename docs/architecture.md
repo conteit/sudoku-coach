@@ -337,6 +337,33 @@ has already read the front door.
     and lives exactly as long as the moves it describes are restorable. An
     ordinary undo in normal play must raise none of it.
 
+12. **The coach's panel is a view, and the sheet is a viewport.** Closing the
+    mobile sheet hides the panel and consumes the nudge; it does not clear what
+    the panel was showing. The bug it replaces existed only on a phone, because
+    only there is the sheet the panel — the wide-screen layout has always kept
+    its state and nobody noticed the coupling.
+
+    A note-check report is produced once and **aged**, never re-run:
+    `trackReview` (`src/coach/reviewProgress.ts`) walks the issues the report
+    already names and marks each fixed, still open, or gone. The list can only
+    shrink — a new issue would require a check the player did not ask for.
+
+    `missing` is the reason the report carries the board's values with it. It
+    means "possible **and** unrefuted by any technique", and that second half
+    came from `eliminableCandidates`' fixed point. A placement can unlock a new
+    elimination, at which point cheap revalidation would keep advising a mark
+    that is now provably impossible — and nothing downstream would catch it,
+    because `invalid` sees only basic elimination. So a `missing` issue retires
+    the moment its cell or a peer changes value: past that the report says
+    nothing rather than something it can no longer prove. `invalid` rests on
+    basic elimination alone and is revalidated exactly.
+
+    And the coach declines to teach a board with no digit that fits anywhere,
+    gated on the dead end rather than on the rewind phase — the phase outlives
+    the dead end, and a repaired board deserves its hint. The note check stays
+    offered: it reads the player's own marks, so an unfinishable board cannot
+    make it wrong.
+
 ## Developer tools
 
 Two entries appear in the game menu for a signed-in account named in
