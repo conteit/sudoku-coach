@@ -12,11 +12,15 @@
  *    those are the last events an app reliably sees: a backgrounded tab can be
  *    discarded without ever firing `beforeunload`, which is why that event is
  *    not used here.
- * 2. **A stored game is always a paused game.** Writes freeze the clock —
+ * 2. **A stored game is always a stopped game.** Writes freeze the clock —
  *    `elapsedMs` folded up to the moment of the write, `runningSince: null`. If
  *    a running `runningSince` were persisted, a crash at 9pm reopened at 9am
  *    would credit the player with eleven hours of thinking. Resuming is an
- *    explicit act, performed when a game is opened.
+ *    explicit act, performed when a game is opened. The freeze is an `idle`,
+ *    never a `pause`: `pause` stamps `updatedAt`, so autosaving a running game
+ *    would fold the write's own timestamp into the field newest-wins sync
+ *    compares, and a game nobody had touched for an hour would still claim it
+ *    was played a second ago (invariant 13).
  * 3. **Only the active game's clock runs.** Switching games pauses the outgoing
  *    one and persists it — board, marks, both stacks and the clock — before the
  *    incoming one is loaded.
@@ -97,10 +101,13 @@ export interface GameStore {
   closeGame: () => Promise<void>;
   removeGame: (id: string) => Promise<void>;
   dispatch: (action: UiAction) => void;
-  /** Backgrounded: stop the clock and get everything on disk. */
+  /**
+   * Backgrounded: stop the clock and get everything on disk. Deliberately
+   * has no counterpart — coming back is not an act of play, so nothing
+   * restarts the clock but the player's next move (`GameView`'s
+   * `dispatchMove`).
+   */
   suspend: () => Promise<void>;
-  /** Foregrounded: restart the active game's clock. */
-  wake: () => void;
   /** Writes every pending change now. Awaitable, unlike the debounce. */
   flush: () => Promise<void>;
 }
@@ -135,7 +142,16 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
 
     /**
      * Persists one game with its clock frozen (see the header). The live game
-     * keeps running; only the record is paused.
+     * keeps running; only the record is stopped.
+     *
+     * `idle`, not `pause`, and the difference is the whole of invariant 13: an
+     * autosave is the app writing to disk, not the player putting the game
+     * down. Reducing with `pause` here stamped the record's `updatedAt` with
+     * the *write* time whenever the clock happened to be running — screen time
+     * leaking into the field sync compares — and then, once the clock stopped,
+     * persisted the older in-memory value again, so the stored timestamp could
+     * go backwards. `idle` writes the same `elapsedMs` and the same
+     * `runningSince: null` and cannot invent a timestamp at all.
      */
     const write = async (id: string): Promise<void> => {
       cancel(id);
@@ -143,7 +159,7 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
       const game = get().games[id];
       if (game === undefined) return;
       const at = deps.now();
-      await saveGame(toStored(reduce(game, { type: 'pause', at })), deps.conn);
+      await saveGame(toStored(reduce(game, { type: 'idle', at })), deps.conn);
     };
 
     /** First-wins debounce; an urgent request overtakes a lazy one. */
@@ -320,21 +336,17 @@ function gameStore(deps: StoreDeps): StateCreator<GameStore> {
       suspend: async () => {
         const id = get().activeGameId;
         if (id !== null) {
-          apply(id, { type: 'pause', at: deps.now() });
+          // `idle`, not `pause`. Backgrounding a tab is the operating system
+          // and the browser acting, not the player choosing to put the game
+          // down: a phone screen locking must not re-date a game, or every
+          // notification would push a stale copy up the newest-wins ordering.
+          apply(id, { type: 'idle', at: deps.now() });
           // Always written, dirty or not: a player who spent five minutes
           // staring at the grid since the last autosave has banked five minutes
           // of clock and nothing else, and that is still theirs to keep.
           dirty.add(id);
         }
         await flush();
-      },
-
-      wake: () => {
-        const id = get().activeGameId;
-        if (id === null) return;
-        if (apply(id, { type: 'resume', at: deps.now() }) !== null) {
-          schedule(id, deps.clockAutosaveMs);
-        }
       },
 
       flush,
@@ -352,11 +364,19 @@ export const createGameStore = (deps: Partial<StoreDeps> = {}): GameStoreApi =>
  * bfcache. Both call `suspend`, which is idempotent, so firing both is fine.
  * Returns a disposer — leaving listeners on a dead store is how a long-lived
  * page accumulates work it can never finish.
+ *
+ * There is no `-> visible` half, and that asymmetry is the point. A tab
+ * regaining visibility says the app is on screen, not that anyone is playing:
+ * a screen unlock, an app switch and a glance at a notification all fire it.
+ * Restarting the clock there would restart it for an empty room, and stamping
+ * `updatedAt` there would hand a stale copy the win in the next newest-wins
+ * sync — the exact loss invariant 13 exists to prevent. The player's first
+ * real move restarts the clock instead (`GameView`'s `dispatchMove`), which
+ * is what coming back to a board actually means.
  */
 export function installLifecycleHooks(store: GameStoreApi): () => void {
   const onVisibility = (): void => {
     if (document.visibilityState === 'hidden') void store.getState().suspend();
-    else store.getState().wake();
   };
   const onPageHide = (): void => {
     void store.getState().suspend();

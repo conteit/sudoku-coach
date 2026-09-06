@@ -399,6 +399,19 @@ has already read the front door.
     { resume: false })` — because the app opening a game on launch is the app
     deciding, not the player playing it.
 
+    **The page lifecycle is app behaviour, so it uses the silent verbs too.**
+    `visibilitychange -> hidden` and `pagehide` call `suspend`, which stops the
+    clock with `idle` and flushes; there is no foreground half at all. A tab
+    regaining visibility means the app is on screen, not that anyone is
+    playing — a screen unlock, an app switch and a glance at a notification
+    all fire it — so restarting the clock there would run it for an empty
+    room, and stamping there would hand a stale copy the next newest-wins
+    sync. Autosave follows the same rule: `write` persists
+    `reduce(game, { type: 'idle' })`, so no write can fold its own timestamp
+    into `updatedAt` and none can persist one older than the last. The only
+    things that restart a clock are opening a game from the library, pressing
+    Resume, and the first move after a silent stop.
+
     A deliberate pause and a silently stopped clock are different things, and
     the UI keys on the difference rather than on `runningSince`. `GameView`
     tracks `playerPaused` as its own local flag: the blurred board and the
@@ -409,6 +422,14 @@ has already read the front door.
     `resume`, which does stamp — on the first player move after any silent
     stop, so play picks back up the instant it's used and the pause/idle
     distinction never leaks into what the reducer does with a real move.
+
+    The converse holds because nothing outside the player restarts a clock: a
+    `playerPaused` board is always a stopped board. That is what makes a local
+    flag safe here. When the lifecycle still resumed on `-> visible`, a paused
+    game came back from a tab switch with its timer counting behind its own
+    blurred board and Resume panel, and the idle timeout — disarmed while
+    paused — could not stop it. Removing the foreground resume is what makes
+    that state unreachable rather than merely unlikely.
 
     **Sync results reach the UI through the sync store, never through the
     engine.** `src/sync/engine.ts` imports only `db` and shared types — no
