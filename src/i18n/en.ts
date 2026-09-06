@@ -226,6 +226,12 @@ export const en = {
   'games.emptyBody': 'Start a puzzle and it waits here, exactly where you left it.',
   'games.resumeLabel': 'Resume {difficulty} puzzle, {percent} percent complete, {elapsed} played',
   'games.justNow': 'just now',
+  // Appended to `resumeLabel`, not folded into it as a placeholder: the dot
+  // it stands for is `aria-hidden`, so this clause is the only place a
+  // screen-reader user learns a game moved — it has to survive as its own
+  // sentence rather than as an optional interpolation nobody can add later
+  // without touching every caller of the base label.
+  'games.updatedElsewhere': 'Updated from another device.',
 
   'action.keepPlaying': 'Keep playing',
 

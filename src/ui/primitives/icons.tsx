@@ -154,3 +154,13 @@ export const TargetIcon = (props: IconProps) => (
     <circle cx="12" cy="12" r="2.5" />
   </svg>
 );
+
+/** Sync: two arcs chasing each other, so it reads as motion even at rest. */
+export const SyncIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M4.5 12a7.5 7.5 0 0 1 12.6-5.5L19.5 8" />
+    <path d="M19.5 4v4h-4" />
+    <path d="M19.5 12a7.5 7.5 0 0 1-12.6 5.5L4.5 16" />
+    <path d="M4.5 20v-4h4" />
+  </svg>
+);
