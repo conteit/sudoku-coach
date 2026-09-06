@@ -782,6 +782,7 @@ export function GameView({
           onDismissNudge={coach.dismissNudge}
           rewindTrail={rewind === 'off' ? EMPTY_TRAIL : rewindTrail(game.redoStack)}
           rewinding={rewind === 'active'}
+          unfinishable={deadEnd}
           staleCount={staleCount}
           onClearStale={
             paused || solved ? undefined : () => dispatch({ type: 'clearStaleCandidates' })

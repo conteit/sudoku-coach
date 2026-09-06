@@ -309,6 +309,8 @@ export const it: Dictionary = {
   'coach.rewind.unnoted': 'tolta l\'annotazione {digit} da {cell}',
   'coach.rewind.notedAll': 'scritte tutte le note in {cell}',
   'coach.rewind.unnotedAll': 'svuotate le note in {cell}',
+  'coach.deadEnd':
+    'Nessuna tecnica può aiutarti finché questa griglia non torna risolvibile. Torna indietro con Annulla, poi chiedi di nuovo.',
   'coach.marksProgress': '{open} di {total} ancora da sistemare.',
   'coach.marksAllFixed': 'Tutto sistemato.',
   'coach.tagFixed': 'sistemato',
