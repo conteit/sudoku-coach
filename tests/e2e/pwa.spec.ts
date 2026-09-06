@@ -72,6 +72,13 @@ test('checks for an update when the tab is resumed rather than navigated', async
   // `onRegisteredSW` hands back the registration so a `visibilitychange`
   // listener can call `update()` at the same moment sync already checks in —
   // the fix for a resumed (not reloaded) PWA sitting on an old build.
+  //
+  // Played out **with a game open**, which is the case this exists for and
+  // the case the check used to miss: it lived in `OfflineNotice`, mounted
+  // only in the library, while the app restores the last game at launch — so
+  // an installed PWA resumed onto its board had no listener at all. Asserting
+  // it from the library passed either way, which is this repo's own named
+  // trap: a test whose subject is absent from the environment.
   await page.addInitScript(() => {
     (window as unknown as { __updateCalls: number }).__updateCalls = 0;
     (window as unknown as { __registered: boolean }).__registered = false;
@@ -98,6 +105,9 @@ test('checks for an update when the tab is resumed rather than navigated', async
   });
 
   await page.goto('/play');
+  await page.getByRole('button', { name: 'New puzzle' }).click();
+  await page.getByRole('button', { name: 'Easy', exact: true }).click();
+  await expect(boardGrid(page)).toBeVisible({ timeout: 60_000 });
 
   await expect
     .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null), {

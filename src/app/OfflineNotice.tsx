@@ -7,42 +7,29 @@
  * has no way to know when that flips, and finding out by losing signal on a
  * train is the wrong way to learn it.
  *
- * The service worker registers itself — `registerType: 'autoUpdate'` in the
- * Vite config — so a newer build takes over and reloads the page on its own,
- * with no prompt to answer. But `immediate: true` only checks for that newer
- * build on navigation, so an installed PWA that is *resumed* — brought to the
- * foreground rather than freshly opened — can sit on an old build for as long
- * as it is never closed. `onRegisteredSW` hands back the registration so a
- * `visibilitychange` listener can call `registration.update()` at the same
- * moment sync already checks in.
- *
- * The reload itself stays silent — interrupting a puzzle to announce a
- * background update would be worse than the update — but happening with no
- * trace at all left a real bug (#126) invisible until reported by hand. So a
- * `controllerchange` listener (fired the instant the new worker takes
- * control, immediately before `autoUpdate`'s own reload) marks a
- * `sessionStorage` flag *before* that reload, which this component reads
- * *after* it, on the next mount, to say what just happened. The guard on
- * there having been a *previous* controller matters: the same event fires
- * once on a first install too, and a first-time visitor was never on an old
- * version to begin with.
+ * Only the *saying* lives here. Registering the worker, checking for a new
+ * build on resume and marking that one took over are in
+ * `app/serviceWorker.ts`, at module scope: this component is mounted only
+ * when no game is open, and behaviour must not inherit a mounting rule
+ * written for a banner. The two facts it renders therefore both arrive from
+ * outside it — `offlineReady` from that module's store, and the update mark
+ * from the `sessionStorage` the load *before* this one wrote, which is read
+ * here and cleared as it is read so an update is announced once rather than
+ * on every later mount.
  */
 
 import { useEffect, useState } from 'react';
-import { registerSW } from 'virtual:pwa-register';
 import { useT } from '../i18n/locale';
+import { UPDATED_KEY, offlineReadySaid, usePwaStatus } from './serviceWorker';
 import { IconButton } from '../ui/primitives/IconButton';
 import { CloseIcon } from '../ui/primitives/icons';
 
 /** Long enough to read twice, short enough not to sit over the keypad. */
 const VISIBLE_MS = 6000;
 
-/** Set just before `autoUpdate`'s own reload; read and cleared on next mount. */
-const UPDATED_KEY = 'sudoku-coach:updated';
-
 export function OfflineNotice() {
   const t = useT();
-  const [ready, setReady] = useState(false);
+  const ready = usePwaStatus((state) => state.offlineReady);
   const [updated, setUpdated] = useState(false);
 
   // Read the mark left by the load this one replaced, before anything else
@@ -61,47 +48,8 @@ export function OfflineNotice() {
   }, []);
 
   useEffect(() => {
-    let registration: ServiceWorkerRegistration | undefined;
-
-    registerSW({
-      immediate: true,
-      onOfflineReady: () => setReady(true),
-      onRegisteredSW: (_swUrl, reg) => {
-        registration = reg;
-      },
-    });
-
-    const container = navigator.serviceWorker;
-    // Guarded on a *previous* controller: this event also fires once, on a
-    // first install, and a visitor arriving for the first time was never on
-    // an older version for this to be news about.
-    let hadController = Boolean(container?.controller);
-    const onControllerChange = () => {
-      if (hadController) {
-        try {
-          sessionStorage.setItem(UPDATED_KEY, '1');
-        } catch {
-          // See above — the notice is a nicety, not the update itself.
-        }
-      }
-      hadController = true;
-    };
-    container?.addEventListener('controllerchange', onControllerChange);
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') void registration?.update();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      container?.removeEventListener('controllerchange', onControllerChange);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!ready) return;
-    const handle = setTimeout(() => setReady(false), VISIBLE_MS);
+    const handle = setTimeout(offlineReadySaid, VISIBLE_MS);
     return () => clearTimeout(handle);
   }, [ready]);
 
@@ -134,7 +82,7 @@ export function OfflineNotice() {
         label={t('action.close')}
         icon={<CloseIcon />}
         onClick={() => {
-          setReady(false);
+          offlineReadySaid();
           setUpdated(false);
         }}
       />
