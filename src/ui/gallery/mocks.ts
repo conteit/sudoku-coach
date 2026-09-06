@@ -10,6 +10,7 @@
 import type { CellIndex, Digit } from '../../engine/types';
 import type { CandidateReview } from '../../coach/types';
 import type { Hint } from '../../coach/types';
+import type { ReviewProgress } from '../../coach/reviewProgress';
 import { formatGrid, parseGrid } from '../../engine/board';
 import type { GridCell } from '../board/SudokuGrid';
 import type { GameSummary } from '../game/GameList';
@@ -140,6 +141,24 @@ export const DEMO_REVIEW: CandidateReview = {
       witness: [47],
     },
   ],
+};
+
+/**
+ * Aged by hand rather than run through `trackReview`: the gallery is a
+ * fixtures file, not a board, and the middle issue is marked `fixed` on
+ * purpose — the panel's whole point in this task is showing a struck-through
+ * row beside an open one, and a gallery that only ever shows all-open would
+ * never catch a regression in that half of the list.
+ */
+export const DEMO_PROGRESS: ReviewProgress = {
+  checkedCells: DEMO_REVIEW.checkedCells,
+  reported: DEMO_REVIEW.issues.length,
+  total: DEMO_REVIEW.issues.length,
+  open: DEMO_REVIEW.issues.length - 1,
+  items: DEMO_REVIEW.issues.map((issue) => ({
+    issue,
+    state: issue.cell === 30 ? 'fixed' : 'open',
+  })),
 };
 
 const HOUR = 3_600_000;

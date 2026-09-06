@@ -33,7 +33,8 @@ import {
   type HintLevel,
 } from '../coach/coach';
 import { teachableTriggers, type TriggerCell } from '../coach/triggers';
-import type { CandidateReview, Hint, TeachableTrigger } from '../coach/types';
+import type { ReviewSnapshot } from '../coach/reviewProgress';
+import type { Hint, TeachableTrigger } from '../coach/types';
 import { useProfile } from '../state/profile';
 import type { CoachExchange, LiveGame, Locale } from '../state/types';
 
@@ -71,7 +72,7 @@ export interface CoachSession {
   /** Null when the board has nothing left for a challenge to be about. */
   startDrill: () => void;
   dismissDrill: () => void;
-  review: CandidateReview | null;
+  review: ReviewSnapshot | null;
   /** True once a hint was asked for and the board yielded nothing. */
   exhausted: boolean;
   /** The most urgent unprompted moment, or null. Reveals nothing by itself. */
@@ -104,8 +105,17 @@ export interface CoachSessionInput {
   now?: () => number;
 }
 
-const coachCells = (game: LiveGame): CoachCell[] =>
-  game.cells.map((cell) => ({ value: cell.value, candidates: cell.candidates }));
+/**
+ * Exported for the same reason `triggerCells` is: the view ages the report
+ * against these cells, and a second copy of this two-line map is exactly the
+ * drift the export exists to prevent.
+ *
+ * Takes the cells rather than the game because that is all it reads, and the
+ * caller that memoizes it needs a dependency that changes when a move does and
+ * not when a coach log or a sync merge does.
+ */
+export const coachCells = (cells: LiveGame['cells']): CoachCell[] =>
+  cells.map((cell) => ({ value: cell.value, candidates: cell.candidates }));
 
 /**
  * Exported so the view's own trigger reads use the same shape, not a copy.
@@ -140,7 +150,7 @@ export function useCoachSession({
   now = Date.now,
 }: CoachSessionInput): CoachSession {
   const [hint, setHint] = useState<Hint | null>(null);
-  const [review, setReview] = useState<CandidateReview | null>(null);
+  const [review, setReview] = useState<ReviewSnapshot | null>(null);
   /*
    * Findings the player has set aside on *this* board. Cleared whenever the
    * board changes, because a placement rewrites what the catalog sees: a
@@ -197,7 +207,7 @@ export function useCoachSession({
     setShownLocale(locale);
     setReview(null);
     if (hint !== null) {
-      const coach = createCoach({ cells: coachCells(game), locale });
+      const coach = createCoach({ cells: coachCells(game.cells), locale });
       const finding = coach.nextFinding();
       setHint(finding === null ? null : coach.hint(finding, hint.level));
     }
@@ -212,7 +222,7 @@ export function useCoachSession({
     let interval: ReturnType<typeof setInterval> | undefined;
 
     const handle = setTimeout(() => {
-      const after = coachCells(game);
+      const after = coachCells(game.cells);
       const before = settled.current;
       const finding = createCoach({ cells: after, locale }).nextFinding();
 
@@ -275,7 +285,7 @@ export function useCoachSession({
 
   const show = useCallback(
     (pickLevel: LevelPicker, skip?: ReadonlySet<string>) => {
-      const coach = createCoach({ cells: coachCells(game), locale });
+      const coach = createCoach({ cells: coachCells(game.cells), locale });
       const finding = coach.nextFinding(skip ?? skipped);
       if (finding === null) {
         setHint(null);
@@ -301,7 +311,7 @@ export function useCoachSession({
    * knows the player was pointed at it.
    */
   const startDrill = useCallback(() => {
-    const coach = createCoach({ cells: coachCells(game), locale });
+    const coach = createCoach({ cells: coachCells(game.cells), locale });
     const finding = coach.nextFinding();
     if (finding === null) {
       setExhausted(true);
@@ -346,8 +356,14 @@ export function useCoachSession({
   const escalate = useCallback(() => show(escalatedLevel), [show]);
 
   const checkMarks = useCallback(() => {
-    setReview(createCoach({ cells: coachCells(game), locale }).reviewCandidates());
-  }, [game, locale]);
+    const cells = coachCells(game.cells);
+    // The values are captured with the report, not derived from it later: a
+    // report is only revalidatable against the board it was actually run on.
+    setReview({
+      report: createCoach({ cells, locale }).reviewCandidates(),
+      values: cells.map((c) => c.value),
+    });
+  }, [game.cells, locale]);
 
   const dismiss = useCallback(() => {
     setHint(null);

@@ -17,6 +17,7 @@ import { Board, peersOf } from '../engine/board';
 import type { CellIndex, Digit, TechniqueId } from '../engine/types';
 import { getLesson } from '../coach/lessons';
 import { recap } from '../coach/recap';
+import { trackReview } from '../coach/reviewProgress';
 import { deadNotes } from '../state/deadNotes';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useProfile } from '../state/profile';
@@ -56,7 +57,7 @@ import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, deadEndCells } from '../coach/triggers';
 import { nextRewindPhase, rewindTrail, type RewindPhase, type RewindStep } from './rewind';
-import { triggerCells, useCoachSession } from './useCoachSession';
+import { coachCells, triggerCells, useCoachSession } from './useCoachSession';
 import { useViewportTier } from './useViewportTier';
 
 /** How long a vibration says each thing. Absent hardware simply ignores it. */
@@ -250,30 +251,11 @@ export function GameView({
   );
   const coach = useCoachSession({ game, locale, onCoachLog });
 
-  /*
-   * A report describes the board at the moment it was run, so applying it
-   * leaves the panel showing a reading that is no longer true. Re-running the
-   * check is the honest answer, but it cannot happen in the click handler:
-   * `checkMarks` closes over the `game` of the render it came from, which is
-   * the board *before* the dispatch.
-   *
-   * What it waits for is the *board*, not the next render. A boolean flag was
-   * the first attempt and it was a race: this component re-renders for plenty
-   * of reasons that are not a new game — a coach state change, a parent's
-   * subscription firing — and whichever render arrived first consumed the
-   * flag and re-checked the board that was already on screen. It passed on a
-   * fast machine and failed on CI, which is what a race looks like from the
-   * outside. Remembering the move count instead makes the condition the one
-   * that was always meant: re-check when the board has actually moved.
-   */
-  const recheckAfterFix = useRef<number | null>(null);
-  useEffect(() => {
-    if (recheckAfterFix.current === null || game.undoStack.length === recheckAfterFix.current) {
-      return;
-    }
-    recheckAfterFix.current = null;
-    coach.checkMarks();
-  }, [coach, game.undoStack.length]);
+  const coached = useMemo(() => coachCells(cells), [cells]);
+  const progress = useMemo(
+    () => (coach.review === null ? null : trackReview(coach.review, coached)),
+    [coach.review, coached],
+  );
 
   /**
    * Opens the sheet. The restore target has to be captured *here*, synchronously
@@ -289,14 +271,20 @@ export function GameView({
   }, []);
 
   /**
-   * The one path every way of closing the sheet has to go through. Consuming
-   * the nudge belongs here rather than on open: dismissing it the moment the
-   * sheet appears would clear the badge before the player has read what it
-   * was pointing at (spec: a nudge is read, not re-solicited).
+   * The one path every way of closing the sheet has to go through.
+   *
+   * It does NOT dismiss the panel. On a phone the sheet *is* the panel, so
+   * closing it used to be a lifecycle event rather than a viewport change —
+   * a note check the player was working through vanished, and they had to run
+   * it again from nothing. On a wide screen the same panel is static and only
+   * the X does that, which is the asymmetry that gave the bug away.
+   *
+   * Consuming the nudge stays here rather than moving to open: dismissing it
+   * the moment the sheet appears would clear the badge before the player has
+   * read what it was pointing at (spec: a nudge is read, not re-solicited).
    */
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
-    coach.dismiss();
     coach.dismissNudge();
   }, [coach]);
 
@@ -759,7 +747,7 @@ export function GameView({
           }
           onAsk={coach.ask}
           onEscalate={coach.escalate}
-          review={coach.review}
+          progress={progress}
           onReviewCandidates={coach.checkMarks}
           onSpotlight={setReviewSpotlight}
           exhausted={coach.exhausted}
@@ -772,19 +760,17 @@ export function GameView({
             paused || solved
               ? undefined
               : () => {
-                  // Exactly the issues on screen, mapped straight from the
-                  // report the player is reading — the reducer is never
-                  // handed a fresh reading of the board, so nothing can be
-                  // corrected that was not displayed.
                   dispatch({
                     type: 'applyNoteFixes',
-                    fixes: coach.review?.issues.map(({ cell, digit, kind }) => ({
-                      cell,
-                      digit,
-                      kind,
-                    })) ?? [],
+                    fixes:
+                      progress?.items
+                        .filter((item) => item.state === 'open')
+                        .map(({ issue }) => ({
+                          cell: issue.cell,
+                          digit: issue.digit,
+                          kind: issue.kind,
+                        })) ?? [],
                   });
-                  recheckAfterFix.current = game.undoStack.length;
                 }
           }
           // Open (mobile), the X has to close the whole sheet — not just
@@ -1002,7 +988,7 @@ export function GameView({
                         hint: coach.hint,
                         drill: coach.drill,
                         exhausted: coach.exhausted,
-                        review: coach.review,
+                        review: coach.review?.report ?? null,
                       }),
                     ),
                     game.id,
@@ -1035,7 +1021,7 @@ export function GameView({
                     hint: coach.hint,
                     drill: coach.drill,
                     exhausted: coach.exhausted,
-                    review: coach.review,
+                    review: coach.review?.report ?? null,
                   }),
                 ),
               );

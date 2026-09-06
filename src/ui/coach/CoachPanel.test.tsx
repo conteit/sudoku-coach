@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { CandidateReview, Hint } from '../../coach/types';
+import type { Hint } from '../../coach/types';
+import type { ReviewProgress } from '../../coach/reviewProgress';
 import type { DisclosureLevel } from '../../state/types';
 import { LocaleProvider } from '../../i18n/react';
 import { CoachPanel, type CoachPanelProps } from './CoachPanel';
@@ -16,23 +17,37 @@ const hintAt = (level: DisclosureLevel, text: string, canEscalate = true): Hint 
   findingKey: 'hidden_single:b3:7',
 });
 
-const REVIEW: CandidateReview = {
+/**
+ * The panel takes a `ReviewProgress`, not the raw `CandidateReview` a check
+ * produces — that aging is `reviewProgress.test.ts`'s job, not this file's.
+ * Both issues are `open` here: these tests are about how a freshly run check
+ * is laid out, not about aging, which gets its own `describe` below.
+ */
+const PROGRESS: ReviewProgress = {
   checkedCells: 12,
-  cleanCells: [1, 2, 3],
-  issues: [
+  reported: 2,
+  total: 2,
+  open: 2,
+  items: [
     {
-      cell: 6,
-      kind: 'invalid',
-      digit: 9,
-      reason: 'Column 7 already has a 9 at r7c7.',
-      witness: [60],
+      state: 'open',
+      issue: {
+        cell: 6,
+        kind: 'invalid',
+        digit: 9,
+        reason: 'Column 7 already has a 9 at r7c7.',
+        witness: [60],
+      },
     },
     {
-      cell: 30,
-      kind: 'missing',
-      digit: 6,
-      reason: 'Nothing rules a 6 out of this cell.',
-      witness: [27, 31],
+      state: 'open',
+      issue: {
+        cell: 30,
+        kind: 'missing',
+        digit: 6,
+        reason: 'Nothing rules a 6 out of this cell.',
+        witness: [27, 31],
+      },
     },
   ],
 };
@@ -134,7 +149,7 @@ describe('the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={REVIEW}
+        progress={PROGRESS}
       />,
     );
 
@@ -151,7 +166,7 @@ describe('the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={REVIEW}
+        progress={PROGRESS}
       />,
     );
 
@@ -164,7 +179,7 @@ describe('the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={{ issues: [], cleanCells: [1, 2], checkedCells: 30 }}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 30, reported: 0 }}
       />,
     );
 
@@ -179,7 +194,7 @@ describe('the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={REVIEW}
+        progress={PROGRESS}
         onSpotlight={onSpotlight}
       />,
     );
@@ -198,7 +213,7 @@ it('says there is nothing to check when the player has made no notes', () => {
       hint={null}
       onAsk={() => undefined}
       onEscalate={() => undefined}
-      review={{ issues: [], cleanCells: [], checkedCells: 0 }}
+      progress={{ items: [], open: 0, total: 0, checkedCells: 0, reported: 0 }}
     />,
   );
 
@@ -260,7 +275,7 @@ describe('applying the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={REVIEW}
+        progress={PROGRESS}
         onFixNotes={onFixNotes}
       />,
     );
@@ -277,7 +292,7 @@ describe('applying the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={{ issues: [], cleanCells: [1, 2], checkedCells: 2 }}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 2, reported: 0 }}
         onFixNotes={() => undefined}
       />,
     );
@@ -304,7 +319,7 @@ describe('applying the note check', () => {
         hint={null}
         onAsk={() => undefined}
         onEscalate={() => undefined}
-        review={REVIEW}
+        progress={PROGRESS}
         onFixNotes={() => undefined}
       />,
     );
@@ -427,5 +442,135 @@ describe('the rewind trail', () => {
 
     expect(screen.queryByText(/cannot be finished/)).toBeNull();
     expect(screen.queryByText(/Back to a board that works/)).toBeNull();
+  });
+});
+
+describe('the note check as it ages', () => {
+  // `reported` is required here too — Task 1's `ReviewProgress` carries it so
+  // the `total === 0` branch below can tell "clean" from "everything
+  // retired" apart. Neither issue here has retired, so it equals `total`.
+  const PROGRESS: ReviewProgress = {
+    checkedCells: 12,
+    total: 2,
+    open: 1,
+    reported: 2,
+    items: [
+      {
+        state: 'fixed',
+        issue: {
+          cell: 6,
+          kind: 'invalid',
+          digit: 9,
+          reason: 'Column 7 already has a 9 at r7c7.',
+          witness: [60],
+        },
+      },
+      {
+        state: 'open',
+        issue: {
+          cell: 30,
+          kind: 'missing',
+          digit: 6,
+          reason: 'Nothing rules a 6 out of this cell.',
+          witness: [27, 31],
+        },
+      },
+    ],
+  };
+
+  it('says how much is left to fix', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={PROGRESS}
+      />,
+    );
+
+    expect(screen.getByText('1 of 2 still to fix.')).toBeInTheDocument();
+  });
+
+  it('keeps a fixed issue on screen, marked as done', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={PROGRESS}
+      />,
+    );
+
+    // The row is still there — that is the whole point of showing progress
+    // rather than letting the list silently shrink.
+    const row = screen.getByRole('button', { name: /Column 7 already has a 9/ });
+    expect(row).toBeInTheDocument();
+    expect(within(row).getByText('fixed')).toBeInTheDocument();
+  });
+
+  it('says so when everything has been fixed', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{ ...PROGRESS, open: 0, items: PROGRESS.items.map((i) => ({ ...i, state: 'fixed' as const })) }}
+      />,
+    );
+
+    expect(screen.getByText('All fixed.')).toBeInTheDocument();
+  });
+
+  it('offers to fix them all only while something is open', () => {
+    const onFixNotes = vi.fn();
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{ ...PROGRESS, open: 0, items: PROGRESS.items.map((i) => ({ ...i, state: 'fixed' as const })) }}
+        onFixNotes={onFixNotes}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
+  });
+});
+
+/*
+ * A CORRECTION to what an earlier draft of this panel did: `total === 0` is
+ * not one claim, it is two. A report born with zero issues and a report every
+ * one of whose issues has since retired both reach `total === 0`, but only
+ * the first is "your notes are exactly right" — the second is the coach
+ * admitting it can no longer prove anything about what it originally found,
+ * which is a different sentence entirely.
+ */
+describe('when a note check has nothing left to show', () => {
+  it('says the check found nothing at all when nothing was ever reported', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 0 }}
+      />,
+    );
+
+    expect(screen.getByText(/exactly right/)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing from that check still applies/)).toBeNull();
+  });
+
+  it('says the check has nothing left to say when everything it found has retired', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        progress={{ items: [], open: 0, total: 0, checkedCells: 12, reported: 2 }}
+      />,
+    );
+
+    expect(screen.getByText(/Nothing from that check still applies/)).toBeInTheDocument();
+    expect(screen.queryByText(/exactly right/)).toBeNull();
   });
 });
