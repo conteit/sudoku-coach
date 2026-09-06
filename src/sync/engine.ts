@@ -70,6 +70,17 @@ export interface SyncOutcome {
   removedLocal: number;
   removedRemote: number;
   profile: ProfileMove;
+  /**
+   * Ids actually pulled from the remote, gathered inside the download loop
+   * rather than copied from `plan.download`. The plan is an intention; a
+   * manifest can name a game whose file never made it into the folder (see
+   * "Manifest ahead of the folder" below), and the UI is about to tell a
+   * player something happened to these games — it must not name one that
+   * didn't.
+   */
+  downloadedIds: readonly string[];
+  /** Same reasoning as `downloadedIds`, for the local deletions actually applied. */
+  droppedLocalIds: readonly string[];
 }
 
 export interface SyncDeps {
@@ -133,6 +144,8 @@ export async function syncOnce({
       removedLocal: 0,
       removedRemote: 0,
       profile: 'none',
+      downloadedIds: [],
+      droppedLocalIds: [],
     };
   }
 
@@ -143,12 +156,15 @@ export async function syncOnce({
   };
 
   const games = { ...remote.games };
+  const downloadedIds: string[] = [];
+  const droppedLocalIds: string[] = [];
 
   for (const id of plan.download) {
     const file = byName.get(gameFile(id));
     if (file === undefined) continue; // Manifest ahead of the folder; next run.
     const game = await drive.read<Game>(file.id);
     await saveGame(game, conn);
+    downloadedIds.push(id);
   }
 
   for (const id of plan.upload) {
@@ -163,6 +179,7 @@ export async function syncOnce({
     // is written below. Recording a second one would only re-date the deletion
     // and hand it a fresh chance to outrank a play on a third device.
     await deleteGame(id, conn);
+    droppedLocalIds.push(id);
   }
 
   for (const id of plan.dropRemote) {
@@ -210,9 +227,11 @@ export async function syncOnce({
   return {
     at,
     uploaded: plan.upload.length,
-    downloaded: plan.download.length,
-    removedLocal: plan.dropLocal.length,
+    downloaded: downloadedIds.length,
+    removedLocal: droppedLocalIds.length,
     removedRemote: plan.dropRemote.length,
     profile: plan.profile,
+    downloadedIds,
+    droppedLocalIds,
   };
 }
