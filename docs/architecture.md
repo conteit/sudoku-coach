@@ -343,26 +343,49 @@ has already read the front door.
     only there is the sheet the panel — the wide-screen layout has always kept
     its state and nobody noticed the coupling.
 
-    A note-check report is produced once and **aged**, never re-run:
-    `trackReview` (`src/coach/reviewProgress.ts`) walks the issues the report
-    already names and marks each fixed, still open, or gone. The list can only
-    shrink — a new issue would require a check the player did not ask for.
+    A note-check report is produced once and **aged**, never re-run
+    automatically: `trackReview` (`src/coach/reviewProgress.ts`) walks the
+    issues the report already names and marks each fixed, still open, or gone.
+    The guarantee is that **no issue ever appears that the report did not
+    contain** — a new one would require a check the player did not ask for. It
+    is not that the list only ever shrinks: `trackReview` is a pure function of
+    the live board, so an undo restores a retired issue and un-noting a digit
+    moves a row from `fixed` back to `open`. Both are safe, because a restored
+    board restores the report's proof along with it. The player can also re-run
+    the check whenever they like, and `coach.marksNothingLeft` invites it.
 
     `missing` is the reason the report carries the board's values with it. It
     means "possible **and** unrefuted by any technique", and that second half
-    came from `eliminableCandidates`' fixed point. A placement can unlock a new
-    elimination, at which point cheap revalidation would keep advising a mark
-    that is now provably impossible — and nothing downstream would catch it,
-    because `invalid` sees only basic elimination. So a `missing` issue retires
-    the moment its cell or a peer changes value: past that the report says
-    nothing rather than something it can no longer prove. `invalid` rests on
-    basic elimination alone and is revalidated exactly.
+    came from `eliminableCandidates`' fixed point — over the **whole board**. A
+    placement can unlock a new elimination, at which point cheap revalidation
+    would keep advising a mark that is now provably impossible, and nothing
+    downstream would catch it, because `invalid` sees only basic elimination.
+    So a `missing` issue retires the moment **any** cell changes value. A
+    neighbourhood check is not enough and was the bug: `xWing`, `xyWing`,
+    `simpleColoring` and the rest conclude from cells far outside the target's
+    twenty peers, so a correct placement across the grid can refute a mark
+    whose own neighbourhood is unchanged. The price is that a report survives
+    only note edits — one placement retires every `missing` issue in it — and
+    that is the case it was built for. `invalid` rests on basic elimination
+    alone and is revalidated exactly.
 
-    And the coach declines to teach a board with no digit that fits anywhere,
-    gated on the dead end rather than on the rewind phase — the phase outlives
-    the dead end, and a repaired board deserves its hint. The note check stays
-    offered: it reads the player's own marks, so an unfinishable board cannot
-    make it wrong.
+    A report that found **nothing** has no issues to age, so it carries the
+    marks as well: `stale` is what stops "your notes are exactly right" from
+    outliving the notes it was about.
+
+    And the coach declines to teach a board where some cell has no digit left
+    that fits, gated on the dead end rather than on the rewind phase — the
+    phase outlives the dead end, and a repaired board deserves its hint. The
+    refusal is enforced where the hint is produced, not only where the button
+    is drawn: the `h` shortcut and "Show me another" are both withheld, because
+    either would record a disclosure and charge mastery for advice the panel is
+    declining to give, and a hint already on screen is cleared. The note check
+    stays offered: it reads the player's own marks, so an unfinishable board
+    cannot make it wrong.
+
+    A review does not survive a game switch, a locale switch or a reload
+    (`src/app/useCoachSession.ts` resets it on the first two; nothing persists
+    it past the third). It is a reading of one board in one sitting.
 
 ## Developer tools
 
