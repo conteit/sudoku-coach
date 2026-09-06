@@ -94,6 +94,41 @@ function ruleCleanDeadEnd(): LiveGame {
   return reduce(game, { type: 'setValue', cell: 2, digit: 2, at: at++ });
 }
 
+/**
+ * `ruleCleanDeadEnd()` plus a second, independent wrong digit at r5c3 (cell
+ * 38) — 4 where the solution has 6 — placed *before* the dead-end move so it
+ * survives the single Undo that removes it. That digit conflicts with two
+ * peers (it is a duplicate, not a rule-clean placement like the strand
+ * itself), but conflict is irrelevant to what this fixture proves: it
+ * contradicts the solution without stranding anything, so after the one
+ * Undo click `deadEnd` is false while `contradicted` stays true —
+ * `nextRewindPhase` keeps the phase `active` in exactly that case. That gap
+ * between `deadEnd` and `rewind === 'active'` is what distinguishes the two
+ * gates `unfinishable` could have been wired to.
+ */
+function strandedWithSurvivingWrongDigit(): LiveGame {
+  let game = newGame({
+    givens: PUZZLE,
+    solution: SOLVED,
+    difficulty: 'medium',
+    at: 1000,
+    id: `rewind-test-${counter++}`,
+    running: true,
+  });
+  let at = 1100;
+  for (let cell = 0; cell < 81; cell++) {
+    if (PUZZLE[cell] !== '.' || cell === 2 || cell === 8 || cell === 11 || cell === 38) continue;
+    game = reduce(game, {
+      type: 'setValue',
+      cell,
+      digit: Number(SOLVED[cell]) as never,
+      at: at++,
+    });
+  }
+  game = reduce(game, { type: 'setValue', cell: 38, digit: 4, at: at++ });
+  return reduce(game, { type: 'setValue', cell: 2, digit: 2, at: at++ });
+}
+
 const SETTINGS: PlayerProfile['settings'] = { ...DEFAULT_PROFILE.settings, haptics: false };
 const defaultMatchMedia = window.matchMedia;
 
@@ -247,5 +282,26 @@ describe('the amber rewind', () => {
     await user.click(screen.getByRole('button', { name: 'Undo' }));
 
     expect(screen.queryByText(/what you undid/)).toBeNull();
+  });
+
+  it('will not offer a hint on a board that cannot be finished', () => {
+    renderGame(ruleCleanDeadEnd());
+
+    expect(screen.getByText(/No technique can help/)).toBeInTheDocument();
+  });
+
+  it('offers a hint again once a rewind steps out of the dead end, even with a wrong digit still on the board', async () => {
+    // Distinguishes `unfinishable={deadEnd}` from `unfinishable={rewind === 'active'}`:
+    // the single Undo clears the strand (`deadEnd` -> false) but r5c3's
+    // surviving wrong digit keeps `contradicted` true, which keeps the phase
+    // `active` (see `nextRewindPhase`). A gate on the phase would still
+    // refuse the hint here; only a gate on the dead end itself offers it.
+    const { user } = renderGame(strandedWithSurvivingWrongDigit());
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Undo — one of your digits is wrong' }),
+    );
+
+    expect(await screen.findByRole('button', { name: 'Where should I look?' })).toBeInTheDocument();
   });
 });

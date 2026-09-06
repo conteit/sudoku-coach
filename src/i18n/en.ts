@@ -311,6 +311,8 @@ export const en = {
   'coach.rewind.unnoted': 'took the note {digit} off {cell}',
   'coach.rewind.notedAll': 'filled in the notes in {cell}',
   'coach.rewind.unnotedAll': 'cleared the notes in {cell}',
+  'coach.deadEnd':
+    'No technique can help until this board is fixable. Step back with Undo, then ask again.',
   'coach.marksProgress': '{open} of {total} still to fix.',
   'coach.marksAllFixed': 'All fixed.',
   'coach.tagFixed': 'fixed',

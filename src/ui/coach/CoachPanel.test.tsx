@@ -574,3 +574,39 @@ describe('when a note check has nothing left to show', () => {
     expect(screen.queryByText(/exactly right/)).toBeNull();
   });
 });
+
+describe('a board that cannot be finished', () => {
+  const base = {
+    hint: null,
+    onAsk: () => undefined,
+    onEscalate: () => undefined,
+  };
+
+  it('will not offer a hint', () => {
+    render(<CoachPanel {...base} unfinishable onDrill={() => undefined} />);
+
+    expect(screen.queryByRole('button', { name: 'Where should I look?' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Set me a challenge' })).toBeNull();
+    expect(screen.getByText(/No technique can help/)).toBeInTheDocument();
+  });
+
+  it('still offers the note check, which reads only the player own marks', () => {
+    render(<CoachPanel {...base} unfinishable onReviewCandidates={() => undefined} />);
+
+    expect(screen.getByRole('button', { name: 'Check my notes' })).toBeInTheDocument();
+  });
+
+  it('offers a hint again once the board is finishable', () => {
+    render(<CoachPanel {...base} onDrill={() => undefined} />);
+
+    expect(screen.getByRole('button', { name: 'Where should I look?' })).toBeInTheDocument();
+  });
+
+  it('says the board is stuck even with nothing undone yet', () => {
+    // The banner used to need a non-empty trail, so a dead end reached without
+    // undoing anything left the panel silent while the undo key sat amber.
+    render(<CoachPanel {...base} rewinding rewindTrail={[]} />);
+
+    expect(screen.getByText(/cannot be finished/)).toBeInTheDocument();
+  });
+});

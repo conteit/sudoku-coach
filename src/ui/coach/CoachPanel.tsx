@@ -124,6 +124,17 @@ export interface CoachPanelProps {
   rewindTrail?: readonly RewindStep[];
   /** The board is still unfinishable — a rewind in progress, not a record. */
   rewinding?: boolean;
+  /**
+   * No digit fits anywhere on this board, so nothing the catalog finds is
+   * worth acting on. The coach declines to teach rather than spend a rung on
+   * a board the player has to repair first.
+   *
+   * This is the dead end itself, not the rewind phase. The two come apart: the
+   * phase stays armed while any entry still contradicts the solution, and a
+   * player who has stepped back out of the dead end has a board that is
+   * perfectly good to teach on.
+   */
+  unfinishable?: boolean;
   className?: string;
 }
 
@@ -310,6 +321,7 @@ export function CoachPanel({
   onClearStale,
   rewindTrail,
   rewinding = false,
+  unfinishable = false,
   className,
 }: CoachPanelProps) {
   const t = useT();
@@ -378,14 +390,18 @@ export function CoachPanel({
           to be looking at than the resting invitation, and less urgent than
           the coach noticing something on its own. Inside the panel's own box,
           so invariant 9 holds. */}
-      {rewindTrail !== undefined && rewindTrail.length > 0 ? (
+      {rewinding || (rewindTrail !== undefined && rewindTrail.length > 0) ? (
         <div className="mx-4 mt-3 rounded-cell border border-coach/35 bg-coach-wash px-4 py-3">
           <p className="text-sm text-coach">
             {rewinding ? t('coach.rewind.active') : t('coach.rewind.done')}
           </p>
           {/* A handle rather than the bare `listitem` role: the ladder above
               renders four <li>s of its own unconditionally, so a test reaching
-              for list items panel-wide is only ever right by JSX ordering. */}
+              for list items panel-wide is only ever right by JSX ordering.
+              Rendered only with a trail to show: a dead end reached without
+              undoing anything yet has nothing to list, and an empty <ol>
+              would say so anyway. */}
+          {rewindTrail !== undefined && rewindTrail.length > 0 ? (
           <ol data-testid="rewind-trail" className="mt-2 space-y-0.5">
             {rewindTrail.map((step, i) => (
               <li
@@ -422,6 +438,7 @@ export function CoachPanel({
               </li>
             ))}
           </ol>
+          ) : null}
         </div>
       ) : null}
 
@@ -478,7 +495,9 @@ export function CoachPanel({
             {t('action.dismiss')}
           </Button>
         ) : null}
-        {hint === null ? (
+        {unfinishable ? (
+          <p className="py-2 text-sm text-coach">{t('coach.deadEnd')}</p>
+        ) : hint === null ? (
           <Button variant="coach" size="lg" onClick={onAsk}>
             {t('coach.rung1.ask')}
           </Button>
@@ -498,7 +517,7 @@ export function CoachPanel({
         {/* Resting, the coach's other two offers are glyphs: three sentences
             side by side wrap to three lines on a phone, and every line is a
             line of board. On a wide screen they are spelled out. */}
-        {onDrill && drill === null && hint === null ? (
+        {onDrill && drill === null && hint === null && !unfinishable ? (
           <>
             <span className="sm:hidden">
               <IconButton size="sm" label={t('coach.drill')} icon={<TargetIcon />} onClick={onDrill} />
