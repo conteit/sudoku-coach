@@ -716,25 +716,44 @@ Change `closeSheet` to stop clearing the panel:
 
 - [ ] **Step 7: Add the GameView test**
 
-Append to `src/app/GameView.noteCheck.test.tsx`, following that file's existing helpers:
+Append to `src/app/GameView.noteCheck.test.tsx`. That file already has everything this needs:
+`renderGame(settingsOverrides?, game?)` with a `Host` wrapper that reads the live game out of the
+store, and `gameWithDeadNote()`, which puts a note of 9 in r1c3 and then places a 9 in r1c4 — a note
+the check will report as `invalid`.
+
+**The bug only exists at the phone tier**, because only there is the sheet the panel. That file's
+`beforeEach` stubs `matchMedia` to match nothing, which is the phone tier under
+`useViewportTier` — confirm that before relying on it, and if it is not, force it the way
+`GameView.layout.test.tsx` does with `matchOnly('(max-width: 639.98px)')`.
+
+Accessible names, read from `src/i18n/en.ts` rather than guessed: the coach button is
+`'Coach'` (`coach.open`, line 116) or `'Coach — has something for you'` (`coach.openWaiting`,
+line 117) when a nudge is waiting — `gameWithDeadNote` places a digit that kills a note, which
+raises the `stale_marks` nudge, so expect the second. Use a regex over both rather than pinning
+one. The close control is `action.close`.
 
 ```tsx
   it('keeps the note check across closing and reopening the sheet', async () => {
-    // On a phone the sheet is the panel, so closing it must be a viewport
-    // change and not a lifecycle event.
-    const { user } = renderGame(/* a game with notes worth checking */);
+    // On a phone the sheet IS the panel, so closing it must be a viewport
+    // change and not a lifecycle event. This is the bug in one test: run a
+    // check, close, reopen, and the reading must still be there.
+    const { user } = renderGame();
 
+    await user.click(screen.getByRole('button', { name: /^Coach/ }));
     await user.click(screen.getByRole('button', { name: 'Check my notes' }));
-    expect(screen.getByText(/still to fix|exactly right/)).toBeInTheDocument();
+    const reading = screen.getByText(/still to fix|exactly right|nothing to check/);
+    expect(reading).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close' }));
-    await user.click(screen.getByRole('button', { name: /coach/i }));
+    await user.click(screen.getByRole('button', { name: /^Coach/ }));
 
-    expect(screen.getByText(/still to fix|exactly right/)).toBeInTheDocument();
+    expect(screen.getByText(/still to fix|exactly right|nothing to check/)).toBeInTheDocument();
   });
 ```
 
-Read the existing helpers in that file first and match them — it already sets up a game with notes and opens the coach, and those fixtures should be reused rather than re-derived. If the phone tier is not already forced there, force it the way `GameView.layout.test.tsx` does with `matchOnly('(max-width: 639.98px)')`, because the bug only exists at that tier.
+If `gameWithDeadNote()` produces a report whose copy is none of those three, do not widen the
+regex to make it pass — find out which branch of `IssueList` it lands in and assert that one
+specifically. A regex broad enough to match anything is the failure mode this repo keeps hitting.
 
 - [ ] **Step 8: Run everything and watch it pass**
 
@@ -822,7 +841,7 @@ describe('a board that cannot be finished', () => {
   it('will not offer a hint', () => {
     render(<CoachPanel {...base} unfinishable onDrill={() => undefined} />);
 
-    expect(screen.queryByRole('button', { name: /Ask/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Where should I look?' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Set me a challenge' })).toBeNull();
     expect(screen.getByText(/No technique can help/)).toBeInTheDocument();
   });
@@ -836,7 +855,7 @@ describe('a board that cannot be finished', () => {
   it('offers a hint again once the board is finishable', () => {
     render(<CoachPanel {...base} onDrill={() => undefined} />);
 
-    expect(screen.getByRole('button', { name: /Ask/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Where should I look?' })).toBeInTheDocument();
   });
 
   it('says the board is stuck even with nothing undone yet', () => {
@@ -849,7 +868,9 @@ describe('a board that cannot be finished', () => {
 });
 ```
 
-The exact accessible name of the ask button comes from `coach.rung1.ask` in `src/i18n/en.ts` — read it and use it verbatim rather than the `/Ask/i` sketch above.
+The ask button's accessible name is `'Where should I look?'` (`coach.rung1.ask`,
+`src/i18n/en.ts:234`) and the challenge button's is `'Set me a challenge'` (`coach.drill`), both
+read from the dictionary rather than guessed.
 
 - [ ] **Step 3: Run and watch them fail**
 
