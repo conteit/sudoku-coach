@@ -10,7 +10,7 @@
 // Dexie captures the global `indexedDB` on import and `GameView` reaches it
 // transitively — same reasoning as `GameView.layout.test.tsx`.
 import 'fake-indexeddb/auto';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Digit } from '../engine/types';
@@ -92,6 +92,14 @@ function cell(index: number): HTMLElement {
   return node;
 }
 
+const keypad = () => screen.getByRole('group', { name: /^Keypad/ });
+
+/** The digits noted in a cell, by slot. Empty once the cell holds a value. */
+const notes = (index: number): string[] =>
+  [...cell(index).querySelectorAll<HTMLElement>('[data-marked]')].map(
+    (node) => node.dataset.slot ?? '',
+  );
+
 describe('promoting a lone note', () => {
   /** r1c3 empty, with exactly one note in it. */
   function gameWithLoneNote(digit: Digit = 4) {
@@ -124,6 +132,47 @@ describe('promoting a lone note', () => {
     expect(cell(2).querySelector('[data-slot="4"]')).toBeNull();
     expect(cell(2).textContent).toContain('4');
     vi.useRealTimers();
+  });
+
+  it('does nothing while a sweep is armed — that press belongs to the sweep', async () => {
+    /*
+     * The two gestures collided, and the collision placed digits.
+     *
+     * Mid-sweep a press on an empty cell already means "note the swept digit
+     * here", and `activateCell` writes that note on pointerdown. The hold then
+     * found a cell with exactly one mark — the one its own first half had just
+     * written — and promoted it. So a gesture the player meant as a note put a
+     * digit on the board, which is the one thing a note-taking mode must never
+     * do.
+     *
+     * The keypad's long press is untouched: it is what arms the green in the
+     * first place, and nothing on the grid competes with it.
+     */
+    const plain = newGame({
+      givens: PUZZLE,
+      solution: SOLVED,
+      difficulty: 'medium',
+      at: 1000,
+      id: `promote-test-${counter++}`,
+      running: true,
+    });
+    const { user } = renderGame({ sweepOneDigit: true }, plain);
+
+    // Notes mode, then arm the green on the given 5 in r1c1 — the same way
+    // `GameView.sweep.test.tsx` starts a sweep.
+    await user.click(within(keypad()).getByRole('button', { name: 'Notes off' }));
+    await user.click(cell(0));
+
+    vi.useFakeTimers();
+    fireEvent.pointerDown(cell(2), { clientX: 10, clientY: 10 });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_MS + 10);
+    });
+    vi.useRealTimers();
+
+    // A note, and only a note. A placed digit would have removed the mark
+    // slots entirely, so their presence is the assertion.
+    expect(notes(2)).toEqual(['5']);
   });
 
   it('does nothing when the cell has two notes left', () => {

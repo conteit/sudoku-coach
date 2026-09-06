@@ -486,6 +486,19 @@ export function GameView({
   const promote = useCallback(
     (cell: CellIndex) => {
       if (!settings.promoteLoneNote) return;
+      /*
+       * Not while a sweep is armed. Mid-sweep a press on an empty cell already
+       * means "note the swept digit here", and `activateCell` writes that note
+       * on pointerdown — so without this the hold found a cell with exactly one
+       * mark, the one its own first half had just written, and placed it. A
+       * gesture the player meant as a note put a digit on the board.
+       *
+       * The two settings have to differentiate somewhere, and this is the
+       * honest place: during a sweep the grid's press belongs entirely to
+       * sweeping. The keypad's long press is untouched — it is what arms the
+       * green in the first place, and nothing on the grid competes with it.
+       */
+      if (sweptDigit !== null) return;
       const target = game.cells[cell];
       if (target === undefined || target.given || target.value !== null) return;
       if (target.candidates.size !== 1) return;
@@ -493,7 +506,7 @@ export function GameView({
       haptic('tap');
       place(cell, digit);
     },
-    [game.cells, settings.promoteLoneNote, place, haptic],
+    [game.cells, settings.promoteLoneNote, sweptDigit, place, haptic],
   );
 
   // "Speaking" is the panel having something the player asked for on screen.
