@@ -132,7 +132,19 @@ export default function App() {
       void Promise.all([
         useProfile.getState().hydrate(preferredLocale()),
         useGameStore.getState().hydrate(),
-      ]).catch(() => setStorageFailed(true));
+      ])
+        // The game `hydrate` restored is on screen, so its arrival dot has
+        // already done its job. Nothing else clears it — `seen()` is called
+        // when a row is *tapped*, and this game was never tapped — so without
+        // this the library keeps claiming it arrived and is unopened, for a
+        // game the player has been staring at. Sync's own hydrate runs
+        // alongside this one and can put an id in `changed` before the
+        // restore finishes, which is the race that makes it reachable.
+        .then(() => {
+          const restored = useGameStore.getState().activeGameId;
+          if (restored !== null) useSync.getState().seen(restored);
+        })
+        .catch(() => setStorageFailed(true));
     }
 
     // Idempotent, so returning to the app does not stack listeners.
@@ -220,6 +232,11 @@ export default function App() {
   };
 
   const exitGame = (): void => {
+    // Same rule on the way out, for the arrival that landed *while* the game
+    // was open: the toast announced it to a player who was already looking at
+    // the board, so the row they return to must not still be flagged unopened.
+    const leaving = useGameStore.getState().activeGameId;
+    if (leaving !== null) useSync.getState().seen(leaving);
     void useGameStore.getState().closeGame();
   };
 

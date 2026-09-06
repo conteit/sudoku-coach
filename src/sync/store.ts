@@ -176,8 +176,18 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
         const outcome = await syncOnce({ drive: driveFor(token), conn: deps.conn, now: deps.now });
         set({ status: 'idle', lastSyncedAt: outcome.at });
         if (appliedSomething(outcome)) {
-          if (outcome.downloadedIds.length > 0) {
-            set((state) => ({ changed: new Set([...state.changed, ...outcome.downloadedIds]) }));
+          if (outcome.downloadedIds.length > 0 || outcome.droppedLocalIds.length > 0) {
+            // Arrivals in, departures out, in one step. A game announced as
+            // having arrived and then deleted from another device would
+            // otherwise stay in `changed` forever: the toast would say a game
+            // was updated, and there would be no row anywhere to reconcile
+            // that claim against, because the deletion has already been
+            // applied locally. An id can only be in one of the two lists.
+            set((state) => {
+              const changed = new Set([...state.changed, ...outcome.downloadedIds]);
+              for (const id of outcome.droppedLocalIds) changed.delete(id);
+              return { changed };
+            });
           }
           // Order doesn't matter to the game store — each call reads storage
           // for itself — but the summary rebuild is what the library repaints
