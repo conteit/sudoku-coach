@@ -103,10 +103,16 @@ here so the next reader finds a decision rather than an oversight.
 string[]`, and the engine calls `.length` on them. `SyncOutcome` gains the id arrays alongside the
 counts.
 
-**Collected inside the loops, not copied from the plan.** Both the download loop and the
-`dropLocal` loop `continue` past ids that turn out not to be actionable — a manifest ahead of the
-folder, most obviously. The outcome must say what was *applied*, because the UI is about to tell a
-player something happened to those games, and a plan is an intention.
+**Collected inside the loops, not copied from the plan.** The download loop `continue`s past ids
+that turn out not to be actionable — a manifest naming a game whose file is not in the folder. The
+outcome must say what was *applied*, because the UI is about to tell a player something happened to
+those games, and a plan is an intention.
+
+The `dropLocal` loop has no such skip today: `deleteGame` is unconditional and idempotent, so every
+planned id is applied. Its ids are collected in the loop anyway, for the same reason and not
+because it currently differs — the rule is "report what happened", and a loop that grows a `continue`
+later should not silently start lying. The cost is that this half of the rule is unobservable, and
+therefore untestable, until it does.
 
 `SyncOutcome` is an internal type; no frozen contract moves.
 
