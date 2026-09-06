@@ -11,13 +11,36 @@
  */
 
 import { render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseGrid, formatGrid } from '../engine/board';
 import type { Difficulty } from '../engine/types';
 import { LocaleProvider } from '../i18n/react';
+import { useAccount } from '../state/account';
 import type { GameSummary } from '../state/db';
+import { useSync } from '../sync/store';
 import { LibraryView } from './LibraryView';
 import type { Tier } from './useViewportTier';
+
+// `authAvailable` and `syncAvailable` are pure reads of build-time env — the
+// real functions can't be flipped at runtime, so the sync control's gate can
+// only be exercised by overriding them. Defaulted to `false`, matching what
+// this test build's actual env produces, so every test above this one (and
+// any test in this block that doesn't opt in) sees exactly what it always
+// has. `useAccount` and `useSync` stay real: both are already exercised
+// elsewhere via `.setState`, and mocking them too would risk diverging from
+// how the store actually behaves.
+const gates = vi.hoisted(() => ({ auth: false, sync: false }));
+
+vi.mock('../state/account', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../state/account')>();
+  return { ...actual, authAvailable: () => gates.auth };
+});
+
+vi.mock('../sync/token', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../sync/token')>();
+  return { ...actual, syncAvailable: () => gates.sync };
+});
 
 // Same puzzle and construction `GameList.test.tsx`'s own `savedGame` factory
 // uses, widened to the full `state/db.GameSummary` shape `LibraryView`
@@ -74,6 +97,10 @@ function matchOnly(...matching: string[]) {
 
 afterEach(() => {
   window.matchMedia = defaultMatchMedia;
+  gates.auth = false;
+  gates.sync = false;
+  useAccount.setState({ account: null });
+  useSync.setState({ enabled: false, status: 'off', changed: new Set() });
 });
 
 function renderLibrary(options: { tier: Tier; summaries?: readonly GameSummary[] }) {
@@ -223,5 +250,98 @@ describe('LibraryView', () => {
       expect(pane.className).not.toContain('flex-1');
       unmount();
     }
+  });
+});
+
+describe('the sync control', () => {
+  const account = { uid: 'u1', email: 'someone@example.com', displayName: null };
+
+  it('is absent when sync is off or unavailable — the same rule Settings follows', () => {
+    // Default gates: nothing turned on, nobody signed in. This is also the
+    // state every test above this one renders in, so it is the baseline the
+    // rest of this block departs from.
+    renderLibrary({ tier: 'phone' });
+    expect(screen.queryByRole('button', { name: /sync/i })).toBeNull();
+  });
+
+  it('stays absent when the gates pass but the switch itself is off', () => {
+    gates.auth = true;
+    gates.sync = true;
+    useAccount.setState({ account });
+    useSync.setState({ enabled: false, status: 'off' });
+
+    renderLibrary({ tier: 'phone' });
+    expect(screen.queryByRole('button', { name: /sync/i })).toBeNull();
+  });
+
+  it('joins Learn and Settings in the cluster once sync is on and usable', () => {
+    gates.auth = true;
+    gates.sync = true;
+    useAccount.setState({ account });
+    useSync.setState({ enabled: true, status: 'idle' });
+
+    renderLibrary({ tier: 'phone' });
+    const sync = screen.getByRole('button', { name: 'Sync now' });
+    const settings = screen.getByRole('button', { name: 'Settings' });
+    // Inside the same cluster as Learn and Settings, not a third header
+    // child — the header itself still has exactly two children, which the
+    // tests above already pin down; this pins down where the third control
+    // actually lives.
+    expect(sync.parentElement).toBe(settings.parentElement);
+    expect(sync.closest('header')!.children).toHaveLength(2);
+  });
+
+  it('says a sync is running, and will not take a second tap while it is', () => {
+    gates.auth = true;
+    gates.sync = true;
+    useAccount.setState({ account });
+    useSync.setState({ enabled: true, status: 'syncing' });
+
+    renderLibrary({ tier: 'phone' });
+    const button = screen.getByRole('button', { name: 'Syncing…' });
+    expect(button).toBeDisabled();
+  });
+
+  it('triggers a sync from the tap', async () => {
+    gates.auth = true;
+    gates.sync = true;
+    useAccount.setState({ account });
+    useSync.setState({ enabled: true, status: 'idle' });
+    const syncNow = vi.spyOn(useSync.getState(), 'syncNow').mockResolvedValue(undefined);
+
+    const user = userEvent.setup();
+    renderLibrary({ tier: 'phone' });
+    await user.click(screen.getByRole('button', { name: 'Sync now' }));
+
+    expect(syncNow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('opening a game from the library', () => {
+  it("clears that game's mark, and no other game's", async () => {
+    // The spec's rule: a mark is earned off by being opened, not merely
+    // shown. Two ids are marked here so a mutant that clears the whole set
+    // (rather than just the one opened) has something to be caught by.
+    useSync.setState({ changed: new Set(['a', 'other']) });
+    const onResume = vi.fn();
+    matchOnly(...TIER_QUERIES.phone);
+    render(
+      <LocaleProvider locale="en">
+        <LibraryView
+          summaries={[summary({ id: 'a' })]}
+          onResume={onResume}
+          onNewGame={() => undefined}
+          onOpenSettings={() => undefined}
+          onLearn={() => undefined}
+        />
+      </LocaleProvider>,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /updated from another device/i }));
+
+    expect(onResume).toHaveBeenCalledWith('a');
+    expect(useSync.getState().changed.has('a')).toBe(false);
+    expect(useSync.getState().changed.has('other')).toBe(true);
   });
 });

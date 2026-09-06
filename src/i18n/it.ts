@@ -224,6 +224,7 @@ export const it: Dictionary = {
   'games.emptyBody': 'Inizia una griglia e ti aspetta qui, esattamente dove l’hai lasciata.',
   'games.resumeLabel': 'Riprendi la griglia {difficulty}, completata al {percent} per cento, {elapsed} di gioco',
   'games.justNow': 'proprio ora',
+  'games.updatedElsewhere': 'Aggiornata da un altro dispositivo.',
 
   'action.keepPlaying': 'Continua a giocare',
 

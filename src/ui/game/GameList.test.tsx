@@ -143,6 +143,44 @@ describe('the list', () => {
     expect(onResume).toHaveBeenCalledWith('b');
   });
 
+  it('says a game arrived from another device, in the row itself', () => {
+    // The row is one full-width button and its `aria-label` is the entire
+    // accessible name, so the clause has to live there rather than beside a
+    // (necessarily `aria-hidden`) dot — a signal only sighted players get is
+    // not a signal.
+    render(
+      <GameList
+        games={[savedGame({ id: 'a' }), savedGame({ id: 'b' })]}
+        now={NOW}
+        changed={new Set(['a'])}
+        onResume={() => undefined}
+        onNewGame={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /updated from another device/i }),
+    ).toBeInTheDocument();
+    // Only the one game the set actually names — the other row's name is
+    // unchanged.
+    expect(
+      screen.getAllByRole('button', { name: /updated from another device/i }),
+    ).toHaveLength(1);
+  });
+
+  it('says nothing extra when nothing changed', () => {
+    render(
+      <GameList
+        games={[savedGame({ id: 'a' })]}
+        now={NOW}
+        onResume={() => undefined}
+        onNewGame={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText(/updated from another device/i)).not.toBeInTheDocument();
+  });
+
   it('offers a new puzzle whether or not any are in progress', async () => {
     const user = userEvent.setup();
     const onNewGame = vi.fn();

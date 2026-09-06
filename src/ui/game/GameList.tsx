@@ -48,6 +48,12 @@ export interface GameListProps {
   /** Reference instant for the "updated" line; injectable so tests are stable. */
   now?: number;
   className?: string;
+  /**
+   * Ids pulled from another device this session, not yet opened. A prop, not
+   * a store read: this component stays presentational, and the caller is
+   * the one that knows which store — and which gate — those ids came from.
+   */
+  changed?: ReadonlySet<string>;
 }
 
 /** The difficulty label is part of the row's accessible name, so it is localized too. */
@@ -103,6 +109,7 @@ export function GameList({
   variant = 'active',
   now,
   className,
+  changed,
 }: GameListProps) {
   const locale = useLocale();
   const t = useT();
@@ -142,16 +149,24 @@ export function GameList({
             const elapsed = formatDuration(
               totalElapsed(game.elapsedMs, game.runningSince, reference),
             );
+            const arrived = changed?.has(game.id) ?? false;
+            const resumeLabel = t('games.resumeLabel', {
+              difficulty: t(DIFFICULTY_KEYS[game.difficulty]).toLocaleLowerCase(locale),
+              percent,
+              elapsed,
+            });
+            // The clause is appended, never folded into `resumeLabel` as a
+            // placeholder: the sentence one game gets is exactly the
+            // sentence every other game already has, plus one.
+            const label = arrived
+              ? `${resumeLabel} ${t('games.updatedElsewhere')}`
+              : resumeLabel;
             return (
               <li key={game.id}>
                 <button
                   type="button"
                   onClick={() => onResume(game.id)}
-                  aria-label={t('games.resumeLabel', {
-                    difficulty: t(DIFFICULTY_KEYS[game.difficulty]).toLocaleLowerCase(locale),
-                    percent,
-                    elapsed,
-                  })}
+                  aria-label={label}
                   className={cx(
                     'group flex w-full items-center gap-4 py-3.5 text-left',
                     'transition-colors duration-100 ease-snap hover:bg-paper-sunk',
@@ -174,6 +189,15 @@ export function GameList({
                       <span className="truncate">
                         {lastPlayed(locale, t, game.updatedAt, reference)}
                       </span>
+                      {arrived ? (
+                        // Decorative only — the row's entire accessible name
+                        // is `aria-label` above, so this dot must never be
+                        // the only place the signal lives.
+                        <span
+                          aria-hidden="true"
+                          className="size-1.5 shrink-0 rounded-full bg-coach"
+                        />
+                      ) : null}
                     </span>
                   </span>
 
