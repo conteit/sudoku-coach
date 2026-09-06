@@ -11,7 +11,7 @@
 // Dexie captures the global `indexedDB` on import and `GameView` reaches it
 // transitively — same reasoning as `GameView.layout.test.tsx`.
 import 'fake-indexeddb/auto';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
@@ -46,9 +46,17 @@ function gameWithDeadNote(): LiveGame {
 
 const defaultMatchMedia = window.matchMedia;
 
+// Pinned to the phone tier rather than "matches nothing" (which
+// `useViewportTier`'s own fallback reads as `tablet`): the sheet-vs-panel bug
+// this file's reopen test exists to catch only exists on a phone, where the
+// sheet IS the coach panel. Mirrors `useViewportTier.ts`'s own query string
+// rather than a new one, the same reasoning `GameView.layout.test.tsx`'s
+// `matchOnly` gives for doing the same thing.
+const PHONE_QUERY = '(max-width: 639.98px)';
+
 beforeEach(() => {
   window.matchMedia = ((query: string) => ({
-    matches: false,
+    matches: query === PHONE_QUERY,
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
@@ -115,16 +123,7 @@ function cell(index: number): HTMLElement {
 
 
 describe('fixing the notes the check found', () => {
-  /*
-   * The wait is a second over the default, not because this is slow — a check
-   * sweeps the detector catalog in 2-7ms — but because it renders the whole
-   * game screen twice over. An earlier version of this test carried fifteen
-   * seconds, on a diagnosis of "CI is loaded" that turned out to be wrong
-   * twice: what actually failed was a race in the re-check and a fixture that
-   * emptied the only noted cell. Both are fixed; the budget goes back to
-   * something ordinary, so the next real failure fails fast.
-   */
-  it('applies the issues on screen, then reports the board as it now is', async () => {
+  it('applies the issues on screen, then ages the same report against the fixed board', async () => {
     // r1c3 gets a 5 it cannot hold — r1c1 is a given 5 — and misses digits it
     // can. The check names both kinds; one press settles them.
     const game = reduce(
@@ -155,17 +154,15 @@ describe('fixing the notes the check found', () => {
     expect(cell(2).textContent).not.toContain('5');
     expect(cell(2).textContent).toContain('4');
 
-    // And the report is re-run rather than left describing a board that has
-    // moved. Awaited, because the re-check is deliberately deferred a render:
-    // `checkMarks` closes over the board of the render it came from, so it
-    // has to wait for the one holding the fixed board. Asserting the button's
-    // absence synchronously passed on a fast machine and failed on CI — the
-    // wait is the honest reading of a re-check that was never synchronous.
-    expect(
-      await screen.findByText(/notes are exactly right/, undefined, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    // The report is never re-run — it is aged. Every issue it originally
+    // found was about r1c3, and the fix just applied settles every one of
+    // them, so the aged reading says "All fixed" rather than the "exactly
+    // right" a fresh, empty check would say. That distinction is the point of
+    // this task: the list still shows what was found, struck through, not a
+    // report that silently reset itself.
+    expect(await screen.findByText('All fixed.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fix them all' })).toBeNull();
-  }, 10_000);
+  });
 
   it('takes one undo to put the notes back exactly as they were', async () => {
     const game = reduce(
@@ -186,5 +183,38 @@ describe('fixing the notes the check found', () => {
     await user.click(screen.getByRole('button', { name: 'Undo' }));
 
     expect(cell(2).textContent).toContain('5');
+  });
+});
+
+describe('the sheet as a viewport rather than a lifecycle event', () => {
+  it('keeps the note check across closing and reopening the sheet', async () => {
+    // On a phone the sheet IS the panel, so closing it must be a viewport
+    // change and not a lifecycle event. This is the bug in one test: run a
+    // check, close, reopen, and the reading must still be there.
+    const { user } = renderGame();
+
+    // `gameWithDeadNote` raises the `stale_marks` nudge (a placement just
+    // killed a note), so the trigger button carries `coach.openWaiting`
+    // rather than the plain `coach.open` — a regex over both rather than
+    // pinning one, per `coach.open`/`coach.openWaiting` in `src/i18n/en.ts`.
+    await user.click(screen.getByRole('button', { name: /^Coach/ }));
+    await user.click(screen.getByRole('button', { name: 'Check my notes' }));
+    // r1c3 is the only noted cell on the board. The placement in r1c4 makes
+    // its noted 9 invalid, and the check also finds a genuine 2 the player
+    // never noted — two open issues, not a clean report. (Verified against
+    // the rendered report rather than assumed: an earlier draft of this test
+    // guessed "1 of 1" and the fixture actually produces "2 of 2".)
+    const reading = screen.getByText('2 of 2 still to fix.');
+    expect(reading).toBeInTheDocument();
+
+    // Forcing the phone tier (see `beforeEach` above) makes the sheet a real
+    // `dialog` with a backdrop button of its own, and both it and the
+    // panel's own X share the accessible name "Close" — scoped to the
+    // dialog to press the panel's, not the backdrop's.
+    const dialog = screen.getByRole('dialog', { name: 'Coach' });
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: /^Coach/ }));
+
+    expect(screen.getByText('2 of 2 still to fix.')).toBeInTheDocument();
   });
 });

@@ -14,7 +14,8 @@
  */
 
 import type { CellIndex, Digit, TechniqueId } from '../../engine/types';
-import type { CandidateReview, Hint, TeachableTrigger } from '../../coach/types';
+import type { Hint, TeachableTrigger } from '../../coach/types';
+import type { ReviewProgress, TrackedIssue } from '../../coach/reviewProgress';
 import type { DisclosureLevel } from '../../state/types';
 import { cellName } from '../../engine/board';
 import { Button } from '../primitives/Button';
@@ -54,8 +55,14 @@ export interface CoachPanelProps {
   onAsk: () => void;
   /** Take one more rung of the ladder. */
   onEscalate: () => void;
-  /** Result of the pencil-mark check, when the player has run one (R8). */
-  review?: CandidateReview | null;
+  /**
+   * The pencil-mark check (R8), aged against the board since it was run.
+   *
+   * A `ReviewProgress` rather than the raw report: the panel is a renderer and
+   * has no business knowing about boards or candidates, which is the same
+   * division `reviewProgress.ts` and `candidates.ts` have between them.
+   */
+  progress?: ReviewProgress | null;
   onReviewCandidates?: () => void;
   /** Hover/focus on an issue asks the board to spotlight its witnesses. */
   onSpotlight?: (cells: CellIndex[]) => void;
@@ -191,39 +198,44 @@ function Ladder({ level }: { level: DisclosureLevel }) {
 }
 
 function IssueList({
-  review,
+  progress,
   onSpotlight,
 }: {
-  review: CandidateReview;
+  progress: ReviewProgress;
   onSpotlight?: (cells: CellIndex[]) => void;
 }) {
   const t = useT();
   // "All 0 cells checked — your notes are exactly right" is true and useless:
   // a player with no notes was told they had done something perfectly.
-  if (review.checkedCells === 0) {
+  if (progress.checkedCells === 0) {
     return <p className="py-3 text-sm text-ink-soft">{t('coach.marksNone')}</p>;
   }
 
-  if (review.issues.length === 0) {
-    return (
+  if (progress.total === 0) {
+    return progress.reported === 0 ? (
       <p className="flex items-center gap-2 py-3 text-sm text-match">
         <CheckIcon className="text-base" />
-        {t('coach.marksAllClean', { count: review.checkedCells })}
+        {t('coach.marksAllClean', { count: progress.checkedCells })}
       </p>
+    ) : (
+      // Everything that check found has retired rather than been fixed: the
+      // board moved under it, so the report can no longer prove any of it.
+      // Saying "your notes are exactly right" here would be claiming something
+      // it explicitly gave up on.
+      <p className="py-3 text-sm text-ink-soft">{t('coach.marksNothingLeft')}</p>
     );
   }
 
   return (
     <>
       <p className="py-2.5 text-sm text-ink-soft">
-        {t('coach.marksNeedLook', {
-          count: review.issues.length,
-          total: review.checkedCells,
-        })}{' '}
+        {progress.open === 0
+          ? t('coach.marksAllFixed')
+          : t('coach.marksProgress', { open: progress.open, total: progress.total })}{' '}
         <span className="text-ink-faint">{t('coach.marksUnchanged')}</span>
       </p>
       <ul className="divide-y divide-rule border-t border-rule">
-        {review.issues.map((issue) => (
+        {progress.items.map(({ issue, state }: TrackedIssue) => (
           <li key={`${issue.cell}-${issue.digit}-${issue.kind}`}>
             <button
               type="button"
@@ -231,23 +243,39 @@ function IssueList({
               onFocus={() => onSpotlight?.([issue.cell, ...issue.witness])}
               onMouseLeave={() => onSpotlight?.([])}
               onBlur={() => onSpotlight?.([])}
-              className="flex w-full items-start gap-3 py-2.5 text-left transition-colors duration-100 ease-snap hover:bg-paper-sunk"
+              className={cx(
+                'flex w-full items-start gap-3 py-2.5 text-left transition-colors duration-100 ease-snap hover:bg-paper-sunk',
+                // A fixed row stays legible rather than going decorative: the
+                // player is reading it to see what they have already done.
+                state === 'fixed' && 'opacity-60',
+              )}
             >
-              <AlertIcon
-                className={cx(
-                  'mt-0.5 shrink-0 text-base',
-                  issue.kind === 'invalid' ? 'text-danger' : 'text-coach',
-                )}
-              />
+              {state === 'fixed' ? (
+                <CheckIcon className="mt-0.5 shrink-0 text-base text-match" />
+              ) : (
+                <AlertIcon
+                  className={cx(
+                    'mt-0.5 shrink-0 text-base',
+                    issue.kind === 'invalid' ? 'text-danger' : 'text-coach',
+                  )}
+                />
+              )}
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-1.5">
-                  <span className="font-medium text-sm text-ink tabular-nums">
+                  <span
+                    className={cx(
+                      'font-medium text-sm text-ink tabular-nums',
+                      state === 'fixed' && 'line-through',
+                    )}
+                  >
                     {cellName(issue.cell)}
                   </span>
                   <span className="text-[0.6875rem] font-semibold tracking-[0.1em] text-ink-soft uppercase">
-                    {issue.kind === 'invalid'
-                      ? t('coach.tagInvalid', { digit: issue.digit })
-                      : t('coach.tagMissing', { digit: issue.digit })}
+                    {state === 'fixed'
+                      ? t('coach.tagFixed')
+                      : issue.kind === 'invalid'
+                        ? t('coach.tagInvalid', { digit: issue.digit })
+                        : t('coach.tagMissing', { digit: issue.digit })}
                   </span>
                 </span>
                 <span className="mt-0.5 block text-sm text-ink-soft">{issue.reason}</span>
@@ -265,7 +293,7 @@ export function CoachPanel({
   techniqueLabel,
   onAsk,
   onEscalate,
-  review,
+  progress,
   onReviewCandidates,
   onSpotlight,
   exhausted = false,
@@ -518,16 +546,17 @@ export function CoachPanel({
         ) : null}
       </div>
 
-      {review ? (
+      {progress ? (
         <div className="border-t border-rule px-4 pb-4">
           <h3 className="pt-3 text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
             {t('coach.notesHeading')}
           </h3>
-          <IssueList review={review} onSpotlight={onSpotlight} />
+          <IssueList progress={progress} onSpotlight={onSpotlight} />
           {/* Under the list, not above it: the offer to apply them all only
               makes sense once the player has had the chance to read what
-              "them" is. A clean report has nothing to apply. */}
-          {onFixNotes && review.issues.length > 0 ? (
+              "them" is. Gated on what is still open — a report the player has
+              already worked through has nothing left to apply. */}
+          {onFixNotes && progress.open > 0 ? (
             <Button variant="secondary" size="lg" block className="mt-3" onClick={onFixNotes}>
               {t('action.fixNotes')}
             </Button>

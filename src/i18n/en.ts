@@ -311,4 +311,8 @@ export const en = {
   'coach.rewind.unnoted': 'took the note {digit} off {cell}',
   'coach.rewind.notedAll': 'filled in the notes in {cell}',
   'coach.rewind.unnotedAll': 'cleared the notes in {cell}',
+  'coach.marksProgress': '{open} of {total} still to fix.',
+  'coach.marksAllFixed': 'All fixed.',
+  'coach.tagFixed': 'fixed',
+  'coach.marksNothingLeft': 'Nothing from that check still applies — the board has moved on. Run it again for a fresh reading.',
 } as const;

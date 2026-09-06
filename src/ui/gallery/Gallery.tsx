@@ -27,7 +27,7 @@ import { Toggle } from '../primitives/Toggle';
 import { Sheet } from '../primitives/Sheet';
 import { cx } from '../primitives/cx';
 import { MoonIcon, PencilIcon, PlusIcon, SunIcon } from '../primitives/icons';
-import { DEMO_CONFLICTS, DEMO_HINTS, DEMO_REVIEW, demoCells, demoGames } from './mocks';
+import { DEMO_CONFLICTS, DEMO_HINTS, DEMO_PROGRESS, demoCells, demoGames } from './mocks';
 
 type ThemeChoice = 'system' | 'light' | 'dark';
 
@@ -391,7 +391,7 @@ export function Gallery() {
                 hint={hint}
                 onAsk={() => setLevel(1)}
                 onEscalate={() => setLevel((l) => (l < 4 ? ((l + 1) as 1 | 2 | 3 | 4) : l))}
-                review={showReview ? DEMO_REVIEW : null}
+                progress={showReview ? DEMO_PROGRESS : null}
                 onReviewCandidates={() => setShowReview(true)}
                 onSpotlight={setSpotlight}
               />
