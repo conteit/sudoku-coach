@@ -117,6 +117,7 @@ vi.mock('./app/NewGameSheet', () => ({ NewGameSheet: () => null }));
 vi.mock('./app/SettingsSheet', () => ({ SettingsSheet: () => null }));
 vi.mock('./app/OfflineNotice', () => ({ OfflineNotice: () => null }));
 vi.mock('./app/SyncNotice', () => ({ SyncNotice: () => <div>sync notice</div> }));
+vi.mock('./app/SyncToast', () => ({ SyncToast: () => null }));
 
 const { default: App } = await import('./App');
 

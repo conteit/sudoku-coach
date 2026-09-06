@@ -38,6 +38,7 @@ import { useRoute } from './app/useRoute';
 import { NewGameSheet } from './app/NewGameSheet';
 import { OfflineNotice } from './app/OfflineNotice';
 import { SyncNotice } from './app/SyncNotice';
+import { SyncToast } from './app/SyncToast';
 import { SettingsSheet } from './app/SettingsSheet';
 
 export default function App() {
@@ -329,6 +330,12 @@ export default function App() {
           over a board covers either the grid or the controls. Sync being
           paused is worth knowing and is never worth a swallowed tap. */}
       {activeGame === null ? <SyncNotice /> : null}
+
+      {/* The opposite of the two notices above: it has nothing to say in the
+          library, where the per-game dots (a later task) already show what
+          moved, and everything to say inside a game, which is the one place
+          a silent arrival from another device would otherwise go unnoticed. */}
+      {activeGame !== null ? <SyncToast /> : null}
 
       <SettingsSheet
         open={showSettings}
