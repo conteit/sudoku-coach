@@ -34,16 +34,52 @@ export interface LearnViewProps {
   /** Opens straight onto one technique — the coach panel links in this way. */
   technique?: TechniqueId | null;
   onClose: () => void;
+  /**
+   * Into the practice grids: a technique to drill, or null for the mixed
+   * exercise where naming the technique is itself the first question.
+   *
+   * Required rather than optional, so a screen that renders Learn has to
+   * decide what practice means there. Reading is the half of Learn that
+   * already worked; leaving the other half quietly un-wired is the failure
+   * mode an optional prop invites.
+   */
+  onPractise: (technique: TechniqueId | null) => void;
+}
+
+/**
+ * The way from reading a technique to trying it.
+ *
+ * Under the lesson rather than beside its title: the offer only makes sense
+ * to someone who has read what the pattern is, and a button above the prose
+ * is an invitation to skip it.
+ */
+function PractiseButton({ technique, onPractise }: {
+  technique: TechniqueId | null;
+  onPractise: (technique: TechniqueId | null) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="mt-8 flex flex-col gap-1.5 border-t border-rule pt-6">
+      <Button variant="coach" size="lg" block onClick={() => onPractise(technique)}>
+        {technique === null ? t('exercise.startOpen') : t('exercise.start')}
+      </Button>
+      <p className="text-xs leading-relaxed text-ink-soft">
+        {technique === null ? t('exercise.openIntro') : t('exercise.untracked')}
+      </p>
+    </div>
+  );
 }
 
 function TechniquePage({
   id,
   profile,
   onBack,
+  onPractise,
 }: {
   id: TechniqueId;
   profile: PlayerProfile;
   onBack: () => void;
+  onPractise: (technique: TechniqueId | null) => void;
 }) {
   const t = useT();
 
@@ -61,11 +97,12 @@ function TechniquePage({
           />
         }
       />
+      <PractiseButton technique={id} onPractise={onPractise} />
     </article>
   );
 }
 
-export function LearnView({ profile, technique = null, onClose }: LearnViewProps) {
+export function LearnView({ profile, technique = null, onClose, onPractise }: LearnViewProps) {
   const t = useT();
   const tier = useViewportTier();
   const [open, setOpen] = useState<TechniqueId | null>(technique);
@@ -83,6 +120,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
             id={open}
             profile={profile}
             onBack={() => (technique === null ? setOpen(null) : onClose())}
+            onPractise={onPractise}
           />
         </div>
       );
@@ -114,6 +152,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
             the column and has nothing to be separated from. */}
         <div className="border-t border-rule pt-6">
           <TechniqueIndex profile={profile} onOpen={setOpen} />
+          <PractiseButton technique={null} onPractise={onPractise} />
         </div>
 
         <div className="pt-8">
@@ -173,6 +212,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
               onOpen={setOpen}
               titleId={TECHNIQUES_NAV_TITLE}
             />
+            <PractiseButton technique={null} onPractise={onPractise} />
           </nav>
         }
         right={
@@ -218,6 +258,7 @@ export function LearnView({ profile, technique = null, onClose }: LearnViewProps
                 }
               />
             )}
+            {open === null ? null : <PractiseButton technique={open} onPractise={onPractise} />}
           </main>
         }
       />

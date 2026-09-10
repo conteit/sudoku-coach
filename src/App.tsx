@@ -31,6 +31,7 @@ import type {
 import { GameView } from './app/GameView';
 import { LandingView } from './app/LandingView';
 import { DatabaseBlockedNotice } from './app/DatabaseBlockedNotice';
+import { ExerciseView } from './app/ExerciseView';
 import { LearnView } from './app/LearnView';
 import { LegalView } from './app/LegalView';
 import { LibraryView } from './app/LibraryView';
@@ -101,6 +102,16 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   /** null = Learn is closed; a technique = opened straight onto that lesson. */
   const [learning, setLearning] = useState<{ technique: TechniqueId | null } | null>(null);
+  /*
+   * A practice grid, and which technique it drills — null for the mixed
+   * exercise. Held *beside* `learning` rather than inside it so leaving an
+   * exercise lands back on the lesson it was started from: the Learn screen
+   * underneath was never closed, it was only covered.
+   *
+   * Nothing about an exercise is persisted, so there is nothing here to
+   * hydrate or restore — a reload ends it, which is what "on the fly" means.
+   */
+  const [practising, setPractising] = useState<{ technique: TechniqueId | null } | null>(null);
 
   useEffect(() => watchDatabaseBlock(setBlock), []);
 
@@ -311,11 +322,25 @@ export default function App() {
         // who has never played sees the same page as one with four saved
         // puzzles, and "Start" is what moves them.
         <LandingView onStart={startFromLanding} onNavigate={go} />
+      ) : practising !== null ? (
+        // Above Learn, because it opens over it: `learning` stays set, so
+        // closing the exercise reveals the lesson it came from rather than
+        // rebuilding a screen the player never left.
+        <ExerciseView
+          technique={practising.technique}
+          profile={profile}
+          onExit={() => setPractising(null)}
+          onLearn={(technique) => {
+            setPractising(null);
+            setLearning({ technique });
+          }}
+        />
       ) : learning !== null ? (
         <LearnView
           profile={profile}
           technique={learning.technique}
           onClose={() => setLearning(null)}
+          onPractise={(technique) => setPractising({ technique })}
         />
       ) : activeGame !== null ? (
         <GameView

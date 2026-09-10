@@ -49,6 +49,17 @@ export interface NewGameInput {
   id?: string;
   /** Games start paused; the store resumes the one the player is looking at. */
   running?: boolean;
+  /**
+   * Pencil marks to start with, per cell. Empty for every ordinary game.
+   *
+   * Invariant 1 says the engine never silently writes a player's marks, and
+   * this does not: there is no player yet. It exists for the Learn exercises,
+   * whose whole premise is a position with the candidates already worked out
+   * (`engine/exercise.ts`) — seeding them here rather than dispatching eighty
+   * `addCandidate` moves is what keeps the exercise's undo stack empty, so
+   * the first thing a player can undo is the first thing they did.
+   */
+  candidates?: readonly (readonly Digit[])[];
 }
 
 export type GameAction =
@@ -133,7 +144,11 @@ export function newGame(input: NewGameInput): LiveGame {
     difficulty: input.difficulty,
     givens: input.givens,
     solution: input.solution,
-    cells: values.map((value) => ({ value, given: value !== null, candidates: new Set<Digit>() })),
+    cells: values.map((value, cell) => ({
+      value,
+      given: value !== null,
+      candidates: new Set<Digit>(value === null ? (input.candidates?.[cell] ?? []) : []),
+    })),
     undoStack: [],
     redoStack: [],
     elapsedMs: 0,

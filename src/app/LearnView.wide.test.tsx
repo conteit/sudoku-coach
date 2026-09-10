@@ -56,7 +56,12 @@ function renderLearn(options: {
   const onClose = options.onClose ?? vi.fn();
   const result = render(
     <LocaleProvider locale="en">
-      <LearnView profile={PROFILE} technique={options.technique} onClose={onClose} />
+      <LearnView
+        profile={PROFILE}
+        technique={options.technique}
+        onClose={onClose}
+        onPractise={vi.fn()}
+      />
     </LocaleProvider>,
   );
   return { ...result, user, onClose };
