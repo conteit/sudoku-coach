@@ -136,7 +136,11 @@ describe('the wide screens', () => {
     matchOnly(...TIER_QUERIES.desktop);
     const learn = render(
       <LocaleProvider locale="en">
-        <LearnView profile={{ ...DEFAULT_PROFILE, locale: 'en' }} onClose={() => undefined} />
+        <LearnView
+          profile={{ ...DEFAULT_PROFILE, locale: 'en' }}
+          onClose={() => undefined}
+          onPractise={() => undefined}
+        />
       </LocaleProvider>,
     );
     for (const node of ancestorsOfPanes(learn.container)) {
@@ -155,7 +159,11 @@ describe('the wide screens', () => {
     matchOnly(...TIER_QUERIES.desktop);
     render(
       <LocaleProvider locale="en">
-        <LearnView profile={{ ...DEFAULT_PROFILE, locale: 'en' }} onClose={() => undefined} />
+        <LearnView
+          profile={{ ...DEFAULT_PROFILE, locale: 'en' }}
+          onClose={() => undefined}
+          onPractise={() => undefined}
+        />
       </LocaleProvider>,
     );
 
@@ -183,7 +191,11 @@ describe('the wide screens', () => {
     matchOnly(...TIER_QUERIES.laptop);
     const learn = render(
       <LocaleProvider locale="en">
-        <LearnView profile={{ ...DEFAULT_PROFILE, locale: 'en' }} onClose={() => undefined} />
+        <LearnView
+          profile={{ ...DEFAULT_PROFILE, locale: 'en' }}
+          onClose={() => undefined}
+          onPractise={() => undefined}
+        />
       </LocaleProvider>,
     );
     const learnGap = headerGapPx(learn.container);

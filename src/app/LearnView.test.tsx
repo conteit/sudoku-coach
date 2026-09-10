@@ -23,14 +23,14 @@ beforeEach(() => {
 
 describe('LearnView', () => {
   it('lists every technique with its mastery state', () => {
-    renderWithLocale(<LearnView profile={PROFILE} onClose={vi.fn()} />);
+    renderWithLocale(<LearnView profile={PROFILE} onClose={vi.fn()} onPractise={vi.fn()} />);
     expect(screen.getByRole('heading', { name: /techniques/i })).toBeTruthy();
     expect(screen.getAllByRole('button').length).toBeGreaterThan(10);
   });
 
   it('opens a technique page and comes back', async () => {
     const user = userEvent.setup();
-    renderWithLocale(<LearnView profile={PROFILE} onClose={vi.fn()} />);
+    renderWithLocale(<LearnView profile={PROFILE} onClose={vi.fn()} onPractise={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: /naked single/i }));
     expect(screen.getByRole('article')).toBeTruthy();
   });
