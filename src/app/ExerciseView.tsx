@@ -162,7 +162,20 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
     };
   }, [technique, attempt, generate, generateNeeding]);
 
-  const drilled = session?.finding.technique ?? null;
+  const stage = session?.stage.kind ?? null;
+  const naming = stage === 'naming';
+  const working = stage === 'applying' || stage === 'solved';
+
+  /*
+   * The technique, but only once naming it is no longer the question.
+   *
+   * `session.finding` is set the moment the grid is built, so in the mixed
+   * exercise it holds the answer while the screen is still asking for it.
+   * Reading it straight put the technique's name in the heading over
+   * "which technique moves this board on?", and the lesson beside it — the
+   * question answered twice before it was asked.
+   */
+  const drilled = naming ? null : (session?.finding.technique ?? null);
   const key = session === null ? '' : findingKey(session.finding);
 
   // A new grid, or a newly named technique in the mixed exercise, is a new
@@ -186,10 +199,6 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
     },
     [session, locale],
   );
-
-  const stage = session?.stage.kind ?? null;
-  const naming = stage === 'naming';
-  const working = stage === 'applying' || stage === 'solved';
 
   // The sheet is the panel on a phone, so the two moments that *are* the
   // panel — the question in the mixed exercise, and the answer at the end —
@@ -292,16 +301,25 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
   }
 
   const header = (
-    <header className="flex items-start gap-2 px-3 pt-3 pb-2 sm:px-0">
-      <IconButton label={t('action.back')} icon={<ChevronLeftIcon />} onClick={onExit} />
+    // Laid out like Learn's header, which is the screen this one is reached
+    // from: back control, then a title block. `flex-none` on the button is
+    // the whole difference between that and a `<` stretched across half the
+    // width — `IconButton` defaults to `flex-1` for the keypad's tool row.
+    <header className="flex items-start gap-3 px-3 pt-4 pb-2 sm:px-0">
+      <IconButton
+        label={t('action.back')}
+        icon={<ChevronLeftIcon />}
+        className="flex-none"
+        onClick={onExit}
+      />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base font-semibold text-ink">{title}</h1>
+        <h1 className="truncate font-display text-2xl leading-none text-ink">{title}</h1>
         {/* Two lines, always, whatever it is saying. See the module comment:
             this is the box invariant 9 would otherwise be at the mercy of. */}
         <p
           aria-live="polite"
           className={cx(
-            'h-10 overflow-hidden text-sm leading-5',
+            'mt-1.5 h-10 overflow-hidden text-sm leading-5',
             session.feedback === null ? 'text-ink-soft' : 'font-medium text-coach',
           )}
         >
@@ -313,7 +331,7 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
         icon={<TargetIcon />}
         onClick={() => setSheetOpen((open) => !open)}
         pressed={sheetOpen}
-        className="sm:hidden"
+        className="flex-none sm:hidden"
       />
     </header>
   );

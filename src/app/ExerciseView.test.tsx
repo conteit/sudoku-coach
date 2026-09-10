@@ -68,8 +68,13 @@ const show = (technique: TechniqueId | null) =>
 const cell = (index: CellIndex) =>
   screen.getByRole('gridcell', { name: new RegExp(`^${cellName(index)},`) });
 
-/** The prompt and every refusal share one live region in the header. */
-const message = () => screen.getByRole('heading', { level: 1 }).parentElement!.textContent ?? '';
+/**
+ * The prompt and every refusal share one live region in the header, beside
+ * the title. Read the region alone: the title sits in the same block, and a
+ * test that swept it up would pass on a heading that said the wrong thing.
+ */
+const message = () =>
+  screen.getByRole('heading', { level: 1 }).nextElementSibling?.textContent ?? '';
 
 beforeEach(() => {
   window.innerWidth = 375;
@@ -195,6 +200,26 @@ describe('the mixed exercise', () => {
     const panel = await screen.findByRole('dialog', { name: 'Practice' });
     await user.click(within(panel).getByRole('button', { name: drawn().absent }));
     expect(message()).toContain('not on this grid');
+  });
+
+  it('does not name the technique in the heading it is asking about', async () => {
+    // The screen used to read its own answer off `session.finding`, which is
+    // set the moment the grid is built: the heading said "Naked pair" over
+    // the question "which technique moves this board on?".
+    show(null);
+    await screen.findByRole('grid');
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Mixed practice');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).not.toBe(drawn().applies);
+  });
+
+  it('names the technique in the heading once the player has named it', async () => {
+    const user = userEvent.setup();
+    show(null);
+    const panel = await screen.findByRole('dialog', { name: 'Practice' });
+    await user.click(within(panel).getByRole('button', { name: drawn().applies }));
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(drawn().applies);
   });
 
   it('takes a technique that genuinely applies and drills that one', async () => {

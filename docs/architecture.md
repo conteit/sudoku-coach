@@ -532,6 +532,22 @@ about the solution, which invariant 2 does not allow an exercise to make. The
 reducer returns a code and the screen turns it into a sentence, so no rule
 here holds a locale.
 
+**The mixed exercise must not answer itself.** `session.finding` is set the
+moment the grid is built, so the technique is known to the screen while
+naming it is still the question. Reading it straight put the name in the
+heading over "which technique moves this board on?", and its lesson in the
+column beside it. The technique is therefore derived as *null until the
+naming stage is past* — the one piece of state on this screen that is
+deliberately harder to read than it needs to be.
+
+**The offer to practise sits at the bottom of the content pane, and
+practises whatever that pane is about.** So the mixed exercise ends Learn's
+intro and a technique's ends its lesson, never both at once. It hung off the
+technique index too at first, which on a wide screen put "mixed practice" in
+the left column level with "practise this technique" in the right: two
+near-identical buttons side by side meaning different things. The nav is for
+navigating.
+
 **The prompt lives in the screen's header, not in the panel.** On a phone the
 panel is a sheet the player opens — `GameView`'s pattern, and invariant 9's
 sanctioned answer to a narrow screen — and the one line saying what to do
