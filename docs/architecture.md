@@ -68,6 +68,7 @@ dependency.
 | `src/engine/solver.ts` | Logical solver + solution counter (early exit at 2) | board, techniques |
 | `src/engine/generator.ts` | Full-grid generation, clue digging, uniqueness, difficulty rating | solver |
 | `src/engine/generator.worker.ts` | Worker wrapper; the UI never generates on the main thread | generator |
+| `src/engine/exercise.ts` | Where along a solve path a technique becomes the move | solver, techniques |
 | `src/state/types.ts` | **Frozen contracts.** Move, Game, PlayerProfile, CoachExchange | engine/types |
 | `src/state/game.ts` | Game reducer, move log, undo/redo, timer | state/types |
 | `src/state/db.ts` | Dexie schema + migrations | state/types |
@@ -77,6 +78,7 @@ dependency.
 | `src/coach/lessons/{en,it}.json` | Authored lesson library — reviewed like code | — |
 | `src/coach/coach.ts` | Disclosure ladder, hint rendering, teachable triggers | techniques, lessons |
 | `src/coach/candidates.ts` | Pencil-mark diff against true candidates | board |
+| `src/coach/roles.ts` | What each cell of a pattern is doing — hinge, arms, corners | engine |
 | `src/state/profile.ts` | Profile store: locale, settings, mastery. Write-through | db, mastery |
 | `src/i18n/` | Flat dotted dictionary, `t()`, and the locale React context | state/types |
 | `src/ui/` | Presentational components: grid, keypad, game list, coach panel | engine, state, i18n |
@@ -141,6 +143,8 @@ sync shipped, and nothing has needed them to change since.
 | `SettingsSheet.tsx` | Language, theme, conflict flagging, haptics |
 | `OfflineNotice.tsx` | Says once when the precache makes offline play real, and once after an update |
 | `serviceWorker.ts` | Registers the worker, checks for a new build on resume, marks that one took over |
+| `ExerciseView.tsx` | The practice grid: the question, the board it is asked on, and the way out |
+| `exerciseSession.ts` | The rules of one exercise, as a pure reducer around the game reducer |
 | `useCoachSession.ts` | The ladder, the note check, teachable nudges, and mastery credit |
 | `useGenerator.ts` | One worker per mounted app, aborted when nobody is waiting |
 
@@ -461,6 +465,79 @@ has already read the front door.
     removes the variant where nobody chose anything; it does not touch the
     one where someone did. Paolo was shown this trade and took it knowingly —
     it is written here so the next reader finds a decision, not an oversight.
+
+14. **An exercise is not a game, and nothing it does is kept.** A practice
+    grid is generated, worked and thrown away. It writes no Dexie row, no
+    store entry, no mastery credit, no sync payload and no coach log that
+    outlives the screen — a reload ends it, which is what "on the fly" means.
+    `LiveGame` is used as the board because the reducer already knows how to
+    undo, and that is the whole of the exercise's involvement with `state/`;
+    `App` holds it beside `learning` rather than inside it, so leaving an
+    exercise reveals the lesson it was started from instead of rebuilding a
+    screen the player never left.
+
+    Mastery in particular is deliberate rather than overlooked. The mastery
+    model reads "applied unaided" off a board the player chose to play, and a
+    drill that hands over the position, the marks and the name of the pattern
+    is not that evidence. Counting it would inflate the one number the coach
+    uses to decide what to teach next.
+
+    Every filled cell of the position is a **given**. The position is the
+    premise of the question, and a player who could edit the cells the pattern
+    rests on would be drilling a board that no longer contains it.
+
+## Learn exercises
+
+A practice grid is a board frozen at the moment one technique is the way
+forward, with the candidates already written in, and a question attached:
+point at the cells playing each role, then do what the pattern proves. It is
+reached from a technique's lesson page ("practise this") or from the index as
+the **mixed** exercise, where naming the technique is itself the first
+question.
+
+**The marks are the solve path's candidates, not the board's.** This is the
+decision the whole feature rests on and it is not the obvious one. Taking the
+values at that step and pencilling in `Board.trueCandidates` does not work:
+basic candidates are a *superset* of what a solver has proved by the time a
+hard technique fires, so the pattern usually is not there at all — an XY-Wing
+needs bivalue cells, and a cell only becomes bivalue once something took the
+third digit off it — and where it survives, a naked single elsewhere is
+available too, which makes the position a drill in spotting a single. Measured
+over 12 generated puzzles per technique, judging positions that way found the
+technique in **0 of 12 for nine of the fourteen**, against solve paths that had
+genuinely used them. So an exercise carries the `CandidateGrid`'s own state.
+Every mark missing from it was removed by a proof, so the position is sound
+and it is the one a player reaches by working the puzzle honestly.
+
+The cost is that **the coach cannot re-derive the step**: `createCoach` builds
+from values alone (invariant 3b) and would be looking at basic candidates
+again. It does not need to. The finding is known, and `renderHint` is a pure
+function of a finding, so an exercise carries its own step and asks the coach
+to explain that one. The ladder, the four rungs and the refusal to name a
+digit are `CoachPanel` and `renderHint` unchanged — an exercise asks the coach
+exactly what a game asks it.
+
+**A position may be shared with an easier technique.** `exclusive` marks the
+position where the solver itself reached for the technique, which is the
+better drill, but for `claiming`, `hidden_triple`, `naked_quad`, `swordfish`
+and `remote_pairs` that position was measured at 0 in 12: they are real
+patterns that something cheaper always beats to the board. Refusing to drill
+five of fourteen techniques is the worse trade, so the search falls back to a
+position where the pattern is merely present and the screen says so.
+
+**Feedback is judged against the step, never against the solution.** A refused
+elimination is refused because *this pattern does not prove it* — something
+the position can back up — where "that digit is impossible" would be a claim
+about the solution, which invariant 2 does not allow an exercise to make. The
+reducer returns a code and the screen turns it into a sentence, so no rule
+here holds a locale.
+
+**The prompt lives in the screen's header, not in the panel.** On a phone the
+panel is a sheet the player opens — `GameView`'s pattern, and invariant 9's
+sanctioned answer to a narrow screen — and the one line saying what to do
+cannot be behind a button. The header's message box is a fixed two lines at
+every tier so that a refusal appearing and going never changes the board's
+box.
 
 ## Developer tools
 
