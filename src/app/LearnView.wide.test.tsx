@@ -206,3 +206,43 @@ describe('the way back to Learn itself', () => {
     expect(screen.getByRole('heading', { name: 'Hidden single' })).toBeTruthy();
   });
 });
+
+describe('the way into practice', () => {
+  it('offers the mixed exercise with the intro, and only there', () => {
+    renderLearn({ tier: 'laptop' });
+    const nav = screen.getByTestId('left-pane');
+    const content = screen.getByTestId('right-pane');
+
+    expect(within(content).getByRole('button', { name: /mixed practice/i })).toBeTruthy();
+    // The nav is for navigating. A practice button here sat level with the
+    // lesson's own, two near-identical controls meaning different things.
+    expect(within(nav).queryByRole('button', { name: /practice|practise/i })).toBeNull();
+  });
+
+  it('swaps it for the technique’s own once a lesson is open, never both', async () => {
+    const { user } = renderLearn({ tier: 'laptop' });
+    await user.click(screen.getByRole('button', { name: /naked pair/i }));
+
+    expect(screen.getByRole('button', { name: /practise this technique/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /mixed practice/i })).toBeNull();
+  });
+
+  it('hands back the technique it is offering', async () => {
+    const onPractise = vi.fn();
+    matchOnly(...TIER_QUERIES.laptop);
+    const user = userEvent.setup();
+    render(
+      <LocaleProvider locale="en">
+        <LearnView profile={PROFILE} onClose={vi.fn()} onPractise={onPractise} />
+      </LocaleProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /mixed practice/i }));
+    expect(onPractise).toHaveBeenLastCalledWith(null);
+
+    // Anchored: "XY-Wing"'s row mentions the x-wing in its one-liner.
+    await user.click(screen.getByRole('button', { name: /^x-wing/i }));
+    await user.click(screen.getByRole('button', { name: /practise this technique/i }));
+    expect(onPractise).toHaveBeenLastCalledWith('x_wing');
+  });
+});

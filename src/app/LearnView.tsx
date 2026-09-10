@@ -52,6 +52,14 @@ export interface LearnViewProps {
  * Under the lesson rather than beside its title: the offer only makes sense
  * to someone who has read what the pattern is, and a button above the prose
  * is an invitation to skip it.
+ *
+ * **One rule places every instance: the offer sits at the bottom of the
+ * content pane, and practises whatever that pane is about.** The mixed
+ * exercise therefore ends the intro, and a technique's ends its lesson —
+ * never both at once. It used to hang off the technique index too, which on
+ * a wide screen put "mixed practice" in the left column level with
+ * "practise this technique" in the right: two near-identical buttons, side
+ * by side, meaning different things. The nav is for navigating.
  */
 function PractiseButton({ technique, onPractise }: {
   technique: TechniqueId | null;
@@ -174,6 +182,7 @@ export function LearnView({ profile, technique = null, onClose, onPractise }: Le
       <Section title={t('learn.notes.title')} body={t('learn.notes.body')} />
       <Section title={t('learn.coach.title')} body={t('learn.coach.body')} />
       <Section title={t('learn.keys.title')} body={t('learn.keys.body')} />
+      <PractiseButton technique={null} onPractise={onPractise} />
     </>
   );
 
@@ -212,7 +221,6 @@ export function LearnView({ profile, technique = null, onClose, onPractise }: Le
               onOpen={setOpen}
               titleId={TECHNIQUES_NAV_TITLE}
             />
-            <PractiseButton technique={null} onPractise={onPractise} />
           </nav>
         }
         right={
