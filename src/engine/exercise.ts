@@ -32,17 +32,32 @@
  * carries its own step and asks the coach to explain *that* one, rather than
  * asking it to go looking.
  *
- * ## Why a position may be shared with an easier technique
+ * ## Three grades of position, and why the middle one exists
  *
  * `exclusive` is the position where the solver itself reached for the
- * technique, so nothing cheaper in the catalog applied. That is the better
- * drill and it is tried first, but for some techniques it barely exists:
- * measured over 12 puzzles at each technique's own difficulty, `claiming`,
- * `hidden_triple`, `naked_quad`, `swordfish` and `remote_pairs` were the
- * solver's next step 0 times. They are real patterns that a cheaper technique
- * always happens to beat to the board. Refusing to drill five of fourteen
- * techniques is the worse trade, so the search falls back to a position where
- * the pattern is merely *present*, and says which it found.
+ * technique, so nothing cheaper in the catalog applied. That is the drill
+ * everyone wants and it is tried first, but for some techniques it barely
+ * exists: over 20 puzzles at each technique's own difficulty, `hidden_triple`,
+ * `naked_quad` and `remote_pairs` were the solver's next step 0 times, and
+ * `claiming` and `naked_triple` once. They are real patterns that something
+ * cheaper always happens to beat to the board.
+ *
+ * The first fallback tried was "the pattern is present", and it was wrong in a
+ * way only playing it revealed: the pattern is present very early, while
+ * singles are still everywhere, so the drill handed over a grid with a cell
+ * already down to one candidate. A player reads that as the answer, does it,
+ * and is told it is not part of the pattern — the exercise looks like a trick.
+ * Worse, the good position usually existed in the same puzzle and was walked
+ * straight past: 12 of 20 puzzles offered `hidden_pair` on a board with no
+ * single on it, and the search took an earlier, polluted one every time.
+ *
+ * So `clean` is the middle grade and the one the fallback actually aims at:
+ * the pattern is there and **no single is anywhere on the board**, which is
+ * what makes a position feel stuck rather than rigged. Something else at the
+ * same sort of level may also apply, and that is ordinary sudoku. `shared` —
+ * a single is available too — is a last resort, kept only because refusing it
+ * would mean refusing to drill `naked_quad` at all, and the screen says so
+ * plainly when it has to use one.
  */
 
 import { formatGrid } from './board';
@@ -59,6 +74,15 @@ import {
   type TechniqueId,
 } from './types';
 
+/** How good a drill this position is. Best first; see the module comment. */
+export type PositionQuality =
+  /** The solver's own next step: nothing in the catalog is easier. */
+  | 'exclusive'
+  /** The pattern is there and no single is, so the board is genuinely stuck. */
+  | 'clean'
+  /** The pattern is there, but so is a single. A last resort. */
+  | 'shared';
+
 /** One board, one step, and the marks the player starts with. */
 export interface ExercisePosition {
   /** 81 values. Every filled cell is a given here: the position is the premise. */
@@ -67,8 +91,7 @@ export interface ExercisePosition {
   candidates: Digit[][];
   /** The step this position is about. */
   finding: Finding;
-  /** True when this is the solver's own next step, so nothing easier applies. */
-  exclusive: boolean;
+  quality: PositionQuality;
 }
 
 /**
@@ -77,43 +100,64 @@ export interface ExercisePosition {
  */
 const MAX_STEPS = 810;
 
-const snapshot = (grid: CandidateGrid, finding: Finding, exclusive: boolean): ExercisePosition => ({
+const snapshot = (
+  grid: CandidateGrid,
+  finding: Finding,
+  quality: PositionQuality,
+): ExercisePosition => ({
   values: [...grid.values],
   candidates: grid.values.map((value, cell) =>
     value === null ? [...grid.trueCandidates(cell as CellIndex)] : [],
   ),
   finding,
-  exclusive,
+  quality,
 });
 
 /**
- * A position in this puzzle where `technique` is worth practising.
+ * Is a digit simply waiting to be written in somewhere on this board?
  *
- * One walk, two answers: it returns the first position where the solver
- * itself reached for the technique, and only if the whole path offers none
- * does it hand back the first position where the pattern was merely there.
- * The fallback detector stops running as soon as it has found one, so the
- * common case costs one extra sweep per step and the rare case costs none.
+ * The test that separates `clean` from `shared`. Both single detectors,
+ * because either one hands the player a move that needs no pattern at all,
+ * and that is the move they will take.
+ */
+const singleAvailable = (grid: CandidateGrid): boolean =>
+  DETECTORS.naked_single.detect(grid) !== null || DETECTORS.hidden_single.detect(grid) !== null;
+
+/**
+ * The best position this puzzle offers for practising `technique`.
+ *
+ * One walk, best-of-three. An `exclusive` position ends it immediately; short
+ * of that the walk keeps going and keeps the best it has seen, because the
+ * good position is usually *later* than the first one — early in a solve the
+ * pattern and a naked single are both on the board, and it is the single the
+ * player will take.
+ *
+ * The probing stops once a `clean` position is in hand: from then on only an
+ * exclusive one would be an improvement, and `firstFinding` already answers
+ * that. So the extra detector sweep runs on the early steps and then stops.
  */
 export function exerciseFor(givens: string, technique: TechniqueId): ExercisePosition | null {
   const grid = CandidateGrid.fromString(givens);
   const detector = DETECTORS[technique];
-  let shared: ExercisePosition | null = null;
+  let best: ExercisePosition | null = null;
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const next = firstFinding(grid);
     if (next === null) break;
-    if (next.technique === technique) return snapshot(grid, next, true);
+    if (next.technique === technique) return snapshot(grid, next, 'exclusive');
 
-    if (shared === null) {
+    if (best === null || best.quality === 'shared') {
       const finding = detector.detect(grid);
-      if (finding !== null) shared = snapshot(grid, finding, false);
+      if (finding !== null) {
+        const quality = singleAvailable(grid) ? 'shared' : 'clean';
+        if (best === null || quality === 'clean') best = snapshot(grid, finding, quality);
+      }
     }
 
     if (!grid.apply(next)) break;
   }
 
-  return shared;
+  return best;
 }
 
 /**
@@ -139,7 +183,7 @@ export function exerciseAmong(
     const finding = firstFinding(grid);
     if (finding === null) break;
     if (wanted.has(finding.technique)) {
-      const position = snapshot(grid, finding, true);
+      const position = snapshot(grid, finding, 'exclusive');
       const bucket = byTechnique.get(finding.technique);
       if (bucket === undefined) byTechnique.set(finding.technique, [position]);
       else bucket.push(position);

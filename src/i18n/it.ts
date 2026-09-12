@@ -169,7 +169,8 @@ export const it: Dictionary = {
   'exercise.exit': 'Esci dagli esercizi',
   'exercise.panel': 'Esercizio',
   'exercise.openPanel': 'Pannello esercizio',
-  'exercise.shared': 'Su questa griglia funziona anche qualcosa di pi\u00f9 semplice. Trova comunque {technique}: c\u2019\u00e8.',
+  'exercise.shared': 'Su questa griglia funziona anche un\u2019altra tecnica. Ma c\u2019\u00e8 anche {technique}, ed \u00e8 quella da trovare.',
+  'exercise.sharedSingle': 'Attenzione: su questa griglia c\u2019\u00e8 ancora una cella ridotta a una sola cifra, e non \u00e8 quello l\u2019esercizio. Trova {technique}.',
   'exercise.named': '{done} di {total}',
 
   'exercise.naming': 'Quale tecnica fa andare avanti questa griglia?',

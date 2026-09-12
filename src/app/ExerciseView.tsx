@@ -30,7 +30,13 @@ import { escalatedLevel, recordExchange, renderHint, resumeLevel } from '../coac
 import { findingKey } from '../coach/format';
 import { getLesson } from '../coach/lessons';
 import type { Hint } from '../coach/types';
-import { bandFor, exerciseAmong, exerciseFor } from '../engine/exercise';
+import {
+  bandFor,
+  exerciseAmong,
+  exerciseFor,
+  type ExercisePosition,
+  type PositionQuality,
+} from '../engine/exercise';
 import {
   DIFFICULTY_TECHNIQUES,
   TECHNIQUE_IDS,
@@ -54,6 +60,7 @@ import { GameLayout } from './GameLayout';
 import {
   reduceSession,
   startSession,
+  type ExerciseMode,
   type ExerciseSession,
   type SessionAction,
 } from './exerciseSession';
@@ -71,8 +78,22 @@ import { useViewportTier } from './useViewportTier';
  */
 const MIXED_BAND: Difficulty = 'expert';
 
-/** Rounds of generate-then-search before giving up and saying so. */
-const ROUNDS = 2;
+/**
+ * Puzzles to dig before settling for the best position found so far.
+ *
+ * Every one of them is used: the search grades what it finds rather than
+ * taking the first hit, so a run that never turns up an `exclusive` position
+ * still returns the best `clean` one it saw. An exclusive position ends the
+ * loop early, which is the common case — for most techniques the first puzzle
+ * has one. The stubborn ones spend the whole budget, which at ~250ms a puzzle
+ * in the worker is a second and a half of "building a grid".
+ */
+const ATTEMPTS = 6;
+
+const RANK: Record<PositionQuality, number> = { exclusive: 0, clean: 1, shared: 2 };
+
+const better = (a: ExercisePosition, b: ExercisePosition | null): boolean =>
+  b === null || RANK[a.quality] < RANK[b.quality];
 
 export interface ExerciseViewProps {
   /** The technique to drill, or null for the mixed exercise. */
@@ -86,7 +107,7 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
   const t = useT();
   const tier = useViewportTier();
   const locale = profile.locale;
-  const { generate, generateNeeding } = useGenerator();
+  const { generate } = useGenerator();
 
   const [session, setSession] = useState<ExerciseSession | null>(null);
   const [failed, setFailed] = useState(false);
@@ -98,10 +119,10 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
   const [sheetOpen, setSheetOpen] = useState(false);
 
   /*
-   * One build per (technique, attempt). `generate` and `generateNeeding` are
-   * stable, so this runs when the player asks for a new grid and at no other
-   * time; `cancelled` is what stops a build the player has already left from
-   * writing a session into an unmounted screen.
+   * One build per (technique, attempt). `generate` is stable, so this runs
+   * when the player asks for a new grid and at no other time; `cancelled` is
+   * what stops a build the player has already left from writing a session
+   * into an unmounted screen.
    */
   useEffect(() => {
     let cancelled = false;
@@ -111,56 +132,58 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
     setPencil(true);
 
     void (async () => {
-      for (let round = 0; round < ROUNDS; round++) {
-        if (technique === null) {
-          const result = await generate(MIXED_BAND);
-          if (cancelled) return;
-          // A null result is the worker having failed or the run having been
-          // abandoned. Either way there is no grid coming, and saying so
-          // beats leaving "building a grid" on screen forever.
-          if (result === null) break;
-          const position = exerciseAmong(
-            result.puzzle.givens,
-            DIFFICULTY_TECHNIQUES[MIXED_BAND],
-          );
-          if (position !== null) {
-            setSession(
-              startSession({
-                mode: { kind: 'open', difficulty: MIXED_BAND },
-                position,
-                solution: result.puzzle.solution,
-                difficulty: result.puzzle.difficulty,
-                at: Date.now(),
-              }),
-            );
-            return;
-          }
-        } else {
-          const outcome = await generateNeeding(technique, bandFor(technique));
-          if (cancelled) return;
-          if (outcome === null) break;
-          const position = exerciseFor(outcome.result.puzzle.givens, technique);
-          if (position !== null) {
-            setSession(
-              startSession({
-                mode: { kind: 'technique', technique },
-                position,
-                solution: outcome.result.puzzle.solution,
-                difficulty: outcome.result.puzzle.difficulty,
-                at: Date.now(),
-              }),
-            );
-            return;
-          }
+      const band = technique === null ? MIXED_BAND : bandFor(technique);
+      const mode: ExerciseMode =
+        technique === null
+          ? { kind: 'open', difficulty: MIXED_BAND }
+          : { kind: 'technique', technique };
+      let best: { position: ExercisePosition; solution: string; difficulty: Difficulty } | null =
+        null;
+
+      for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+        const result = await generate(band);
+        if (cancelled) return;
+        // A null result is the worker having failed or the run having been
+        // abandoned. Either way there is no grid coming, and saying so beats
+        // leaving "building a grid" on screen forever.
+        if (result === null) break;
+
+        const position =
+          technique === null
+            ? exerciseAmong(result.puzzle.givens, DIFFICULTY_TECHNIQUES[MIXED_BAND])
+            : exerciseFor(result.puzzle.givens, technique);
+
+        if (position !== null && better(position, best?.position ?? null)) {
+          best = {
+            position,
+            solution: result.puzzle.solution,
+            difficulty: result.puzzle.difficulty,
+          };
         }
+        // Nothing beats the solver's own next step, so stop paying for more.
+        if (best?.position.quality === 'exclusive') break;
       }
-      if (!cancelled) setFailed(true);
+
+      if (cancelled) return;
+      if (best === null) {
+        setFailed(true);
+        return;
+      }
+      setSession(
+        startSession({
+          mode,
+          position: best.position,
+          solution: best.solution,
+          difficulty: best.difficulty,
+          at: Date.now(),
+        }),
+      );
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [technique, attempt, generate, generateNeeding]);
+  }, [technique, attempt, generate]);
 
   const stage = session?.stage.kind ?? null;
   const naming = stage === 'naming';
@@ -415,7 +438,7 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
               : undefined
           }
           onName={naming ? (named) => dispatch({ type: 'name', technique: named }) : undefined}
-          shared={!session.position.exclusive}
+          quality={session.position.quality}
           solved={stage === 'solved'}
           hint={hint}
           onAsk={() => showHint(resumeLevel(log, key))}
