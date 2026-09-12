@@ -234,8 +234,7 @@ describe('the mixed exercise', () => {
 
 describe('when no grid can be built', () => {
   it('says so and offers another go, rather than digging forever', async () => {
-    generateNeeding.mockResolvedValueOnce(null as never);
-    generateNeeding.mockResolvedValueOnce(null as never);
+    generate.mockResolvedValueOnce(null as never);
     show('remote_pairs');
 
     expect(
@@ -245,7 +244,7 @@ describe('when no grid can be built', () => {
   });
 
   it('keeps the way out on screen while a grid is still being built', () => {
-    generateNeeding.mockReturnValueOnce(new Promise(() => {}) as never);
+    generate.mockReturnValueOnce(new Promise(() => {}) as never);
     show('x_wing');
     expect(screen.getByRole('button', { name: /leave practice/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /try again/i })).toBeNull();

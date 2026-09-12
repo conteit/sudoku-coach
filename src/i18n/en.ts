@@ -171,7 +171,8 @@ export const en = {
   'exercise.exit': 'Leave practice',
   'exercise.panel': 'Practice',
   'exercise.openPanel': 'Practice panel',
-  'exercise.shared': 'Something simpler also works on this grid. Find the {technique} anyway \u2014 it is there.',
+  'exercise.shared': 'Another technique also works on this grid. The {technique} is here too, and that is the one to find.',
+  'exercise.sharedSingle': 'Fair warning: this grid still has a cell down to a single candidate, and that is not the exercise. Find the {technique}.',
   'exercise.named': '{done} of {total}',
 
   'exercise.naming': 'Which technique moves this board on?',

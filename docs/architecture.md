@@ -517,13 +517,30 @@ to explain that one. The ladder, the four rungs and the refusal to name a
 digit are `CoachPanel` and `renderHint` unchanged — an exercise asks the coach
 exactly what a game asks it.
 
-**A position may be shared with an easier technique.** `exclusive` marks the
-position where the solver itself reached for the technique, which is the
-better drill, but for `claiming`, `hidden_triple`, `naked_quad`, `swordfish`
-and `remote_pairs` that position was measured at 0 in 12: they are real
-patterns that something cheaper always beats to the board. Refusing to drill
-five of fourteen techniques is the worse trade, so the search falls back to a
-position where the pattern is merely present and the screen says so.
+**Positions come in three grades, and the middle one had to be invented.**
+`exclusive` is the position where the solver itself reached for the technique,
+so nothing cheaper applied. It is what everyone wants, and for some techniques
+it barely exists: over 20 puzzles at each technique's own difficulty,
+`hidden_triple`, `naked_quad` and `remote_pairs` were the solver's next step 0
+times, `claiming` and `naked_triple` once.
+
+The first fallback was "the pattern is present", and playing it showed why
+that is not enough. The pattern turns up **early**, while singles are still
+everywhere, so the drill handed over a board with a cell already down to one
+candidate. A player takes that, is told it is not part of the pattern, and
+reads the whole exercise as a trick. And the good position usually existed in
+the same puzzle: 12 of 20 puzzles offered `hidden_pair` on a board with no
+single anywhere, and taking the first hit walked past every one of them.
+
+So `clean` — pattern present, **no single anywhere on the board** — is the
+grade the fallback aims at, and `exerciseFor` grades every position on the
+path rather than stopping at the first. `shared` (a single is available too)
+survives only because refusing it would mean refusing to drill `naked_quad` at
+all, and the screen warns outright when it has to use one. `ExerciseView`
+grades across six generated puzzles as well, keeping the best and stopping
+early on an exclusive one. Measured over the nine techniques that were bad
+before: 86 of 90 presses land on exclusive or clean, at a median of one puzzle
+dug and a worst case of six (~1.3s).
 
 **Feedback is judged against the step, never against the solution.** A refused
 elimination is refused because *this pattern does not prove it* — something

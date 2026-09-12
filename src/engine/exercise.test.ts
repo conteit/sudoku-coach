@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { Board } from './board';
-import { bandFor, exerciseAmong, exerciseFor, gridOf } from './exercise';
+import {
+  bandFor,
+  exerciseAmong,
+  exerciseFor,
+  gridOf,
+  type PositionQuality,
+} from './exercise';
 import { levelOf, seededRng } from './generator';
-import { firstFinding } from './solver';
+import { CandidateGrid, firstFinding } from './solver';
 import { DETECTORS } from './techniques';
 import { TECHNIQUE_IDS, type CellIndex, type Digit, type TechniqueId } from './types';
-import { EASY, EXPERT, HARD } from '../test/exercisePuzzles';
+import { EASY, EXPERT, HARD, MEDIUM } from '../test/exercisePuzzles';
 
 const digitAt = (solution: string, cell: CellIndex): Digit =>
   Number(solution[cell]) as Digit;
@@ -27,7 +33,7 @@ describe('exerciseFor', () => {
   it('marks the position exclusive only when nothing easier applies', () => {
     for (const technique of TECHNIQUE_IDS) {
       const position = exerciseFor(EXPERT.givens, technique);
-      if (position === null || !position.exclusive) continue;
+      if (position === null || position.quality !== 'exclusive') continue;
       // The solver's own next step, so the first thing the catalog offers on
       // the position's own marks has to be this very finding.
       const next = firstFinding(gridOf(position));
@@ -38,10 +44,10 @@ describe('exerciseFor', () => {
 
   it('offers a shared position when the technique is never the solver’s own next step', () => {
     // `claiming` is a real pattern that something cheaper always beats to the
-    // board — 0 exclusive positions in 12 generated puzzles when measured.
+    // board — the solver's own next step in 1 of 20 puzzles when measured.
     const position = exerciseFor(EXPERT.givens, 'claiming');
     expect(position).not.toBeNull();
-    expect(position!.exclusive).toBe(false);
+    expect(position!.quality).not.toBe('exclusive');
     // Shared or not, the pattern is genuinely there on the marks shown.
     expect(DETECTORS.claiming.detect(gridOf(position!))).not.toBeNull();
   });
@@ -93,7 +99,7 @@ describe('exerciseFor', () => {
 
   it('starts an easy puzzle on its first step', () => {
     const position = exerciseFor(EASY.givens, 'naked_single');
-    expect(position?.exclusive).toBe(true);
+    expect(position?.quality).toBe('exclusive');
     expect(position?.values.join(',')).toBe(
       [...EASY.givens].map((c) => (c === '.' ? '' : c)).join(','),
     );
@@ -117,7 +123,7 @@ describe('exerciseAmong', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const position = exerciseAmong(EXPERT.givens, allowed, seededRng(seed));
       expect(allowed).toContain(position!.finding.technique);
-      expect(position!.exclusive).toBe(true);
+      expect(position!.quality).toBe('exclusive');
     }
   });
 
@@ -143,6 +149,78 @@ describe('bandFor', () => {
     // `generator.ts`; this is what stops the two drifting apart.
     for (const technique of TECHNIQUE_IDS) {
       expect(bandFor(technique)).toBe(levelOf(technique));
+    }
+  });
+});
+
+/**
+ * What the puzzle actually offers, worked out independently and naively.
+ *
+ * Deliberately not a call into `exercise.ts`: the bug this guards against was
+ * the search settling for the first position it found, and only an oracle
+ * that looks at every position can see that a better one was walked past.
+ */
+function bestAvailable(givens: string, technique: TechniqueId): PositionQuality | null {
+  const rank: Record<PositionQuality, number> = { exclusive: 0, clean: 1, shared: 2 };
+  const grid = CandidateGrid.fromString(givens);
+  let best: PositionQuality | null = null;
+
+  for (let step = 0; step < 810; step++) {
+    const next = firstFinding(grid);
+    if (next === null) break;
+
+    let here: PositionQuality | null = null;
+    if (next.technique === technique) here = 'exclusive';
+    else if (DETECTORS[technique].detect(grid) !== null) {
+      here =
+        DETECTORS.naked_single.detect(grid) === null &&
+        DETECTORS.hidden_single.detect(grid) === null
+          ? 'clean'
+          : 'shared';
+    }
+    if (here !== null && (best === null || rank[here] < rank[best])) best = here;
+    if (best === 'exclusive') break;
+    if (!grid.apply(next)) break;
+  }
+  return best;
+}
+
+describe('position quality', () => {
+  it('takes the best position the puzzle has, not the first one it meets', () => {
+    // The bug Paolo hit: a hidden-pair drill on a grid that still had a cell
+    // down to one candidate, when the same puzzle offered a clean position
+    // later on. The pattern shows up early, while singles are everywhere.
+    for (const puzzle of [EASY, MEDIUM, HARD, EXPERT]) {
+      for (const technique of TECHNIQUE_IDS) {
+        expect({
+          puzzle: puzzle.difficulty,
+          technique,
+          quality: exerciseFor(puzzle.givens, technique)?.quality ?? null,
+        }).toEqual({
+          puzzle: puzzle.difficulty,
+          technique,
+          quality: bestAvailable(puzzle.givens, technique),
+        });
+      }
+    }
+  });
+
+  it('never hands over a board with a digit simply waiting to be written in', () => {
+    for (const puzzle of [EASY, MEDIUM, HARD, EXPERT]) {
+      for (const technique of TECHNIQUE_IDS) {
+        const position = exerciseFor(puzzle.givens, technique);
+        if (position === null || position.quality === 'shared') continue;
+        const grid = gridOf(position);
+        // A single anywhere is the move the player takes instead of the one
+        // being drilled — and then the exercise refuses it, which reads as a
+        // trick. Drilling a single is the one case where it is the point.
+        if (technique !== 'naked_single') {
+          expect(DETECTORS.naked_single.detect(grid)).toBeNull();
+        }
+        if (technique !== 'naked_single' && technique !== 'hidden_single') {
+          expect(DETECTORS.hidden_single.detect(grid)).toBeNull();
+        }
+      }
     }
   });
 });

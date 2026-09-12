@@ -13,6 +13,7 @@
  * would be a second place for that contract to drift.
  */
 
+import type { PositionQuality } from '../../engine/exercise';
 import type { Hint } from '../../coach/types';
 import type { TechniqueId } from '../../engine/types';
 import { useT } from '../../i18n/locale';
@@ -31,8 +32,12 @@ export interface ExercisePanelProps {
   /** Naming stage: the techniques on offer. Absent once one has been named. */
   choices?: readonly ExerciseChoice[];
   onName?: (technique: TechniqueId) => void;
-  /** True when something easier also applies to this grid. */
-  shared?: boolean;
+  /**
+   * How good a drill this grid is. Anything short of `exclusive` is said out
+   * loud: a player who spots the easier move and is told it is not part of
+   * the pattern should already know why it is there.
+   */
+  quality?: PositionQuality;
   solved?: boolean;
   hint: Hint | null;
   onAsk: () => void;
@@ -47,7 +52,7 @@ export function ExercisePanel({
   techniqueLabel,
   choices,
   onName,
-  shared = false,
+  quality = 'exclusive',
   solved = false,
   hint,
   onAsk,
@@ -83,11 +88,13 @@ export function ExercisePanel({
         </div>
       ) : (
         <>
-          {shared ? (
+          {quality === 'exclusive' ? null : (
             <p className="text-sm text-ink-soft">
-              {t('exercise.shared', { technique: techniqueLabel ?? '' })}
+              {quality === 'shared'
+                ? t('exercise.sharedSingle', { technique: techniqueLabel ?? '' })
+                : t('exercise.shared', { technique: techniqueLabel ?? '' })}
             </p>
-          ) : null}
+          )}
 
           {solved ? (
             <p className="rounded-md bg-match-wash px-3 py-2 text-sm font-medium text-ink">
