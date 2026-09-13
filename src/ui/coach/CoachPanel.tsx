@@ -46,6 +46,35 @@ const RUNGS = [
 const titleCase = (id: string) =>
   id.replace(/_/g, ' ').replace(/^./, (ch) => ch.toUpperCase());
 
+/**
+ * The coach says two kinds of thing, and until now they looked identical.
+ *
+ * "There is something here" and "something you did is wrong" shared one amber
+ * box, so a contradiction — a digit that cannot be right — arrived in exactly
+ * the livery of an offer of help. Amber is this app's colour for *there is
+ * something here for you*: the eraser with dead notes to clear, the armed
+ * rewind, the sync button wanting a tap. It keeps the suggestions. A
+ * correction takes the danger colour the note check already uses for an
+ * impossible mark, so the two are not two shades of the same thing.
+ *
+ * The icon rides along because a difference carried by colour alone is no
+ * difference at all to a player who cannot see it.
+ */
+type Tone = 'suggestion' | 'correction';
+
+const toneText = (tone: Tone): string => (tone === 'correction' ? 'text-danger' : 'text-coach');
+
+const toneBox = (tone: Tone): string =>
+  tone === 'correction' ? 'border-danger/35 bg-danger-wash' : 'border-coach/35 bg-coach-wash';
+
+function ToneIcon({ tone }: { tone: Tone }) {
+  return tone === 'correction' ? (
+    <span aria-hidden="true" className="shrink-0 leading-none">
+      <AlertIcon />
+    </span>
+  ) : null;
+}
+
 export interface CoachPanelProps {
   /** The current hint, or null before the player has asked for anything. */
   hint: Hint | null;
@@ -68,6 +97,12 @@ export interface CoachPanelProps {
   onSpotlight?: (cells: CellIndex[]) => void;
   /** The player asked and the board yielded nothing a technique can crack. */
   exhausted?: boolean;
+  /**
+   * Exhausted for a reason the player can fix: the note check found a
+   * candidate missing that nothing rules out, so the marks cannot be trusted
+   * and the coach will not read them. A correction, not a shrug.
+   */
+  notesBlocked?: boolean;
   /** A challenge in flight: the technique named, and whether it has been found. */
   drill?: { technique: TechniqueId; solved: boolean; gone: boolean } | null;
   /** Offered while there is something on the board to be challenged about. */
@@ -323,6 +358,7 @@ export function CoachPanel({
   onReviewCandidates,
   onSpotlight,
   exhausted = false,
+  notesBlocked = false,
   drill = null,
   onDrill,
   onDismissDrill,
@@ -387,8 +423,21 @@ export function CoachPanel({
           — the sheet that carries this nudge is covering the board it would
           point at. */}
       {nudge ? (
-        <div className="mx-4 mt-3 flex items-center gap-3 rounded-cell border border-coach/35 bg-coach-wash px-4 py-3">
-          <p className="min-w-0 flex-1 text-sm text-coach">
+        <div
+          className={cx(
+            'mx-4 mt-3 flex items-center gap-3 rounded-cell border px-4 py-3',
+            // A contradiction is the one nudge that reports a mistake. The
+            // other two offer something: a technique to find, notes to tidy.
+            toneBox(nudge.kind === 'contradiction' ? 'correction' : 'suggestion'),
+          )}
+        >
+          <ToneIcon tone={nudge.kind === 'contradiction' ? 'correction' : 'suggestion'} />
+          <p
+            className={cx(
+              'min-w-0 flex-1 text-sm',
+              toneText(nudge.kind === 'contradiction' ? 'correction' : 'suggestion'),
+            )}
+          >
             {nudge.kind === 'contradiction'
               ? t('coach.nudge.contradiction')
               : nudge.kind === 'stale_marks'
@@ -492,9 +541,19 @@ export function CoachPanel({
                the invitation to ask for a hint under it reads like two coaches
                talking over each other. */
         drill && !drill.solved && !drill.gone ? null : exhausted ? (
-          <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
-            {t('coach.nothingFound')}
-          </p>
+          notesBlocked ? (
+            // Not "nothing here" — "I cannot read your notes". The player has
+            // something to do about this one, so it looks like a correction
+            // and says what the something is.
+            <p className={cx('flex items-start gap-2 text-sm leading-relaxed', toneText('correction'))}>
+              <ToneIcon tone="correction" />
+              {t('coach.notesBlocked')}
+            </p>
+          ) : (
+            <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
+              {t('coach.nothingFound')}
+            </p>
+          )
         ) : (
           // Three lines of prose the player reads once. On a phone the same
           // space is board, and the same words are in Learn.
@@ -511,7 +570,11 @@ export function CoachPanel({
           </Button>
         ) : null}
         {unfinishable ? (
-          <p className="py-2 text-sm text-coach">{t('coach.deadEnd')}</p>
+          // A dead end is a wrong entry, not an invitation.
+          <p className={cx('flex items-center gap-2 py-2 text-sm', toneText('correction'))}>
+            <ToneIcon tone="correction" />
+            {t('coach.deadEnd')}
+          </p>
         ) : hint === null ? (
           <Button variant="coach" size="lg" onClick={onAsk}>
             {t('coach.rung1.ask')}

@@ -114,6 +114,7 @@ export const it: Dictionary = {
   'coach.openWaiting': 'Coach ha un suggerimento',
   'coach.idle': 'Chiedi pure quando vuoi una spinta. Finché non lo chiedi, non ti viene svelato nulla.',
   'coach.reading': 'Sto leggendo la griglia',
+  'coach.notesBlocked': 'Non posso ancora fidarmi delle tue annotazioni: il controllo trova una cifra possibile che manca, e leggere annotazioni con un buco pu\u00f2 dimostrare cose false. Fai il controllo delle annotazioni e riparto da l\u00ec.',
   'coach.nothingFound':
     'Qui non riesco a dimostrare altro dalle cifre sulla griglia: o non si applica ancora nessuna tecnica, o quelle che si applicano le hai gi\u00e0 fatte. Inseriscine una e guardo di nuovo.',
   'coach.stepLabel': 'Passo {level} di {total}',

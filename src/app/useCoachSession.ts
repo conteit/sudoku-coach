@@ -75,6 +75,12 @@ export interface CoachSession {
   review: ReviewSnapshot | null;
   /** True once a hint was asked for and the board yielded nothing. */
   exhausted: boolean;
+  /**
+   * Exhausted because the notes cannot be trusted, rather than because the
+   * board is out of steps. The distinction matters to the player: one is a
+   * shrug, the other is something they can fix in a press.
+   */
+  notesBlocked: boolean;
   /** The most urgent unprompted moment, or null. Reveals nothing by itself. */
   nudge: TeachableTrigger | null;
   ask: () => void;
@@ -174,6 +180,7 @@ export function useCoachSession({
     if (skipped.size > 0) setSkipped(new Set());
   }
   const [exhausted, setExhausted] = useState(false);
+  const [notesBlocked, setNotesBlocked] = useState(false);
   const [nudge, setNudge] = useState<TeachableTrigger | null>(null);
   const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
   const [drill, setDrill] = useState<Drill | null>(null);
@@ -203,6 +210,7 @@ export function useCoachSession({
     setHint(null);
     setReview(null);
     setExhausted(false);
+    setNotesBlocked(false);
     setNudge(null);
     setDismissedNudge(null);
     setDrill(null);
@@ -299,6 +307,10 @@ export function useCoachSession({
       if (finding === null) {
         setHint(null);
         setExhausted(true);
+        // Only asked when there is nothing to say, which is the one moment
+        // the answer changes what the player is told — and the one moment a
+        // whole-board sweep is affordable.
+        setNotesBlocked(coach.reviewCandidates().issues.some((i) => i.kind === 'missing'));
         return;
       }
       const next = coach.hint(finding, pickLevel(game.coachLog, findingKey(finding)));
@@ -309,6 +321,7 @@ export function useCoachSession({
       updateProfile((profile) => masteryAfterHint(profile, game.coachLog, next, at));
       onCoachLog(recordExchange(game.coachLog, next, at));
       setExhausted(false);
+      setNotesBlocked(false);
       setHint(next);
     },
     [game, locale, now, onCoachLog, updateProfile, skipped],
@@ -324,6 +337,7 @@ export function useCoachSession({
     const finding = coach.nextFinding();
     if (finding === null) {
       setExhausted(true);
+      setNotesBlocked(coach.reviewCandidates().issues.some((i) => i.kind === 'missing'));
       return;
     }
     const named = coach.hint(finding, 2);
@@ -333,6 +347,7 @@ export function useCoachSession({
     drillFinding.current = { game: game.id, finding };
     setHint(null);
     setExhausted(false);
+    setNotesBlocked(false);
     setDrill({
       technique: finding.technique,
       findingKey: findingKey(finding),
@@ -381,12 +396,14 @@ export function useCoachSession({
   const clearHint = useCallback(() => {
     setHint(null);
     setExhausted(false);
+    setNotesBlocked(false);
   }, []);
 
   const dismiss = useCallback(() => {
     setHint(null);
     setReview(null);
     setExhausted(false);
+    setNotesBlocked(false);
   }, []);
 
   const dismissNudge = useCallback(() => {
@@ -401,6 +418,7 @@ export function useCoachSession({
     drill,
     review,
     exhausted,
+    notesBlocked,
     nudge,
     ask,
     escalate,

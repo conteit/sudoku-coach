@@ -12,11 +12,19 @@
 import { describe, expect, it } from 'vitest';
 import { Board, parseGrid } from '../engine/board';
 import { CATALOG } from '../engine/techniques';
+import { solveBruteForce } from '../engine/solver';
 import type { CellIndex, Digit } from '../engine/types';
 import { createCoach, findingIsApplied, findingIsSpent, type CoachCell } from './coach';
 
 const VALUES =
   '....1.32.73..624..12.83..5.85.32...4613.4.8922...81.35.8..73.4...1.98.73372.5....';
+
+/**
+ * Engine-only, and read here for one purpose: to check a hint is not a lie.
+ * Solved rather than pasted — a hand-copied solution that is wrong makes the
+ * soundness assertion below pass for no reason at all.
+ */
+const SOLUTION = solveBruteForce(Board.fromString(VALUES))!.toString();
 
 const NOTES = `
 r1c1: 4,5,9    r1c2: 4,6,9    r1c3: 4,5,6,8,9  r1c4: 4,5,7,9  r1c6: 4,5,7,9
@@ -103,11 +111,12 @@ describe('the two ways this could have gone wrong', () => {
     expect(next === null || next.technique !== finding.technique).toBe(true);
   });
 
-  it('declares exhaustion when every finding left is spent, rather than repeating one', () => {
+  it('never repeats a finding the player has already worked, whatever it answers', () => {
     // The bug's last hiding place. A board worked to a standstill must not be
     // handed back one of the eliminations the player has already made — that
-    // is the original complaint, arriving one step later. Nothing is the
-    // honest answer, and the panel already has words for it.
+    // is the original complaint, arriving one step later. The answer is now
+    // either a genuinely new finding read off the marks, or nothing; what it
+    // must never be is a spent one.
     const cells = board();
     // Erasing one finding's eliminations is not enough — the next technique
     // simply becomes the live one, and the test never reaches the state it
@@ -129,7 +138,8 @@ describe('the two ways this could have gone wrong', () => {
     expect(remaining.length).toBeGreaterThan(0);
     expect(remaining.every((found) => findingIsSpent(found!, cells))).toBe(true);
 
-    expect(coachFor(cells).nextFinding()).toBeNull();
+    const answer = coachFor(cells).nextFinding();
+    expect(answer === null || !findingIsSpent(answer, cells)).toBe(true);
   });
 
   it('does not go quiet while any finding still has work in it', () => {
@@ -139,5 +149,104 @@ describe('the two ways this could have gone wrong', () => {
     const live = coachFor(cells).nextFinding();
     expect(live).not.toBeNull();
     expect(findingIsSpent(live!, cells)).toBe(false);
+  });
+});
+
+/**
+ * The wall Paolo hit next: he applied the x-wing and the colouring, and the
+ * coach declared exhaustion — while his notes, which the checker called
+ * perfect, still held four more findings the engine could not see from the
+ * digits alone.
+ */
+describe('when the notes have overtaken the engine', () => {
+  /** His board after the two steps he took. */
+  function worked(): CoachCell[] {
+    const cells = board();
+    const view = Board.fromValues(cells.map((cell) => cell.value));
+    for (const id of ['x_wing', 'simple_coloring'] as const) {
+      const found = CATALOG.find((detector) => detector.id === id)!.detect(view)!;
+      for (const { cell, digit } of found.eliminations) {
+        const kept = new Set(cells[cell].candidates);
+        kept.delete(digit);
+        cells[cell] = { value: cells[cell].value, candidates: kept };
+      }
+    }
+    return cells;
+  }
+
+  it('has nothing left that the placed digits alone can prove', () => {
+    const cells = worked();
+    const view = Board.fromValues(cells.map((cell) => cell.value));
+    for (const detector of CATALOG) {
+      const found = detector.detect(view);
+      if (found !== null) expect(findingIsSpent(found, cells)).toBe(true);
+    }
+  });
+
+  it('reads the marks instead of declaring exhaustion, and finds the step', () => {
+    const cells = worked();
+    const coach = coachFor(cells);
+    expect(coach.reviewCandidates().issues).toEqual([]);
+
+    const finding = coach.nextFinding();
+    expect(finding).not.toBeNull();
+    // Whatever the catalog reaches first, it must be real work on his board.
+    expect(findingIsSpent(finding!, cells)).toBe(false);
+    expect(finding!.eliminations.length + finding!.placements.length).toBeGreaterThan(0);
+  });
+
+  it('proves only things the solution agrees with', () => {
+    // The one thing reading marks could get wrong. The finding is derived
+    // from the player's candidate set, so it has to be checked against the
+    // real answer, not against the marks it came from.
+    const cells = worked();
+    const finding = coachFor(cells).nextFinding()!;
+    for (const { cell, digit } of finding.eliminations) {
+      expect(digit).not.toBe(Number(SOLUTION[cell]));
+    }
+    for (const { cell, digit } of finding.placements) {
+      expect(digit).toBe(Number(SOLUTION[cell]));
+    }
+  });
+
+  it('leaves a cell the player has not marked as the engine sees it', () => {
+    // Not a nicety — a soundness hole. Strip an unmarked cell to nothing and
+    // you invent hidden singles: a digit whose only other home was that cell
+    // now has exactly one place to go, and the coach will tell the player to
+    // put it there. The note check cannot save us, because it skips unmarked
+    // cells too, so the guard has to be in the grid we build.
+    const base = worked();
+    for (let index = 0; index < 81; index++) {
+      if (base[index].value !== null || base[index].candidates.size === 0) continue;
+      const cells = base.map((cell, i) =>
+        i === index ? { value: cell.value, candidates: new Set<Digit>() } : cell,
+      );
+      const finding = coachFor(cells).nextFinding();
+      if (finding === null) continue;
+      for (const { cell, digit } of finding.placements) {
+        expect({ index, cell, digit }).toEqual({ index, cell, digit: Number(SOLUTION[cell]) });
+      }
+      for (const { cell, digit } of finding.eliminations) {
+        expect(digit).not.toBe(Number(SOLUTION[cell]));
+      }
+    }
+  });
+
+  it('refuses the marks when the player has dropped a mark nothing refutes', () => {
+    // `missing` is the gate: a removed-but-unrefuted candidate makes the
+    // candidate set a *subset* of the truth, and a subset can prove things
+    // that are false. One is enough to close the door.
+    const cells = worked();
+    // The solution's own digit, which no technique can ever refute — picking
+    // an arbitrary candidate does not work, because most of the ones left on
+    // this board *are* refutable and dropping those is legitimate play.
+    const target = cells.findIndex((cell) => cell.value === null && cell.candidates.size > 1);
+    const thinned = new Set(cells[target].candidates);
+    thinned.delete(Number(SOLUTION[target]) as Digit);
+    cells[target] = { value: null, candidates: thinned };
+
+    const coach = coachFor(cells);
+    expect(coach.reviewCandidates().issues.some((issue) => issue.kind === 'missing')).toBe(true);
+    expect(coach.nextFinding()).toBeNull();
   });
 });
