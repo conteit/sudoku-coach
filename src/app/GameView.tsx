@@ -855,6 +855,7 @@ export function GameView({
           onReviewCandidates={coach.checkMarks}
           onSpotlight={setReviewSpotlight}
           exhausted={coach.exhausted}
+          notesBlocked={coach.notesBlocked}
           drill={coach.drill}
           onDrill={coach.startDrill}
           onDismissDrill={coach.dismissDrill}

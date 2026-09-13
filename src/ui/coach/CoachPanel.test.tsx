@@ -738,3 +738,58 @@ describe('a board that cannot be finished', () => {
     expect(screen.getByText(/cannot be finished/)).toBeInTheDocument();
   });
 });
+
+/**
+ * Paolo's ask: the coach should not deliver "there is something here" and
+ * "something you did is wrong" in the same livery. Amber stays with the
+ * offers; a correction takes the danger colour and an icon.
+ */
+describe('suggestions and corrections do not look alike', () => {
+  const alertIn = (element: HTMLElement) =>
+    element.querySelector('span[aria-hidden="true"] svg');
+
+  const nudged = (kind: 'contradiction' | 'stuck') =>
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={vi.fn()}
+        onEscalate={vi.fn()}
+        nudge={kind === 'contradiction' ? { kind, cell: 4 } : { kind, sinceMs: 60_000 }}
+        onDismissNudge={vi.fn()}
+      />,
+    );
+
+  it('marks a contradiction as a correction, icon and all', () => {
+    const { container } = nudged('contradiction');
+    const box = screen.getByText(/cannot be right/i).parentElement!;
+    // The icon is the part that survives a screen which cannot show colour,
+    // so it is the part worth asserting on its own.
+    expect(alertIn(box)).not.toBeNull();
+    // The colour has no accessible handle to assert — which is precisely why
+    // the icon above exists — so the class is the only observable jsdom
+    // offers, and the distinction is worth pinning somewhere.
+    expect(container.querySelector('.bg-danger-wash')).not.toBeNull();
+  });
+
+  it('leaves an offer of help in the coach amber, with no alarm on it', () => {
+    const { container } = nudged('stuck');
+    const box = screen.getByText(/a technique cracks/i).parentElement!;
+    expect(alertIn(box)).toBeNull();
+    expect(container.querySelector('.bg-danger-wash')).toBeNull();
+    expect(container.querySelector('.bg-coach-wash')).not.toBeNull();
+  });
+
+  it('says the notes are the problem, rather than shrugging, when they are', () => {
+    render(
+      <CoachPanel hint={null} onAsk={vi.fn()} onEscalate={vi.fn()} exhausted notesBlocked />,
+    );
+    expect(screen.getByText(/cannot go on your notes/i)).toBeTruthy();
+    expect(screen.queryByText(/nothing further here/i)).toBeNull();
+  });
+
+  it('still shrugs when the board really is out of steps', () => {
+    render(<CoachPanel hint={null} onAsk={vi.fn()} onEscalate={vi.fn()} exhausted />);
+    expect(screen.getByText(/nothing further here/i)).toBeTruthy();
+    expect(screen.queryByText(/cannot go on your notes/i)).toBeNull();
+  });
+});

@@ -30,6 +30,7 @@
 
 import type { Digit, Finding } from '../engine/types';
 import { Board } from '../engine/board';
+import { CandidateGrid } from '../engine/solver';
 
 import { interpolate } from '../i18n';
 import type { CoachExchange, DisclosureLevel, Locale, PlayerProfile } from '../state/types';
@@ -362,6 +363,10 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
   const marks: readonly ReadonlySet<Digit>[] = cells.map((c) => c.candidates);
   const lessons = library ?? loadLessons(locale);
   let finding: Finding | null | undefined;
+  let review: CandidateReview | undefined;
+
+  /** One sweep per coach, however many callers want the answer. */
+  const reviewCandidatesOnce = (): CandidateReview => (review ??= reviewMarks(board, marks, locale));
 
   /**
    * The easiest finding that still changes something the player can see.
@@ -392,14 +397,66 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
    * wrong one, and closing it needs an enumerate-all API the engine does not
    * have.
    */
-  const choose = (skip?: ReadonlySet<string>): Finding | null => {
+  const sweep = (view: Parameters<(typeof CATALOG)[number]['detect']>[0], skip?: ReadonlySet<string>) => {
     for (const detector of CATALOG) {
-      const found = detector.detect(board);
+      const found = detector.detect(view);
       if (found === null || skip?.has(findingKey(found)) === true) continue;
       if (!findingIsSpent(found, cells)) return found;
     }
     return null;
   };
+
+  /**
+   * The player's own marks, as something the detectors can read — or null when
+   * reading them would not be safe.
+   *
+   * **The gate is `missing`, and the asymmetry is the whole argument.** A mark
+   * the player has *added* that cannot really be there only ever makes the
+   * candidate set a superset of the truth, and a superset weakens conclusions
+   * rather than falsifying them: anything provable from "these digits might
+   * go here" still holds when fewer of them actually can. A mark the player
+   * has *removed* that no technique refutes is the opposite — a subset — and
+   * a subset can prove things that are not true, up to and including ruling
+   * out the solution. That removal is exactly what the note check calls
+   * `missing`, so one `missing` closes this door and nothing else needs to.
+   *
+   * A cell with no marks at all is left as the engine sees it. The player has
+   * not worked it, so their silence is not a claim, and `reviewMarks` skips it
+   * for the same reason.
+   */
+  const fromMarks = (): CandidateGrid | null => {
+    if (reviewCandidatesOnce().issues.some((issue) => issue.kind === 'missing')) return null;
+    const grid = CandidateGrid.fromBoard(board);
+    cells.forEach((cell, index) => {
+      if (cell.value !== null || cell.candidates.size === 0) return;
+      for (const digit of [...grid.trueCandidates(index)]) {
+        if (!cell.candidates.has(digit)) grid.eliminate(index, digit);
+      }
+    });
+    return grid;
+  };
+
+  /**
+   * Placed digits first, and the player's marks only when those run out.
+   *
+   * Invariant 3b's rule holds where it earns its keep: an ordinary hint is
+   * derived from the board alone, so a stray mark cannot colour it. What 3b
+   * did not anticipate is a player whose notes have *overtaken* the engine —
+   * every elimination the catalog can prove from the digits already worked in
+   * — at which point "I can see nothing further" is true of the engine and
+   * false of the board. Reported from a real game: four more findings sat in
+   * marks the note check called perfect, and the coach declared exhaustion.
+   *
+   * So the second pass exists, it runs only when the first finds nothing, and
+   * it is gated on the marks being provably safe to read. The expensive part
+   * — the note-check sweep — is therefore paid only in the rare case that
+   * needs it.
+   */
+  const choose = (skip?: ReadonlySet<string>): Finding | null =>
+    sweep(board, skip) ?? ((): Finding | null => {
+      const marksView = fromMarks();
+      return marksView === null ? null : sweep(marksView, skip);
+    })();
 
   return {
     nextFinding(skip?: ReadonlySet<string>): Finding | null {
@@ -416,7 +473,7 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
       return renderHint({ finding: target, level, locale, library: lessons });
     },
     reviewCandidates(): CandidateReview {
-      return reviewMarks(board, marks, locale);
+      return reviewCandidatesOnce();
     },
   };
 }

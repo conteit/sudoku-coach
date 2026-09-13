@@ -234,6 +234,50 @@ has already read the front door.
    technique instead. That costs a better hint, never a wrong one, and closing
    it needs an enumerate-all API the engine does not have.
 
+   **And when the player's notes overtake the engine entirely, the coach reads
+   them — under a gate that makes it sound.** Preferring unspent findings is
+   not enough on a board worked all the way down: every finding the catalog
+   can prove from the digits is spent, `nextFinding` is empty, and the coach
+   declares exhaustion on a board with moves left in it. Measured on the
+   reported game: four further findings — pointing, claiming, an XY-Wing, a
+   colouring — all sitting in marks the note check called perfect, all
+   invisible from the values.
+
+   So `createCoach` takes a **second pass**, on a `CandidateGrid` holding the
+   player's own marks, and only when the first finds nothing. The gate is a
+   single condition and the asymmetry behind it is the whole argument:
+
+   - A mark the player **added** that cannot really be there makes the
+     candidate set a *superset* of the truth. A superset weakens conclusions,
+     never falsifies them: anything provable from "these digits might go here"
+     still holds when fewer of them actually can.
+   - A mark the player **removed** that no technique refutes makes it a
+     *subset*, and a subset can prove things that are false — up to ruling out
+     the solution. That removal is exactly what the note check calls
+     `missing`, so one `missing` closes the door and nothing else has to.
+
+   A cell with no marks is left as the engine sees it. The player has not
+   worked it, their silence is not a claim, and `reviewMarks` skips it for the
+   same reason. **This is a soundness guard, not tidiness:** strip an unmarked
+   cell to nothing and you invent hidden singles — a digit whose only other
+   home was that cell now has exactly one place to go — and the coach hands
+   over a wrong digit. The test for it drives a real board and caught exactly
+   that, an 8 offered where the answer was 6.
+
+   The cost is one note-check sweep, paid only in the rare case that needs it,
+   and memoised per coach so `reviewCandidates` does not pay it twice.
+
+   **The panel now distinguishes a suggestion from a correction**, which it
+   did not: "there is something here" and "a digit you entered cannot be
+   right" shared one amber box. Amber is this app's colour for *there is
+   something here for you* — the eraser with dead notes, the armed rewind, the
+   sync button wanting a tap — so it keeps the offers, and a correction takes
+   the danger colour the note check already uses for an impossible mark, plus
+   an icon, because a difference carried by colour alone is no difference to a
+   player who cannot see it. Three things read as corrections: a contradiction
+   nudge, a dead end, and a coach blocked by a `missing` mark — that last one
+   being a state this change created, and one the player can clear in a press.
+
    The note check has the same root and the opposite symptom. "Missing" used
    to mean "a basic true candidate the player has not noted", which reported
    every elimination a technique had earned as an oversight.
