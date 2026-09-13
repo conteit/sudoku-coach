@@ -30,7 +30,7 @@
 
 import type { Digit, Finding } from '../engine/types';
 import { Board } from '../engine/board';
-import { firstFinding } from '../engine/solver';
+
 import { interpolate } from '../i18n';
 import type { CoachExchange, DisclosureLevel, Locale, PlayerProfile } from '../state/types';
 import {
@@ -262,6 +262,35 @@ export function masteryAfterHint(
     : onTaught(profile, hint.technique, at);
 }
 
+/**
+ * True when the player's own marks already show everything `finding` proves.
+ *
+ * The cousin of `findingIsApplied`, and the difference is a cell with **no
+ * marks at all**. That one tells you nothing: a player who keeps no pencil
+ * marks there has not eliminated the digit, they have simply never written it
+ * down, and reading it as "done" would silence the coach entirely for anyone
+ * who plays without notes. So an unmarked empty cell counts as live.
+ *
+ * `findingIsApplied` can afford to be laxer because it is only ever asked
+ * about a *transition* — the same board before and after one move — where an
+ * unmarked cell reads identically on both sides and the credit is refused by
+ * the comparison rather than by the predicate.
+ *
+ * A filled cell is spent: whatever the finding would have ruled out of it is
+ * moot now.
+ */
+export function findingIsSpent(finding: Finding, cells: readonly CoachCell[]): boolean {
+  for (const { cell, digit } of finding.placements) {
+    if (cells[cell].value !== digit) return false;
+  }
+  for (const { cell, digit } of finding.eliminations) {
+    const target = cells[cell];
+    if (target.value !== null) continue;
+    if (target.candidates.size === 0 || target.candidates.has(digit)) return false;
+  }
+  return true;
+}
+
 /** True when the player's board already reflects everything `finding` proves. */
 export function findingIsApplied(finding: Finding, cells: readonly CoachCell[]): boolean {
   for (const { cell, digit } of finding.placements) {
@@ -334,19 +363,53 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
   const lessons = library ?? loadLessons(locale);
   let finding: Finding | null | undefined;
 
+  /**
+   * The easiest finding that still changes something the player can see.
+   *
+   * Detection is from values alone, as invariant 3b requires — the marks
+   * never decide whether a finding is *true*, so a wrong mark still cannot
+   * produce a wrong hint. They decide only which of several true findings is
+   * worth saying, and that is a different question with a different risk: the
+   * worst a wrong mark can do here is send the player to another sound step.
+   *
+   * The bug this fixes was reported from a real board. The player had worked
+   * five techniques' worth of eliminations into his notes; the engine, seeing
+   * only the values, kept offering the first of them back to him and made him
+   * press "show me another" five times to reach the x-wing that was actually
+   * the next move. Preferring an unspent finding is the whole fix.
+   *
+   * A spent finding is still returned when every one of them is spent, rather
+   * than nothing: the board really has no further step the catalog can see
+   * from its values, and the honest answer is the same one as before, not
+   * silence.
+   *
+   * The limit worth knowing: a detector returns only its *first* finding, so
+   * a spent naked pair hides a live one elsewhere on the board and the walk
+   * moves on to the next technique instead. That costs a better hint, never a
+   * wrong one, and closing it needs an enumerate-all API the engine does not
+   * have.
+   */
+  const choose = (skip?: ReadonlySet<string>): Finding | null => {
+    let spent: Finding | null = null;
+    for (const detector of CATALOG) {
+      const found = detector.detect(board);
+      if (found === null || skip?.has(findingKey(found)) === true) continue;
+      if (!findingIsSpent(found, cells)) return found;
+      spent ??= found;
+    }
+    return spent;
+  };
+
   return {
     nextFinding(skip?: ReadonlySet<string>): Finding | null {
       if (skip === undefined || skip.size === 0) {
-        // The memoised path, which is every ordinary ask: the same board is
-        // swept once however many times the panel re-renders.
-        if (finding === undefined) finding = firstFinding(board);
+        // The memoised path, which is every ordinary ask: the same board and
+        // the same marks are swept once however many times the panel
+        // re-renders.
+        if (finding === undefined) finding = choose();
         return finding;
       }
-      for (const detector of CATALOG) {
-        const found = detector.detect(board);
-        if (found !== null && !skip.has(findingKey(found))) return found;
-      }
-      return null;
+      return choose(skip);
     },
     hint(target: Finding, level: DisclosureLevel): Hint {
       return renderHint({ finding: target, level, locale, library: lessons });

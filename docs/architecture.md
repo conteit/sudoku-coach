@@ -197,9 +197,37 @@ has already read the front door.
    because a hint built on a wrong mark is a wrong hint. The cost is that a
    player who has worked a pattern in their notes has changed nothing the
    detector can see, so the same finding comes back. `nextFinding(skip)` is
-   the answer: the player sets a finding aside ("show me another") and the
+   one answer: the player sets a finding aside ("show me another") and the
    catalog walks on. The set is cleared whenever the board changes, since a
    placement rewrites what the catalog sees.
+
+   **Setting findings aside by hand was not enough, and the split that fixes
+   it is worth stating exactly.** Detection is from values; *choosing between
+   sound findings* reads the marks. `nextFinding` returns the easiest finding
+   that is not already **spent** — `findingIsSpent`, every elimination gone
+   from the player's own marks and every placement made. The risk is not the
+   same risk: a wrong mark cannot make a hint wrong here, because it never
+   touches whether a finding is true, only which of several true findings is
+   worth saying. The worst it can do is send the player to another sound step.
+
+   Without it a diligent player is punished for diligence. Reported from a
+   real board (diagnostics, 2026-09-13): five techniques' worth of
+   eliminations already worked into the notes, and the coach offering the
+   first of them back, over and over, with the x-wing that was actually the
+   next move five presses of "show me another" away.
+
+   Two traps in the predicate, both of which a test passed vacuously over
+   before being tightened. **An unmarked empty cell is live, not spent** — an
+   empty candidate set does not contain the digit either, so reading it as
+   done would silence the coach for everyone who plays without pencil marks.
+   And **a board where everything is spent still gets the old answer, not
+   silence**: the catalog genuinely has nothing further, and saying so by
+   saying nothing reads as the coach breaking.
+
+   The limit that remains: a detector returns only its *first* finding, so a
+   spent naked pair hides a live one elsewhere and the walk moves to the next
+   technique instead. That costs a better hint, never a wrong one, and closing
+   it needs an enumerate-all API the engine does not have.
 
    The note check has the same root and the opposite symptom. "Missing" used
    to mean "a basic true candidate the player has not noted", which reported
