@@ -55,6 +55,16 @@ describe('the sync notice', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('says nothing when this browser simply needs a tap', () => {
+    // Safari cannot renew the Drive permission silently, so this state is
+    // reached on every single load there. A banner would fire every launch
+    // for a condition one tap clears, with nothing withdrawn and nothing
+    // lost — the nagging this state was introduced to stop. The library's
+    // sync button carries an amber dot for it instead.
+    show('paused');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('says nothing to a player who never turned sync on', () => {
     // The status can be anything at all; without the switch there is no
     // promise to have broken.

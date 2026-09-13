@@ -623,6 +623,32 @@ not wait for the network and a failure is a line in Settings, never a dialog.
 - **`PlayerProfile` stays frozen.** It has no timestamp and newest-wins needs
   one, so the stamp lives in the `sync` singleton next to it, written in the
   same transaction as the profile.
+- **A silent renewal coming back empty is not a withdrawn permission, and
+  Safari makes the difference matter.** Google's token client renews through a
+  hidden iframe against an `accounts.google.com` cookie; Safari's tracking
+  prevention treats that as third-party and drops it, so the silent path fails
+  there on **every load** while the very same account renews silently in
+  Chrome — confirmed by Paolo on both browsers, which is also what rules out
+  a withdrawn grant or the OAuth app's publishing status as the cause. This is
+  a browser constraint, not a bug and not a free-tier limit: durable silent
+  refresh needs the authorization-code flow, which needs a server to hold a
+  client secret, which P0 does not have. One tap per session is the honest
+  price.
+
+  So the store keeps two states apart. `paused` means nobody was asked and
+  nothing is wrong — no banner, an amber dot on the library's sync button, and
+  a calm line in Settings. `consent` means someone *was* asked and refused, or
+  Drive returned 401 on a live token: that one keeps the banner. Before the
+  split, Safari was told on every launch that its permission had been
+  withdrawn and it should sign in again, both of which were false.
+
+  The tap has to be allowed to ask. `syncNow({ ask: true })` — the library
+  button and Settings' own — tries silently first, so a browser where that
+  works never sees a popup, and only then asks in person. Background triggers
+  (hydrate, sign-in, reconnect, visibility) pass no `ask` and stop at silent,
+  because a popup nobody pressed for cannot open anyway and would be an
+  ambush if it could. Without the escalation the button is inert in exactly
+  the browser whose dot points at it.
 - **The access token is never in a store.** The app can write a diagnostic
   report of its own state and invites players to paste it into a bug report;
   a bearer token for someone's Drive must not be reachable from there.

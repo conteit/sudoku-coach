@@ -74,14 +74,39 @@ function SyncControl() {
   if (!authAvailable() || !syncAvailable() || account === null || !enabled) return null;
 
   const syncing = status === 'syncing';
+  const paused = status === 'paused';
 
   return (
-    <IconButton
-      label={t(syncing ? 'sync.syncing' : 'sync.now')}
-      icon={<SyncIcon className={syncing ? 'animate-spin' : undefined} />}
-      disabled={syncing}
-      onClick={() => void useSync.getState().syncNow()}
-    />
+    /*
+     * `relative` on a wrapper rather than on the button: the dot is
+     * positioned against it, and putting it inside `IconButton` would give
+     * every icon button in the app a positioning context it has no use for.
+     */
+    <div className="relative flex">
+      <IconButton
+        // The dot is the only thing carrying "this needs you" visually, so
+        // the label has to carry it too — a screen reader gets no colour.
+        label={t(syncing ? 'sync.syncing' : paused ? 'sync.nowNeeded' : 'sync.now')}
+        icon={<SyncIcon className={syncing ? 'animate-spin' : undefined} />}
+        disabled={syncing}
+        // A real press, so a silent renewal that comes back empty may go on
+        // to ask in person. This button is the fix the dot is pointing at,
+        // and without this it would be inert in the browser that shows it.
+        onClick={() => void useSync.getState().syncNow({ ask: true })}
+      />
+      {paused ? (
+        /* Amber, the coach's colour, which everywhere else in this app means
+           "there is something here for you" rather than "something is wrong"
+           — the eraser with dead notes to clear, the armed rewind. Red would
+           promise a fault, and there is none: the games are safe and one tap
+           clears this. `aria-hidden` because the label above already says it,
+           and `pointer-events-none` so the dot can never eat the press. */
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-coach ring-2 ring-paper"
+        />
+      ) : null}
+    </div>
   );
 }
 

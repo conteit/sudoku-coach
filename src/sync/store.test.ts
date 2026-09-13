@@ -403,3 +403,64 @@ describe('the sync store', () => {
     });
   });
 });
+
+/**
+ * Safari will not renew the Drive permission through Google's hidden iframe —
+ * its tracking prevention drops the cookie behind it — so the silent path
+ * fails there on every load while the same account renews silently in Chrome.
+ * Nothing is withdrawn and nothing is lost, so this must not look like a
+ * fault; and the button that fixes it has to be allowed to ask in person, or
+ * it is inert in exactly the browser that shows it.
+ */
+describe('a browser that will not renew silently', () => {
+  it('rests in "paused" when a silent renewal comes back empty, without asking anyone', async () => {
+    const conn = device();
+    await storeWith(conn).getState().enable();
+    // An hour later, or a reload: the held token is gone.
+    forgetGrant();
+
+    const getGrant = vi.fn().mockResolvedValue(null);
+    const useStore = storeWith(conn, getGrant);
+    await useStore.getState().hydrate();
+
+    expect(getGrant.mock.calls.map((call) => call[0])).toEqual(['']);
+    expect(useStore.getState().status).toBe('paused');
+  });
+
+  it('asks in person when a press finds the silent path closed', async () => {
+    const getGrant = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(grant);
+    const useStore = storeWith(device(), getGrant);
+    useStore.setState({ enabled: true });
+
+    await useStore.getState().syncNow({ ask: true });
+
+    // Silent first — in a browser where that works, nobody sees a popup.
+    expect(getGrant.mock.calls.map((call) => call[0])).toEqual(['', 'consent']);
+    expect(useStore.getState().status).toBe('idle');
+  });
+
+  it('calls it consent only when someone was actually asked and said no', async () => {
+    const getGrant = vi.fn().mockResolvedValue(null);
+    const useStore = storeWith(device(), getGrant);
+    useStore.setState({ enabled: true });
+
+    await useStore.getState().syncNow({ ask: true });
+
+    expect(getGrant.mock.calls.map((call) => call[0])).toEqual(['', 'consent']);
+    expect(useStore.getState().status).toBe('consent');
+  });
+
+  it('never puts a popup in front of work nobody pressed for', async () => {
+    const getGrant = vi.fn().mockResolvedValue(null);
+    const useStore = storeWith(device(), getGrant);
+    useStore.setState({ enabled: true });
+
+    await useStore.getState().syncNow();
+
+    expect(getGrant.mock.calls.map((call) => call[0])).toEqual(['']);
+    expect(useStore.getState().status).toBe('paused');
+  });
+});

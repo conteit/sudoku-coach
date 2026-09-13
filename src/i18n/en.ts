@@ -311,6 +311,8 @@ export const en = {
   'sync.never': 'Not synced yet',
   'sync.error': 'The last sync did not finish. It will try again.',
   'sync.consent': 'Google needs your permission again before this can sync.',
+  'sync.paused': 'Sync is paused. This browser will not renew the Drive permission on its own, so it needs a tap \u2014 nothing has been withdrawn and nothing is lost.',
+  'sync.nowNeeded': 'Sync now \u2014 needs a tap',
   'sync.conflict': 'Play the same puzzle on two devices and the one you played on last wins — the other version is not kept.',
 
   'db.blocked.title': 'Open in another window',

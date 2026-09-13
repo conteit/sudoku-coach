@@ -30,6 +30,18 @@ export type SyncStatus =
   /** On, and nothing is happening. The resting state. */
   | 'idle'
   | 'syncing'
+  /**
+   * On, and this browser will not renew the permission on its own — but
+   * nothing is wrong and nobody has withdrawn anything. Safari's tracking
+   * prevention treats Google's renewal iframe as third-party and drops its
+   * cookie, so the silent path fails there on every load while the very same
+   * account renews silently in Chrome. A tap fixes it, for the session.
+   *
+   * Deliberately not `consent`, which is a *fault*. Telling a player their
+   * permission was withdrawn when it plainly was not sent them to a Google
+   * account page to fix something that was not broken.
+   */
+  | 'paused'
   /** On, but Google will not issue a token without being asked in person. */
   | 'consent'
   /**
@@ -77,8 +89,18 @@ export interface SyncStore {
   /** From a real click: this is the one path allowed to open a popup. */
   enable: () => Promise<void>;
   disable: () => Promise<void>;
-  /** Silent. Safe to call on a timer, on wake, or on the way out. */
-  syncNow: () => Promise<void>;
+  /**
+   * Silent by default: safe to call on a timer, on wake, or on the way out.
+   *
+   * `ask` is for the one path that has a real press behind it — the button in
+   * the library, and Settings' own. It tries silently first, because in a
+   * browser where that works there is no reason to put a popup in front of
+   * anyone, and only asks in person when it does not. Without it the button
+   * would be inert in exactly the browser that needs it: a silent request
+   * that has already failed this session will fail again, and a popup cannot
+   * be opened without a gesture.
+   */
+  syncNow: (options?: { ask?: boolean }) => Promise<void>;
   /** A mark earns its removal by being acted on — opened, not merely glanced at. */
   seen: (id: string) => void;
   /**
@@ -139,17 +161,24 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
     const emailHint = (): string | undefined => useAccount.getState().account?.email ?? undefined;
 
     /**
-     * A usable token, or null. `prompt` is `''` everywhere except the switch:
-     * a silent request that finds no consent simply fails, which is the
-     * correct outcome for anything the player did not just click.
+     * A usable token, or null. Each prompt in turn until one yields.
+     *
+     * A list rather than one prompt because "try silently, then ask" is a
+     * single decision made at the call site — background work passes `['']`
+     * and stops there, a press passes `['', 'consent']` — and folding it in
+     * here keeps `run` from having to know which of its attempts was allowed
+     * to open a popup.
      */
-    const tokenFor = async (prompt: string): Promise<string | null> => {
+    const tokenFor = async (prompts: readonly string[]): Promise<string | null> => {
       if (usable(grant, deps.now())) return grant.token;
-      grant = await deps.getGrant(prompt, emailHint());
-      return grant?.token ?? null;
+      for (const prompt of prompts) {
+        grant = await deps.getGrant(prompt, emailHint());
+        if (grant !== null) return grant.token;
+      }
+      return null;
     };
 
-    const run = async (prompt: string): Promise<void> => {
+    const run = async (prompts: readonly string[]): Promise<void> => {
       // Signed out is not an error: it is the resting state of an optional
       // feature, and it is reached by the player pressing "Sign out".
       if (!get().enabled || !deps.available() || useAccount.getState().account === null) {
@@ -168,9 +197,13 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
 
       set({ status: 'syncing' });
       try {
-        const token = await tokenFor(prompt);
+        const token = await tokenFor(prompts);
         if (token === null) {
-          set({ status: 'consent' });
+          // Which of the two it is turns on whether anyone was actually
+          // asked. Refused to our face is a fault worth a banner; a silent
+          // attempt coming back empty is this browser being this browser,
+          // and saying "your permission was withdrawn" would be untrue.
+          set({ status: prompts.includes('consent') ? 'consent' : 'paused' });
           return;
         }
         const outcome = await syncOnce({ drive: driveFor(token), conn: deps.conn, now: deps.now });
@@ -210,8 +243,8 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
     };
 
     /** Queued behind whatever is already in flight, never concurrent with it. */
-    const queue = (prompt: string): Promise<void> => {
-      running = running.then(() => run(prompt));
+    const queue = (prompts: readonly string[]): Promise<void> => {
+      running = running.then(() => run(prompts));
       return running;
     };
 
@@ -229,15 +262,16 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
           lastSyncedAt: record.lastSyncedAt,
           status: record.enabled && deps.available() ? 'idle' : 'off',
         });
-        if (record.enabled) await queue('');
+        if (record.enabled) await queue(['']);
       },
 
       enable: async () => {
         if (!deps.available()) return;
         set({ enabled: true });
         await writeSyncRecord({ enabled: true }, deps.conn);
-        // The only 'consent' prompt in the app, and it is reached by a press.
-        await queue('consent');
+        // Reached by a press, so it may ask in person outright: turning the
+        // switch on *is* the moment to request consent.
+        await queue(['consent']);
       },
 
       disable: async () => {
@@ -246,7 +280,7 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
         await writeSyncRecord({ enabled: false }, deps.conn);
       },
 
-      syncNow: () => queue(''),
+      syncNow: (options) => queue(options?.ask === true ? ['', 'consent'] : ['']),
 
       seen: (id) =>
         set((state) => {

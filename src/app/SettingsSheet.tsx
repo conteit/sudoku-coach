@@ -172,12 +172,19 @@ function SyncSection({ locale }: { locale: Locale }) {
           </p>
           {status === 'error' ? <p className="text-sm text-danger">{t('sync.error')}</p> : null}
           {status === 'consent' ? <p className="text-sm text-danger">{t('sync.consent')}</p> : null}
+          {/* Not `text-danger`: nothing has failed and nothing was withdrawn.
+              This browser simply will not renew on its own, and the button
+              underneath is the whole of the fix. */}
+          {status === 'paused' ? <p className="text-sm text-ink-soft">{t('sync.paused')}</p> : null}
           <Button
             variant="secondary"
             size="lg"
             block
             disabled={status === 'syncing'}
-            onClick={() => void useSync.getState().syncNow()}
+            // `ask`: there is a press behind this, so a silent attempt that
+            // comes back empty may go on to ask in person. Without it the
+            // button is inert in the browser that needs it most.
+            onClick={() => void useSync.getState().syncNow({ ask: true })}
           >
             {t('sync.now')}
           </Button>
