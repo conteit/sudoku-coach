@@ -103,10 +103,11 @@ describe('the two ways this could have gone wrong', () => {
     expect(next === null || next.technique !== finding.technique).toBe(true);
   });
 
-  it('still answers when every finding on the board is spent', () => {
-    // A board worked to a standstill must get the same answer it always got,
-    // not silence: the catalog genuinely has nothing further to offer, and
-    // saying so by saying nothing would read as the coach breaking.
+  it('declares exhaustion when every finding left is spent, rather than repeating one', () => {
+    // The bug's last hiding place. A board worked to a standstill must not be
+    // handed back one of the eliminations the player has already made — that
+    // is the original complaint, arriving one step later. Nothing is the
+    // honest answer, and the panel already has words for it.
     const cells = board();
     // Erasing one finding's eliminations is not enough — the next technique
     // simply becomes the live one, and the test never reaches the state it
@@ -128,6 +129,15 @@ describe('the two ways this could have gone wrong', () => {
     expect(remaining.length).toBeGreaterThan(0);
     expect(remaining.every((found) => findingIsSpent(found!, cells))).toBe(true);
 
-    expect(coachFor(cells).nextFinding()).not.toBeNull();
+    expect(coachFor(cells).nextFinding()).toBeNull();
+  });
+
+  it('does not go quiet while any finding still has work in it', () => {
+    // The other side of the same rule: exhaustion has to mean exhausted. One
+    // spent finding must never take a live one down with it.
+    const cells = board();
+    const live = coachFor(cells).nextFinding();
+    expect(live).not.toBeNull();
+    expect(findingIsSpent(live!, cells)).toBe(false);
   });
 });

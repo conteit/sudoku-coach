@@ -117,7 +117,7 @@ export const en = {
   'coach.openWaiting': 'Coach — has something for you',
   'coach.idle': 'Ask when you want a nudge. Nothing is revealed until you ask.',
   'coach.reading': 'Reading the board',
-  'coach.nothingFound': 'Nothing on this board yields to a technique yet. Fill in what you can and come back.',
+  'coach.nothingFound': 'Nothing further here that I can prove from the digits on the board \u2014 either no technique applies yet, or you have already worked the ones that do. Fill one in and I will look again.',
   'coach.stepLabel': 'Step {level} of {total}',
   'coach.escalate': 'Tell me more',
   'coach.enough': 'That is enough',

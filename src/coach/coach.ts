@@ -378,10 +378,13 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
    * press "show me another" five times to reach the x-wing that was actually
    * the next move. Preferring an unspent finding is the whole fix.
    *
-   * A spent finding is still returned when every one of them is spent, rather
-   * than nothing: the board really has no further step the catalog can see
-   * from its values, and the honest answer is the same one as before, not
-   * silence.
+   * When everything left is spent, the answer is **nothing** — the caller's
+   * exhausted state, not a spent finding handed back. Offering one would be
+   * the reported bug again in its last hiding place: the player has done
+   * every elimination the catalog can prove, and being shown one of them a
+   * second time is exactly the complaint. "I can prove nothing further from
+   * the digits placed" is both true and useful there, because it says what
+   * unblocks it — fill one in and the catalog sees further.
    *
    * The limit worth knowing: a detector returns only its *first* finding, so
    * a spent naked pair hides a live one elsewhere on the board and the walk
@@ -390,14 +393,12 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
    * have.
    */
   const choose = (skip?: ReadonlySet<string>): Finding | null => {
-    let spent: Finding | null = null;
     for (const detector of CATALOG) {
       const found = detector.detect(board);
       if (found === null || skip?.has(findingKey(found)) === true) continue;
       if (!findingIsSpent(found, cells)) return found;
-      spent ??= found;
     }
-    return spent;
+    return null;
   };
 
   return {
