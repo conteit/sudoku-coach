@@ -24,7 +24,15 @@ import { useSync, type SyncStatus } from '../sync/store';
 import { IconButton } from '../ui/primitives/IconButton';
 import { CloseIcon } from '../ui/primitives/icons';
 
-/** The two states worth telling the player about. Everything else is normal. */
+/**
+ * The two states worth telling the player about. Everything else is normal.
+ *
+ * `paused` is deliberately absent. It means a silent renewal came back empty,
+ * which in Safari happens on every single load — a banner there would fire
+ * every launch, for a condition one tap clears and nothing has broken. The
+ * library's sync button carries an amber dot for it instead: present, but not
+ * in the way. What is left here is the pair that genuinely went wrong.
+ */
 const MESSAGES = {
   consent: 'sync.notice.signedOut',
   error: 'sync.notice.failed',

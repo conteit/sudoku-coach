@@ -304,6 +304,8 @@ export const it: Dictionary = {
   'sync.never': 'Mai sincronizzato',
   'sync.error': 'L\u2019ultima sincronizzazione non è andata a buon fine. Verrà ritentata.',
   'sync.consent': 'Google deve chiederti di nuovo il permesso prima di poter sincronizzare.',
+  'sync.paused': 'La sincronizzazione \u00e8 in pausa. Questo browser non rinnova da solo il permesso di Drive, quindi serve un tocco: non \u00e8 stato revocato niente e non si perde niente.',
+  'sync.nowNeeded': 'Sincronizza ora \u2014 serve un tocco',
   'sync.conflict': 'Se giochi lo stesso schema su due dispositivi, vince quello su cui hai giocato per ultimo: l\u2019altra versione non viene conservata.',
 
   'db.blocked.title': 'Aperto in un\u2019altra finestra',

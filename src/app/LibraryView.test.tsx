@@ -287,7 +287,13 @@ describe('the sync control', () => {
     // child — the header itself still has exactly two children, which the
     // tests above already pin down; this pins down where the third control
     // actually lives.
-    expect(sync.parentElement).toBe(settings.parentElement);
+    //
+    // `contains` rather than an identical `parentElement`: the sync control
+    // now carries a positioning wrapper for its amber dot, so it is a
+    // grandchild of the cluster. Which cluster it is in is the fact this
+    // test was written for; how many elements deep it sits in that cluster
+    // never was, and pinning it there made a dot a test failure.
+    expect(settings.parentElement!.contains(sync)).toBe(true);
     expect(sync.closest('header')!.children).toHaveLength(2);
   });
 
@@ -302,7 +308,7 @@ describe('the sync control', () => {
     expect(button).toBeDisabled();
   });
 
-  it('triggers a sync from the tap', async () => {
+  it('triggers a sync from the tap, and lets that one ask in person', async () => {
     gates.auth = true;
     gates.sync = true;
     useAccount.setState({ account });
@@ -314,6 +320,36 @@ describe('the sync control', () => {
     await user.click(screen.getByRole('button', { name: 'Sync now' }));
 
     expect(syncNow).toHaveBeenCalledTimes(1);
+    // There is a real press behind this one, so a silent renewal that comes
+    // back empty may go on to ask. Without it the button is inert in Safari,
+    // which is the browser that shows the dot pointing at it.
+    expect(syncNow).toHaveBeenCalledWith({ ask: true });
+  });
+
+  it('puts an amber dot on the button when this browser needs a tap', () => {
+    gates.auth = true;
+    gates.sync = true;
+    useAccount.setState({ account });
+    useSync.setState({ enabled: true, status: 'paused' });
+
+    renderLibrary({ tier: 'phone' });
+    // The name changes with the dot: colour is the whole signal visually, and
+    // a screen reader gets none of it.
+    const sync = screen.getByRole('button', { name: 'Sync now — needs a tap' });
+    const dot = sync.parentElement!.querySelector('span[aria-hidden="true"]');
+    expect(dot).not.toBeNull();
+    expect(dot!.className).toContain('bg-coach');
+  });
+
+  it('shows no dot, and the plain name, when sync is resting', () => {
+    gates.auth = true;
+    gates.sync = true;
+    useAccount.setState({ account });
+    useSync.setState({ enabled: true, status: 'idle' });
+
+    renderLibrary({ tier: 'phone' });
+    const sync = screen.getByRole('button', { name: 'Sync now' });
+    expect(sync.parentElement!.querySelector('span[aria-hidden="true"]')).toBeNull();
   });
 });
 
