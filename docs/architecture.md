@@ -220,9 +220,14 @@ has already read the front door.
    before being tightened. **An unmarked empty cell is live, not spent** — an
    empty candidate set does not contain the digit either, so reading it as
    done would silence the coach for everyone who plays without pencil marks.
-   And **a board where everything is spent still gets the old answer, not
-   silence**: the catalog genuinely has nothing further, and saying so by
-   saying nothing reads as the coach breaking.
+   And **a board where everything left is spent is exhausted, not an excuse to
+   repeat one**: handing back an elimination the player has already made is
+   the same complaint arriving one step later. `nextFinding` returns null,
+   `useCoachSession` raises its exhausted state, and `coach.nothingFound` says
+   the true thing — nothing further provable from the digits placed, either
+   because no technique applies yet or because the ones that do are already
+   worked, and filling one in is what moves it on. That copy was widened to
+   cover both cases when this state started reaching it.
 
    The limit that remains: a detector returns only its *first* finding, so a
    spent naked pair hides a live one elsewhere and the walk moves to the next

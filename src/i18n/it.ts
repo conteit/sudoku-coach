@@ -115,7 +115,7 @@ export const it: Dictionary = {
   'coach.idle': 'Chiedi pure quando vuoi una spinta. Finché non lo chiedi, non ti viene svelato nulla.',
   'coach.reading': 'Sto leggendo la griglia',
   'coach.nothingFound':
-    'Su questa griglia non c’è ancora nulla che ceda a una tecnica. Riempi quello che puoi e torna qui.',
+    'Qui non riesco a dimostrare altro dalle cifre sulla griglia: o non si applica ancora nessuna tecnica, o quelle che si applicano le hai gi\u00e0 fatte. Inseriscine una e guardo di nuovo.',
   'coach.stepLabel': 'Passo {level} di {total}',
   'coach.escalate': 'Dimmi di più',
   'coach.enough': 'Mi basta così',
