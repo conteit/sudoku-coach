@@ -125,6 +125,21 @@ export interface CoachPanelProps {
    */
   onAnother?: () => void;
   /**
+   * Takes the coach's advice off the screen — the hint, its spotlight, the
+   * report — and leaves the board plain. "I'll take it from here."
+   *
+   * Distinct from `onAnother`, which is the only other exit a player had, and
+   * which hands back a *different* finding painted on a *different* part of
+   * the board. There was no way out of being coached that was not more
+   * coaching, which is the wrong shape for an app whose whole claim is that
+   * the coach is asked rather than endured.
+   *
+   * Also distinct from `onCollapse`, which on a phone only slides the sheet
+   * down: the highlight stays up on purpose there, because looking at the
+   * board is exactly what the player closed the sheet to do.
+   */
+  onDismissHint?: () => void;
+  /**
    * Puts the panel back to its resting bar. Offered only while it is showing
    * something, and only where it overlays the board's controls.
    */
@@ -364,6 +379,7 @@ export function CoachPanel({
   onDismissDrill,
   onLearn,
   onAnother,
+  onDismissHint,
   onFixNotes,
   onCollapse,
   nudge,
@@ -394,7 +410,14 @@ export function CoachPanel({
       aria-label={t('coach.title')}
       className={cx('w-full border-t-2 border-ink bg-paper-raised', className)}
     >
-      <div className="flex items-center justify-between gap-3 px-4 pt-2.5 empty:hidden sm:pt-3">
+      {/* Sticky, because on a phone this panel is a 72dvh sheet that scrolls
+          its whole contents: a long lesson took the technique's name and the
+          way out with it, and what was left was a wall of text with no label
+          saying what it was about and no visible exit. The name is not chrome
+          here — below rung 2 the coach is *withholding* it, so once it is on
+          screen it is the frame for everything under it. Needs its own
+          background or the text slides through it. */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-paper-raised px-4 pt-2.5 pb-1.5 empty:hidden sm:pt-3">
         {/* The panel is unmistakable without a caption, and on a phone the
             caption is a line of board. The region keeps its accessible name. */}
         <h2 className="hidden text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase sm:block">
@@ -637,6 +660,19 @@ export function CoachPanel({
         {onAnother && hint !== null && !unfinishable ? (
           <Button variant="ghost" size="lg" onClick={onAnother}>
             {t('coach.another')}
+          </Button>
+        ) : null}
+        {/* Next to "show me another" because it answers the same question and
+            gives the opposite answer: that one steps sideways to a different
+            pattern, this one steps out. Spelled out at every width rather than
+            reduced to a glyph on a phone — a player who cannot find the way
+            out does not have one, which is the whole of the complaint this
+            button exists for. Offered whenever the coach has something on
+            screen to take away; a live challenge has its own dismissal, and
+            `hint` is null while one is running. */}
+        {onDismissHint && (hint !== null || exhausted) ? (
+          <Button variant="ghost" size="lg" onClick={onDismissHint}>
+            {t('coach.putAway')}
           </Button>
         ) : null}
         {onLearn && namedTechnique !== null ? (
