@@ -124,6 +124,7 @@ export const it: Dictionary = {
   'coach.whatIsThis': 'Che tecnica è questa?',
   'coach.another': "Non quella — mostrane un'altra",
   'coach.anotherShort': "Un'altra",
+  'coach.putAway': 'Basta così — vado avanti da solo',
   'coach.eliminationGroup': '{digit} da {cells}',
   'coach.marksClean': 'Tutte le annotazioni che hai messo sono corrette.',
   'coach.marksSummary': 'Ci sono {count} annotazioni da rivedere.',

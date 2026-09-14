@@ -317,6 +317,24 @@ export function GameView({
   }, [coach]);
 
   /**
+   * The other thing closing the sheet could have meant, and the one the player
+   * had no way to say: take the advice away, not just the panel. It clears the
+   * hint, its spotlight and the note report, then puts the sheet down on top
+   * of a board with nothing painted on it.
+   *
+   * It has to be its own control rather than a second meaning for the X,
+   * because both meanings are wanted: closing the sheet to *look* at the
+   * highlighted cells is the ordinary way to use a hint on a phone, and the
+   * X is how you do it. Without this, the only exit from a hint was "show me
+   * another", which answers by lighting up somewhere else — a player who
+   * wanted to go back to thinking could not get there from here.
+   */
+  const putAwayCoach = useCallback(() => {
+    coach.dismiss();
+    closeSheet();
+  }, [coach, closeSheet]);
+
+  /**
    * Whether the panel is actually presented as the modal overlay right now —
    * `sheetOpen` alone isn't enough, because `sheetOpen` can be true on a wide
    * screen too (see `onHint` below): the static desktop bar is never a modal
@@ -887,6 +905,11 @@ export function GameView({
           // resting state with no way left to dismiss it. At rest on desktop
           // there is no sheet to close, only a hint to collapse.
           onCollapse={sheetOpen ? closeSheet : speaking ? coach.dismiss : undefined}
+          // Only where the X cannot already mean this. On a wide screen the
+          // panel is a static bar with no sheet to close, so its X *is* the
+          // put-away; offering both there would be two controls in one row
+          // doing the same thing.
+          onDismissHint={isNarrow ? putAwayCoach : undefined}
           nudge={coach.nudge}
           onDismissNudge={coach.dismissNudge}
           rewindTrail={rewind === 'off' ? EMPTY_TRAIL : rewindTrail(game.redoStack)}

@@ -586,6 +586,51 @@ test.describe('the header at its narrowest', () => {
   });
 });
 
+/*
+ * #142. The sheet scrolls its whole contents, so a long hint took the
+ * technique's name and the way out off the top of the screen with it and left
+ * the player inside a wall of text with no label and no visible exit.
+ *
+ * Only a browser can make this claim fail: jsdom lays nothing out, so nothing
+ * overflows there and a sticky header is indistinguishable from a static one.
+ */
+test.describe('the coach sheet keeps its header', () => {
+  test.skip(({ isMobile }) => !isMobile, 'the sheet only exists on the phone layout');
+
+  // Short on purpose, for the same reason the board-height describe above is:
+  // on a tall phone the panel may fit inside its 72dvh cap with a named
+  // technique on screen, and a test that never scrolls proves nothing. The
+  // assertion below refuses to pass if it did not.
+  const SHORT_PHONE = { width: 412, height: 560 };
+
+  test('holds the technique and the way out still while the panel scrolls', async ({ page }) => {
+    await page.setViewportSize(SHORT_PHONE);
+    await startEasyGame(page);
+    const coach = await openCoach(page);
+    // Level 2 is where the technique gets its name, which is the half of the
+    // header that carries meaning — below it the coach is withholding it.
+    await coach.getByRole('button', { name: 'Where should I look?' }).click();
+    await coach.getByRole('button', { name: /Name the technique/ }).click();
+
+    const header = coach.locator(':scope > div').first();
+    await expect(header).toBeVisible();
+    await expect(header, 'the header has to have a name in it to lose one').not.toHaveText('');
+
+    const scrolled = await coach.evaluate((section) => {
+      const sheet = section.parentElement!;
+      sheet.scrollTop = sheet.scrollHeight;
+      return sheet.scrollTop;
+    });
+    expect(
+      scrolled,
+      'the sheet must actually overflow its cap, or nothing here is being tested',
+    ).toBeGreaterThan(0);
+
+    await expect(header).toBeInViewport();
+    await expect(coach.getByRole('button', { name: 'Close' })).toBeInViewport();
+  });
+});
+
 test.describe('drills', () => {
   test('sets a challenge, and confirms it only when the board shows it', async ({ page }) => {
     await startEasyGame(page);

@@ -621,6 +621,30 @@ describe('the coach sheet', () => {
     ).toBeDisabled();
   });
 
+  /*
+   * The exit from a hint that is not another hint. On a phone the X means
+   * "let me look at the board", so it deliberately leaves the highlight up —
+   * which left no way at all to say "take it away". The proof that this is a
+   * lifecycle change and not a viewport one is on the far side of a reopen:
+   * the panel has to come back at rest, inviting the first question again,
+   * rather than still holding the hint it was holding.
+   */
+  it('takes the advice away, not just the sheet, and leaves the board plain', async () => {
+    const { user } = renderGame({ running: true });
+    await user.click(screen.getByRole('button', { name: 'Coach' }));
+    await user.click(coachPanel().getByRole('button', { name: 'Where should I look?' }));
+    // A hint really is on screen: the panel has stopped inviting a first
+    // question and is offering the next rung instead. Without this the test
+    // would pass on a coach that never said anything.
+    expect(coachPanel().queryByRole('button', { name: 'Where should I look?' })).toBeNull();
+
+    await user.click(coachPanel().getByRole('button', { name: /take it from here/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Coach' }));
+    expect(coachPanel().getByRole('button', { name: 'Where should I look?' })).toBeInTheDocument();
+  });
+
   it('is announced as a dialog only while it is actually the modal overlay', async () => {
     const { user } = renderGame();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

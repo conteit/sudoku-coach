@@ -377,6 +377,58 @@ describe('setting a finding aside', () => {
   });
 });
 
+/*
+ * The exit that is not more coaching. Until this existed the only way past a
+ * hint was "show me another", which replies by lighting up a different part of
+ * the board — so a player who wanted the board plain again had nowhere to go.
+ */
+describe('putting the coach away', () => {
+  it('offers the way out while something is on screen', async () => {
+    const onDismissHint = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CoachPanel
+        hint={hintAt(2, 'There is a naked pair in column 3.')}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onDismissHint={onDismissHint}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /take it from here/i }));
+    expect(onDismissHint).toHaveBeenCalledOnce();
+  });
+
+  it('offers it for a shrug too, which is also something to take away', () => {
+    // "Nothing further here" sits in the panel exactly like a hint does, and
+    // it keeps the sheet up until something clears it.
+    render(
+      <CoachPanel
+        hint={null}
+        exhausted
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onDismissHint={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /take it from here/i })).toBeInTheDocument();
+  });
+
+  it('offers nothing to put away at rest', () => {
+    render(
+      <CoachPanel
+        hint={null}
+        onAsk={() => undefined}
+        onEscalate={() => undefined}
+        onDismissHint={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /take it from here/i })).toBeNull();
+  });
+});
+
 describe('the rewind trail', () => {
   const renderTrail = (props: Partial<CoachPanelProps>) =>
     render(
