@@ -858,7 +858,12 @@ export function GameView({
         className={cx(
           'bg-paper-raised sm:static sm:block sm:max-h-none sm:overflow-visible sm:shadow-none',
           sheetOpen
-            ? 'absolute inset-x-0 bottom-0 z-20 max-h-[72dvh] overflow-y-auto shadow-lift'
+            ? // The inset for the same reason `GameLayout`'s phone column has
+              // it: the sheet is anchored to the bottom of a viewport that
+              // runs under the home indicator, so its last row of buttons is
+              // in the corner unless it pads past it. Inside the scroller, so
+              // the padding is scrolled content rather than a dead strip.
+              'absolute inset-x-0 bottom-0 z-20 max-h-[72dvh] overflow-y-auto pb-[env(safe-area-inset-bottom)] shadow-lift'
             : 'hidden',
         )}
       >

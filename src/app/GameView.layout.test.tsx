@@ -266,6 +266,26 @@ describe('the game screen at each tier', () => {
     expect(screen.queryByTestId('coach-column')).toBeNull();
   });
 
+  /*
+   * The keypad is the last thing in the stacked column, so it is what lands
+   * in the phone's rounded corner: `viewport-fit=cover` runs the layout
+   * viewport under the home indicator, and nothing here was padding past it.
+   *
+   * Asserted as a class string rather than as pixels, and deliberately: no
+   * browser this suite can drive reports a safe-area inset — headless
+   * Chromium's are zero and Playwright cannot set them — so `env()` resolves
+   * to 0 everywhere the property could otherwise be measured, and a test that
+   * measured it would pass with the padding deleted. This is the strongest
+   * claim that can actually fail.
+   */
+  it('pads the stacked column past the phone home indicator', () => {
+    renderGame({ tier: 'phone' });
+    const main = screen.getByRole('main');
+    expect(
+      Array.from(main.classList).some((token) => token.includes('env(safe-area-inset-bottom)')),
+    ).toBe(true);
+  });
+
   it('puts the coach beside the board on a laptop', () => {
     renderGame({ tier: 'laptop' });
     expect(screen.getByTestId('coach-column')).toBeTruthy();

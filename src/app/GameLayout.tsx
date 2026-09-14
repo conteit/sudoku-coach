@@ -81,7 +81,17 @@ export function GameLayout({
        */
       <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden sm:h-auto sm:min-h-dvh sm:max-w-[40rem] sm:overflow-visible">
         {header}
-        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-2">
+        {/* The bottom padding is the safe-area inset, not a fixed 2 — the
+            keypad is the last thing in this column, so it is the thing that
+            lands in the phone's rounded corner and behind its home indicator.
+            `viewport-fit=cover` (index.html) is what puts it there: the layout
+            viewport runs under the hardware, and `100dvh` includes the part
+            the player cannot comfortably reach. In a browser the address bar
+            happened to occupy that strip, which is why this was invisible
+            until the app was installed. `max()` rather than an addition, the
+            same idiom `Sheet.tsx` uses: on a device with no inset nothing
+            changes. */}
+        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {board}
           {keypad}
         </main>
