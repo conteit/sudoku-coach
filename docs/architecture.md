@@ -81,6 +81,7 @@ dependency.
 | `src/coach/roles.ts` | What each cell of a pattern is doing — hinge, arms, corners | engine |
 | `src/state/profile.ts` | Profile store: locale, settings, mastery. Write-through | db, mastery |
 | `src/state/savePoint.ts` | Save point store: the pinned board for the game on screen. Write-through | db, game |
+| `src/buildStamp.ts` | The build stamp — which build this is, not which version | — |
 | `src/i18n/` | Flat dotted dictionary, `t()`, and the locale React context | state/types |
 | `src/ui/` | Presentational components: grid, keypad, game list, coach panel | engine, state, i18n |
 | `src/app/` | The assembled app: screens, and the hooks that bind them to the layers below | everything |
@@ -681,6 +682,44 @@ sanctioned answer to a narrow screen — and the one line saying what to do
 cannot be behind a button. The header's message box is a fixed two lines at
 every tier so that a refusal appearing and going never changes the board's
 box.
+
+## Build identity
+
+The app is **identified, not versioned**: `20260915-21-cb174ef` — UTC date, UTC
+hour, seven-character commit. A build made from a pull request names it too,
+on the hour segment: `20260915-21.150-cb174ef`. `src/buildStamp.ts` builds it,
+a `define` in `vite.config.ts` bakes it in as `__BUILD_STAMP__`, and it is
+shown in Settings' About tab and carried in every diagnostic report.
+
+The PR number is there because a preview is the build most likely to be in
+front of someone when something looks wrong, and "which PR is this" is
+otherwise a question answered by going and looking the sha up. It comes from
+`VERCEL_GIT_PULL_REQUEST_ID`, or from `GITHUB_REF` (`refs/pull/150/merge`) in
+Actions, and is accepted only as digits — both are environment strings, and a
+stamp carrying junk is worse than one carrying nothing because it still looks
+authoritative. Production has no PR and the segment is absent rather than
+empty, so a released build keeps the short form.
+
+Semver from conventional commits was the original design and was dropped for a
+reason worth keeping, because it will come up again: **the build that ships is
+Vercel's, and Vercel's clone is shallow with no tags at all.** The repo has no
+tags either and `git describe` fails. So a semantic version has to be computed
+somewhere other than the deploying build, and every way of doing that costs
+something real — a bump commit on `main` (every merge deploys twice), a
+merge-blocking check on every PR including dependency bumps, or moving the
+deploy out of the Vercel integration into CI. A stamp needs none of it: every
+part of it is already in the build environment.
+
+Two properties the stamp has that a bare sha does not. It **sorts** —
+`20260915-21` against `20260914-08` says which is newer without asking git —
+and it is **readable aloud**, which a sha is not. The hour rather than the
+minute so two builds of one commit do not look like different things.
+
+The sha is taken from `VERCEL_GIT_COMMIT_SHA`, then `GITHUB_SHA`, then
+`git rev-parse`, then the literal `dev`. That last one is deliberate: a stamp
+exists to be looked up, so one that cannot name its commit has to say so rather
+than invent a value. Asking git is wrapped in a try — knowing which build you
+are on is a convenience and must never be why a deploy fails.
 
 ## Developer tools
 

@@ -55,18 +55,77 @@ export const usePwaStatus = create<{ offlineReady: boolean }>()(() => ({ offline
 export const offlineReadySaid = (): void => usePwaStatus.setState({ offlineReady: false });
 
 /**
+ * What a hand-driven update check can end as.
+ *
+ * `current` is the ordinary answer and the one worth designing for: almost
+ * every press lands here, and it has to read as an answer rather than as the
+ * button having done nothing. `found` is rarer than it looks — with
+ * `registerType: 'autoUpdate'` a new worker takes over and reloads the page
+ * itself, so the honest report is "something is arriving", not "done".
+ * `unavailable` covers the two cases with no worker to ask: a browser without
+ * service workers, and `vite dev`, where the plugin registers none at all.
+ */
+export type UpdateCheck = 'current' | 'found' | 'unavailable' | 'failed';
+
+/** How long to wait before calling a check failed. */
+export const UPDATE_TIMEOUT_MS = 10_000;
+
+/**
+ * The live registration, or undefined until one exists.
+ *
+ * Module-scoped because `installServiceWorker` runs once at import and the
+ * Settings screen needs to reach what it captured. Not in the zustand store:
+ * nothing renders from it, and putting a live browser object in a store
+ * invites a component to subscribe to something that never changes.
+ */
+let current: ServiceWorkerRegistration | undefined;
+
+/**
+ * Asks the browser to go and look, on purpose, because the player pressed a
+ * button.
+ *
+ * The same `registration.update()` the resume handler already calls — the
+ * difference is entirely that someone is waiting for an answer, which is why
+ * this one has a deadline. `update()` is a fetch of `sw.js` with no timeout of
+ * its own (and `vercel.json` serves it `must-revalidate`, so the fetch is
+ * real), and a button that can hang forever on a dead network is worse than
+ * one that admits defeat.
+ *
+ * "Found" is read off the registration afterwards rather than from the
+ * promise, which resolves either way: a waiting or installing worker is the
+ * only evidence that the look turned something up.
+ */
+export async function checkForUpdate(
+  timeoutMs: number = UPDATE_TIMEOUT_MS,
+): Promise<UpdateCheck> {
+  const registration = current;
+  if (registration === undefined) return 'unavailable';
+
+  const timeout = new Promise<'failed'>((resolve) => {
+    setTimeout(() => resolve('failed'), timeoutMs);
+  });
+
+  const look = registration
+    .update()
+    .then(() =>
+      registration.waiting !== null || registration.installing !== null ? 'found' : 'current',
+    )
+    .catch((): UpdateCheck => 'failed');
+
+  return Promise.race([look, timeout]);
+}
+
+/**
  * Registers the worker and watches for the two things worth reacting to.
  * Returns a disposer, exported for the same reason `installLifecycleHooks`
  * does: a listener on a page that has moved on is work nobody can finish.
  */
 export function installServiceWorker(): () => void {
-  let registration: ServiceWorkerRegistration | undefined;
-
   registerSW({
     immediate: true,
     onOfflineReady: () => usePwaStatus.setState({ offlineReady: true }),
     onRegisteredSW: (_swUrl, reg) => {
-      registration = reg;
+      current = reg;
     },
   });
 
@@ -90,13 +149,16 @@ export function installServiceWorker(): () => void {
   container?.addEventListener('controllerchange', onControllerChange);
 
   const onVisibility = (): void => {
-    if (document.visibilityState === 'visible') void registration?.update();
+    if (document.visibilityState === 'visible') void current?.update();
   };
   document.addEventListener('visibilitychange', onVisibility);
 
   return () => {
     container?.removeEventListener('controllerchange', onControllerChange);
     document.removeEventListener('visibilitychange', onVisibility);
+    // Dropped with the listeners: a disposed installation must not leave the
+    // Settings button holding a registration from a page that has moved on.
+    current = undefined;
   };
 }
 

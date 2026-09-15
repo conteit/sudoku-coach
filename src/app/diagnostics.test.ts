@@ -13,6 +13,7 @@ import { useAccount } from '../state/account';
 import { newGame, reduce } from '../state/game';
 import { DEFAULT_PROFILE } from '../state/mastery';
 import type { LiveGame } from '../state/types';
+import { STAMP_PATTERN } from '../buildStamp';
 import { buildDiagnosticReport, formatDiagnosticReport } from './diagnostics';
 
 const PUZZLE =
@@ -120,6 +121,23 @@ describe('the diagnostic report', () => {
       'settings',
     ]);
     expect(text).not.toContain('mastery');
+  });
+});
+
+describe('the build stamp in a report', () => {
+  it('names the build the report came from', () => {
+    // Asserted by shape, and it cannot be otherwise: the value is baked in at
+    // build time and is different every hour, so an exact expectation would
+    // be a test that had to be rewritten to keep passing. The shape is the
+    // claim — a report that says which build it is.
+    expect(buildDiagnosticReport(input(start())).app.build).toMatch(STAMP_PATTERN);
+  });
+
+  it('carries it through the text a player actually pastes', () => {
+    // The report is read as the pasted string, not as the object, so the
+    // useful assertion is on that.
+    const text = formatDiagnosticReport(buildDiagnosticReport(input(start())));
+    expect(JSON.parse(text).app.build).toMatch(STAMP_PATTERN);
   });
 });
 

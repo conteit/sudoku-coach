@@ -1,11 +1,51 @@
 /// <reference types="vitest/config" />
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vite';
+import { buildStamp } from './src/buildStamp.js';
+
+/**
+ * The commit this build came from, asked of git only when the environment has
+ * not already said.
+ *
+ * Wrapped because it is the one source that can fail: a build from a tarball,
+ * a container without git, a directory that is not a checkout. A stamp that
+ * cannot name its commit says `dev` (see `stamp.ts`) rather than failing the
+ * build — knowing which build you are on is a convenience, and it must never
+ * be the reason a deploy does not happen.
+ */
+function gitSha(): string | undefined {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+/*
+ * Computed once, when the config is loaded, so every module in the build
+ * carries the same stamp — reading the clock per-module would let a build that
+ * straddles the top of an hour disagree with itself.
+ */
+const STAMP = buildStamp(new Date(), {
+  vercelSha: process.env.VERCEL_GIT_COMMIT_SHA,
+  githubSha: process.env.GITHUB_SHA,
+  gitSha: gitSha(),
+  // A preview built from a PR says which PR. Vercel hands the number over
+  // directly; Actions only says it in the ref it is running against.
+  pullRequestId: process.env.VERCEL_GIT_PULL_REQUEST_ID,
+  ref: process.env.GITHUB_REF,
+});
 
 export default defineConfig({
+  // A build-time constant rather than a `VITE_`-prefixed variable, which is
+  // this repo's convention for *runtime configuration read from `.env`* —
+  // a Firebase key, an OAuth client id. This is neither: nobody configures it,
+  // and it is a property of the build itself.
+  define: { __BUILD_STAMP__: JSON.stringify(STAMP) },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
