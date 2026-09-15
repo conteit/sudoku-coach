@@ -1107,35 +1107,44 @@ export function GameView({
               The pin says "instead" once there is one: a single save point
               overwritten silently is the feature Paolo asked for, and the
               label is where that is said rather than in a dialog. */}
-          <Button
-            variant="secondary"
-            size="lg"
-            block
-            icon={<BookmarkIcon />}
-            disabled={playerPaused || solved}
-            onClick={() => {
-              setMenuOpen(false);
-              haptic('tap');
-              pinSavePoint(game);
-            }}
-          >
-            {savePoint === null ? t('savePoint.pin') : t('savePoint.replace')}
-          </Button>
-          {savePoint === null ? null : (
+          {/* One row for the pair, not two. The menu is a list of rare things
+              and a scratch feature had been given a sixth of it — Paolo's
+              objection, and he is right: pinning is the action with a
+              sentence to say, and going back is a glyph next to it. The way
+              back also has the pad's redo slot carrying its full name, so
+              nothing here is the only place it is spelled out.
+
+              `flex-none` on the icon button is not decoration: `IconButton`
+              defaults to `flex-1` for the keypad's tool row, and without it
+              this glyph takes half the row. */}
+          <div className="flex items-stretch gap-2">
             <Button
               variant="secondary"
               size="lg"
-              block
-              icon={<BookmarkBackIcon />}
+              className="min-w-0 flex-1"
+              icon={<BookmarkIcon />}
               disabled={playerPaused || solved}
               onClick={() => {
                 setMenuOpen(false);
-                restoreSavePoint();
+                haptic('tap');
+                pinSavePoint(game);
               }}
             >
-              {t('savePoint.back')}
+              {savePoint === null ? t('savePoint.pin') : t('savePoint.replace')}
             </Button>
-          )}
+            {savePoint === null ? null : (
+              <IconButton
+                label={t('savePoint.back')}
+                icon={<BookmarkBackIcon />}
+                className="flex-none px-4"
+                disabled={playerPaused || solved}
+                onClick={() => {
+                  setMenuOpen(false);
+                  restoreSavePoint();
+                }}
+              />
+            )}
+          </div>
           <Button
             variant="secondary"
             size="lg"

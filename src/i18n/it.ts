@@ -126,7 +126,7 @@ export const it: Dictionary = {
   'coach.anotherShort': "Un'altra",
   'coach.putAway': 'Basta così — vado avanti da solo',
   'savePoint.pin': 'Fissa questa griglia',
-  'savePoint.replace': 'Fissa questa griglia al suo posto',
+  'savePoint.replace': 'Fissa qui invece',
   'savePoint.back': 'Torna alla griglia fissata',
   'savePoint.backShort': 'Fissata',
   'savePoint.caption': 'torna',
