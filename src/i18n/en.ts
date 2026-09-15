@@ -128,7 +128,7 @@ export const en = {
   'coach.anotherShort': 'Another',
   'coach.putAway': "Enough — I'll take it from here",
   'savePoint.pin': 'Pin this board',
-  'savePoint.replace': 'Pin this board instead',
+  'savePoint.replace': 'Pin here instead',
   'savePoint.back': 'Back to the pinned board',
   'savePoint.backShort': 'Pinned',
   'savePoint.caption': 'go back',

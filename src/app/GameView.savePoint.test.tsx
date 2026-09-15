@@ -127,8 +127,35 @@ describe('pinning a board', () => {
     // "instead" is where the overwrite is said. One save point, replaced in
     // place, and the label is the whole of the warning — a dialog for a
     // scratch feature would be ceremony.
-    expect(menu().getByRole('button', { name: 'Pin this board instead' })).toBeInTheDocument();
+    expect(menu().getByRole('button', { name: 'Pin here instead' })).toBeInTheDocument();
     expect(menu().getByRole('button', { name: 'Back to the pinned board' })).toBeInTheDocument();
+  });
+
+  it('keeps the pair on one row, with the way back as a glyph beside the pin', async () => {
+    // Paolo's objection: two full-width rows is a sixth of the menu for a
+    // scratch feature. Asserted as *shared parentage* rather than by reading
+    // classes, because that is the claim — one row — and it fails the moment
+    // the two go back to being siblings in the menu's own column.
+    const { user } = renderGame();
+    await openMenu(user);
+    await user.click(menu().getByRole('button', { name: 'Pin this board' }));
+    await openMenu(user);
+
+    const pin = menu().getByRole('button', { name: 'Pin here instead' });
+    const back = menu().getByRole('button', { name: 'Back to the pinned board' });
+
+    // Shared parentage alone proves nothing — in the two-row version they were
+    // siblings too, in the menu's own column. What says "one row" is that the
+    // box they share lays out horizontally, so the assertion is on that.
+    const row = pin.parentElement;
+    expect(back.parentElement).toBe(row);
+    expect(row?.classList.contains('flex')).toBe(true);
+    expect(row?.classList.contains('flex-col')).toBe(false);
+
+    // And the glyph does not take half the row. `IconButton` defaults to
+    // `flex-1` for the keypad's tool row, which is the trap every header in
+    // this app has had to step around at least once.
+    expect(back.classList.contains('flex-none')).toBe(true);
   });
 
   it('puts the board back, and one undo returns to where the player was', async () => {
