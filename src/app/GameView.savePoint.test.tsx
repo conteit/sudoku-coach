@@ -114,48 +114,45 @@ const menu = () => within(screen.getByRole('dialog', { name: 'This puzzle' }));
 
 
 describe('pinning a board', () => {
-  it('offers the pin, and once pinned offers the way back and a replacement', async () => {
+  it('offers one thing to do before there is a pin, and exactly two after', async () => {
     const { user } = renderGame();
 
     await openMenu(user);
     expect(menu().getByRole('button', { name: 'Pin this board' })).toBeInTheDocument();
-    expect(menu().queryByRole('button', { name: 'Back to the pinned board' })).toBeNull();
+    expect(menu().queryByRole('button', { name: 'Back to pin' })).toBeNull();
 
     await user.click(menu().getByRole('button', { name: 'Pin this board' }));
     await openMenu(user);
 
-    // "instead" is where the overwrite is said. One save point, replaced in
-    // place, and the label is the whole of the warning — a dialog for a
-    // scratch feature would be ceremony.
-    expect(menu().getByRole('button', { name: 'Pin here instead' })).toBeInTheDocument();
-    expect(menu().getByRole('button', { name: 'Back to the pinned board' })).toBeInTheDocument();
+    // And the single create button is gone rather than sitting above the pair:
+    // once there is a pin there are two things you can do with it, not three.
+    expect(menu().queryByRole('button', { name: 'Pin this board' })).toBeNull();
+    expect(menu().getByRole('button', { name: 'Back to pin' })).toBeInTheDocument();
+    expect(menu().getByRole('button', { name: 'Update pin' })).toBeInTheDocument();
   });
 
-  it('keeps the pair on one row, with the way back as a glyph beside the pin', async () => {
+  it('keeps the pair on one row, side by side', async () => {
     // Paolo's objection: two full-width rows is a sixth of the menu for a
-    // scratch feature. Asserted as *shared parentage* rather than by reading
-    // classes, because that is the claim — one row — and it fails the moment
-    // the two go back to being siblings in the menu's own column.
+    // scratch feature.
     const { user } = renderGame();
     await openMenu(user);
     await user.click(menu().getByRole('button', { name: 'Pin this board' }));
     await openMenu(user);
 
-    const pin = menu().getByRole('button', { name: 'Pin here instead' });
-    const back = menu().getByRole('button', { name: 'Back to the pinned board' });
+    const back = menu().getByRole('button', { name: 'Back to pin' });
+    const update = menu().getByRole('button', { name: 'Update pin' });
 
     // Shared parentage alone proves nothing — in the two-row version they were
     // siblings too, in the menu's own column. What says "one row" is that the
     // box they share lays out horizontally, so the assertion is on that.
-    const row = pin.parentElement;
-    expect(back.parentElement).toBe(row);
+    const row = back.parentElement;
+    expect(update.parentElement).toBe(row);
     expect(row?.classList.contains('flex')).toBe(true);
     expect(row?.classList.contains('flex-col')).toBe(false);
 
-    // And the glyph does not take half the row. `IconButton` defaults to
-    // `flex-1` for the keypad's tool row, which is the trap every header in
-    // this app has had to step around at least once.
-    expect(back.classList.contains('flex-none')).toBe(true);
+    // Going back is the leftmost of the two: it is the frequent one, and the
+    // left half of the sheet is where the thumb lands.
+    expect(back.compareDocumentPosition(update) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('puts the board back, and one undo returns to where the player was', async () => {
@@ -170,7 +167,7 @@ describe('pinning a board', () => {
     expect(cell(OPEN)).toHaveTextContent('4');
 
     await openMenu(user);
-    await user.click(menu().getByRole('button', { name: 'Back to the pinned board' }));
+    await user.click(menu().getByRole('button', { name: 'Back to pin' }));
     expect(cell(OPEN)).not.toHaveTextContent('4');
 
     // Paolo's semantic: undo after a restore is not a replay forward from the
@@ -187,10 +184,10 @@ describe('pinning a board', () => {
     await user.click(cell(OPEN));
     await keypad().getByRole('button', { name: 'Place 4' }).click();
     await openMenu(user);
-    await user.click(menu().getByRole('button', { name: 'Back to the pinned board' }));
+    await user.click(menu().getByRole('button', { name: 'Back to pin' }));
 
     await openMenu(user);
-    expect(menu().getByRole('button', { name: 'Back to the pinned board' })).toBeInTheDocument();
+    expect(menu().getByRole('button', { name: 'Back to pin' })).toBeInTheDocument();
   });
 });
 
