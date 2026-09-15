@@ -31,7 +31,13 @@ export interface ReportedFinding {
 
 export interface DiagnosticReport {
   at: string;
-  app: { locale: string; tier: string; viewport: string };
+  /**
+   * `build` is the first line of every report for a reason #125 taught us: a
+   * report that cannot name the build it came from may be describing code that
+   * no longer exists, and the reader has no way to tell. An installed PWA can
+   * sit on a stale build for days, so "which app said this" is not a detail.
+   */
+  app: { locale: string; tier: string; viewport: string; build: string };
   /**
    * Issue #126 was invisible from a console: a session that silently failed
    * to restore renders identically to a deliberate sign-out, with nothing in
@@ -159,7 +165,15 @@ export function buildDiagnosticReport(input: DiagnosticInput): DiagnosticReport 
 
   return {
     at: (input.now ?? new Date()).toISOString(),
-    app: { locale: profile.locale, tier: input.tier, viewport: input.viewport },
+    app: {
+      locale: profile.locale,
+      tier: input.tier,
+      viewport: input.viewport,
+      // Read here rather than threaded in from the caller: it is a constant of
+      // the build, not a fact about the screen asking for the report, so
+      // neither call site in `GameView` has to know it exists.
+      build: __BUILD_STAMP__,
+    },
     auth: {
       configured: authAvailable(),
       ready: useAccount.getState().ready,

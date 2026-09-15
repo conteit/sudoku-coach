@@ -81,13 +81,20 @@ describe('the settings tabs', () => {
     expect(screen.queryByText('Language')).toBeNull();
   });
 
-  it('puts Account last, where a player who never signs in never has to go', () => {
+  it('puts the two a player may never need at the end, in that order', () => {
+    // The order is a product decision, which is why it is pinned rather than
+    // left to the array. Account was last because a player who never signs in
+    // never has to go there; About now takes that place on the same argument —
+    // a player who never wonders which build they are on never has to reach
+    // it, and Account keeps its rationale by being one short of the end
+    // rather than at it.
     renderSettings();
 
     expect(screen.getAllByRole('tab').map((node) => node.textContent)).toEqual([
       'Board',
       'General',
       'Account',
+      'About',
     ]);
   });
 
@@ -127,10 +134,12 @@ describe('the settings tabs', () => {
     expect(tab('General')).toHaveAttribute('aria-selected', 'true');
     expect(tab('General')).toHaveFocus();
 
-    // Wraps, so the strip has no dead end.
+    // Wraps, so the strip has no dead end. Two lefts from General is Board and
+    // then off the front, which lands on whatever is last — About, since this
+    // tab was added.
     await user.keyboard('{ArrowLeft}');
     await user.keyboard('{ArrowLeft}');
-    expect(tab('Account')).toHaveAttribute('aria-selected', 'true');
+    expect(tab('About')).toHaveAttribute('aria-selected', 'true');
   });
 
   it('leaves only the selected tab in the tab order', () => {

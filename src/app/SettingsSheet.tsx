@@ -14,6 +14,7 @@ import { useRef, useState } from 'react';
 import { useT } from '../i18n/locale';
 import { authAvailable, useAccount } from '../state/account';
 import { useSync } from '../sync/store';
+import { checkForUpdate, type UpdateCheck } from './serviceWorker';
 import { syncAvailable } from '../sync/token';
 import { Button } from '../ui/primitives/Button';
 import { Sheet } from '../ui/primitives/Sheet';
@@ -237,9 +238,14 @@ const TAB_KEYS = {
   // Reuses the section's own word rather than minting a second one, so the tab
   // and the heading behind it can never drift apart in either language.
   account: 'account.title',
+  about: 'settings.tab.about',
 } as const satisfies Record<string, MessageKey>;
 
-const ALL_TABS = ['board', 'general', 'account'] as const;
+// About last, and that placement is the same argument Account's was: a player
+// who never signs in never has to reach that tab, and a player who never
+// wonders which build they are on never has to reach this one. Order here is
+// the order on the strip.
+const ALL_TABS = ['board', 'general', 'account', 'about'] as const;
 export type SettingsTab = (typeof ALL_TABS)[number];
 
 function TabStrip({
@@ -298,6 +304,64 @@ function TabStrip({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Which build this is, and a way to go and look for a newer one.
+ *
+ * The build stamp rather than a version number — `src/buildStamp.ts` carries
+ * the reasoning. It is here because it is the thing a bug report needs, and
+ * the diagnostics report (behind the game menu) is not somewhere a player
+ * thinks to look when the question is "am I on the current app".
+ */
+function AboutSection() {
+  const t = useT();
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<UpdateCheck | null>(null);
+
+  const look = (): void => {
+    setChecking(true);
+    setResult(null);
+    void checkForUpdate().then((outcome) => {
+      setChecking(false);
+      setResult(outcome);
+    });
+  };
+
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase">
+          {t('about.build')}
+        </h3>
+        {/* Selectable and monospaced on purpose: its whole job is to be copied
+            into a bug report, and a proportional font turns a sha into
+            something that has to be read letter by letter. */}
+        <p className="font-mono text-sm break-all text-ink select-all">{__BUILD_STAMP__}</p>
+        <p className="text-sm text-ink-soft">{t('about.buildExplainer')}</p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Button variant="secondary" size="lg" block disabled={checking} onClick={look}>
+          {checking ? t('about.checking') : t('about.check')}
+        </Button>
+        {/* The answer, in a live region, because the ordinary one is "nothing
+            changed" — and a button whose success case looks identical to
+            having done nothing is a button players press twice. */}
+        <p className="text-sm text-ink-soft" role="status">
+          {result === null
+            ? null
+            : result === 'current'
+              ? t('about.current')
+              : result === 'found'
+                ? t('about.found')
+                : result === 'unavailable'
+                  ? t('about.unavailable')
+                  : t('about.failed')}
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -426,7 +490,7 @@ export function SettingsSheet({
                 onChange={(haptics) => onSettings({ haptics })}
               />
             </>
-          ) : (
+          ) : active === 'account' ? (
             <>
               {/* The only place in the app that mentions an account at all,
                   apart from one invitation on the library's empty desk. Paolo
@@ -437,6 +501,8 @@ export function SettingsSheet({
               <AccountSection />
               <SyncSection locale={profile.locale} />
             </>
+          ) : (
+            <AboutSection />
           )}
         </div>
       </div>
