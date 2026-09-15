@@ -686,9 +686,19 @@ box.
 ## Build identity
 
 The app is **identified, not versioned**: `20260915-21-cb174ef` — UTC date, UTC
-hour, seven-character commit. `src/buildStamp.ts` builds it, a `define` in
-`vite.config.ts` bakes it in as `__BUILD_STAMP__`, and it is shown in Settings'
-About tab and carried in every diagnostic report.
+hour, seven-character commit. A build made from a pull request names it too,
+on the hour segment: `20260915-21.150-cb174ef`. `src/buildStamp.ts` builds it,
+a `define` in `vite.config.ts` bakes it in as `__BUILD_STAMP__`, and it is
+shown in Settings' About tab and carried in every diagnostic report.
+
+The PR number is there because a preview is the build most likely to be in
+front of someone when something looks wrong, and "which PR is this" is
+otherwise a question answered by going and looking the sha up. It comes from
+`VERCEL_GIT_PULL_REQUEST_ID`, or from `GITHUB_REF` (`refs/pull/150/merge`) in
+Actions, and is accepted only as digits — both are environment strings, and a
+stamp carrying junk is worse than one carrying nothing because it still looks
+authoritative. Production has no PR and the segment is absent rather than
+empty, so a released build keeps the short form.
 
 Semver from conventional commits was the original design and was dropped for a
 reason worth keeping, because it will come up again: **the build that ships is

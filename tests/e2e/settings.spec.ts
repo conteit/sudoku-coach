@@ -76,7 +76,10 @@ test('shows the build it is running, and stays on screen doing it', async ({ pag
   const sheet = await openSettings(page);
   await sheet.getByRole('tab', { name: 'About' }).click();
 
-  await expect(sheet.getByText(/^\d{8}-\d{2}-[0-9a-f]{7}$/)).toBeVisible();
+  // The optional `.150` is the pull request segment: a preview built from one
+  // carries it, and a production build does not. Both shapes are legitimate
+  // here, since this suite runs against whatever built it.
+  await expect(sheet.getByText(/^\d{8}-\d{2}(\.\d+)?-[0-9a-f]{7}$/)).toBeVisible();
 
   // Same geometry claim as the other panels, for a panel that did not exist
   // when the cap was put in.

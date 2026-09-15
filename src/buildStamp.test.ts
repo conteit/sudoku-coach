@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildStamp, momentOf, shaFrom, STAMP_PATTERN, UNKNOWN_SHA } from './buildStamp';
+import {
+  buildStamp,
+  momentOf,
+  pullRequestFrom,
+  shaFrom,
+  STAMP_PATTERN,
+  UNKNOWN_SHA,
+} from './buildStamp';
 
 describe('the moment half of a build stamp', () => {
   it('is UTC, whatever the machine thinks the time is', () => {
@@ -47,6 +54,31 @@ describe('the sha half', () => {
   });
 });
 
+describe('the pull request a preview came from', () => {
+  it('takes the number Vercel hands over', () => {
+    expect(pullRequestFrom({ pullRequestId: '150' })).toBe('150');
+  });
+
+  it('digs it out of the ref, which is all Actions says', () => {
+    expect(pullRequestFrom({ ref: 'refs/pull/150/merge' })).toBe('150');
+  });
+
+  it('is absent on production, where neither source names one', () => {
+    // Vercel sets the variable to an empty string off a PR rather than
+    // leaving it unset, so "present" is not the same question as "a number".
+    expect(pullRequestFrom({ pullRequestId: '', ref: 'refs/heads/main' })).toBeUndefined();
+    expect(pullRequestFrom({})).toBeUndefined();
+  });
+
+  it('refuses anything that is not digits, rather than putting junk in the stamp', () => {
+    // Both sources are environment strings. A stamp carrying nonsense is worse
+    // than one carrying nothing, because it still looks authoritative.
+    expect(pullRequestFrom({ pullRequestId: 'true' })).toBeUndefined();
+    expect(pullRequestFrom({ pullRequestId: '150; rm' })).toBeUndefined();
+    expect(pullRequestFrom({ ref: 'refs/heads/pull/150/merge' })).toBeUndefined();
+  });
+});
+
 describe('the whole stamp', () => {
   it('reads the way Paolo wrote it', () => {
     expect(buildStamp(new Date('2026-09-15T21:12:00Z'), { vercelSha: 'cb174ef9999' })).toBe(
@@ -54,11 +86,42 @@ describe('the whole stamp', () => {
     );
   });
 
+  it('names the pull request a preview was built from', () => {
+    expect(
+      buildStamp(new Date('2026-09-15T21:12:00Z'), {
+        vercelSha: 'cb174ef9999',
+        pullRequestId: '150',
+      }),
+    ).toBe('20260915-21.150-cb174ef');
+  });
+
+  it('says nothing about a PR when there was none, so a release stays short', () => {
+    expect(
+      buildStamp(new Date('2026-09-15T21:12:00Z'), { vercelSha: 'cb174ef', pullRequestId: '' }),
+    ).toBe('20260915-21-cb174ef');
+  });
+
+  it('still sorts by moment first, with the PR number along for the ride', () => {
+    const earlier = buildStamp(new Date('2026-09-15T08:00:00Z'), {
+      gitSha: 'aaaaaaa',
+      pullRequestId: '999',
+    });
+    const later = buildStamp(new Date('2026-09-15T21:00:00Z'), {
+      gitSha: 'bbbbbbb',
+      pullRequestId: '2',
+    });
+    expect([later, earlier].sort()).toEqual([earlier, later]);
+  });
+
   it('matches the pattern the tests downstream lean on', () => {
     expect(buildStamp(new Date('2026-09-15T21:00:00Z'), { gitSha: 'abc1234' })).toMatch(
       STAMP_PATTERN,
     );
     expect(buildStamp(new Date('2026-09-15T21:00:00Z'), {})).toMatch(STAMP_PATTERN);
+    expect(
+      buildStamp(new Date('2026-09-15T21:00:00Z'), { gitSha: 'abc1234', pullRequestId: '150' }),
+    ).toMatch(STAMP_PATTERN);
     expect('not-a-stamp').not.toMatch(STAMP_PATTERN);
+    expect('20260915-21.-abc1234').not.toMatch(STAMP_PATTERN);
   });
 });
