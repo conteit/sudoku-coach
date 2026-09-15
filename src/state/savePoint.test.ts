@@ -101,6 +101,30 @@ describe('the save point store', () => {
     expect(store.getState().point?.updatedAt).toBe(9000);
   });
 
+  it('does not let an in-flight read wipe a pin made while it was running', async () => {
+    // Found as a one-in-three flake in the screen test, and it is a real bug
+    // rather than a test artifact: opening a game starts a read, and a player
+    // who presses Pin before that read lands had their pin silently undone on
+    // screen — the write reached disk, but the stale read overwrote the store
+    // behind it, so the button went back to offering a pin and the pad's key
+    // disappeared until the game was reopened.
+    //
+    // The existing guard only catches the game changing under the read. This
+    // is the other way it can go stale: the game is the same and the *answer*
+    // is older than what the player just did.
+    const conn = freshDb();
+    const store = storeFor(conn);
+
+    const reading = store.getState().watch('g1');
+    // Synchronously, while that read is still in flight.
+    store.getState().save(game('g1'));
+    await reading;
+
+    expect(store.getState().point).not.toBeNull();
+    await store.getState().flush();
+    expect(await readSavePoint('g1', conn)).toBeDefined();
+  });
+
   it('forgets a point on request, on disk as well as on screen', async () => {
     const conn = freshDb();
     const store = storeFor(conn);
