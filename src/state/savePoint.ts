@@ -71,6 +71,18 @@ export type SavePointStoreApi = StoreApi<SavePointStore>;
 function savePointStore(deps: SavePointDeps): StateCreator<SavePointStore> {
   return (set, get) => {
     let queue: Promise<unknown> = Promise.resolve();
+    /*
+     * Counts the writes the player has made, so a read can tell whether its
+     * answer is still current.
+     *
+     * Checking the game id is not enough. A read is in flight for the whole
+     * of a tick, and pressing Pin during it leaves the id unchanged while
+     * making the read's answer — "there is no pin" — older than the truth.
+     * Without this the store was overwritten by that stale answer: the write
+     * still reached disk, but the screen went back to offering a pin and the
+     * pad's key vanished until the game was reopened.
+     */
+    let writes = 0;
 
     return {
       point: null,
@@ -89,13 +101,17 @@ function savePointStore(deps: SavePointDeps): StateCreator<SavePointStore> {
         // quota refusal. The cost of swallowing it is one button not being
         // offered; the cost of not swallowing it is an unhandled rejection
         // during play.
+        const before = writes;
         const stored = await readSavePoint(gameId, deps.conn).catch(() => undefined);
-        // The game may have changed under us while that read was in flight.
-        if (get().gameId !== gameId) return;
+        // Two ways the answer can be stale by the time it arrives: the game
+        // changed under it, or the player wrote a pin while it was reading.
+        // Either way the read loses — it is the older fact.
+        if (get().gameId !== gameId || writes !== before) return;
         set({ point: stored ?? null });
       },
 
       save: (game) => {
+        writes++;
         const point: SavePoint = {
           id: game.id,
           updatedAt: deps.now(),
@@ -108,6 +124,7 @@ function savePointStore(deps: SavePointDeps): StateCreator<SavePointStore> {
       forget: () => {
         const id = get().gameId;
         if (id === null) return;
+        writes++;
         set({ point: null });
         queue = queue.then(() => deleteSavePoint(id, deps.conn));
       },
