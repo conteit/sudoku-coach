@@ -640,7 +640,7 @@ test.describe('save points', () => {
     // And the pin is still there afterwards — one save point, spent by
     // nothing but a deliberate replacement.
     await page.getByRole('button', { name: 'This puzzle' }).click();
-    await expect(menu.getByRole('button', { name: 'Back to the pinned board' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Back to pin' })).toBeVisible();
   });
 });
 

@@ -1107,21 +1107,22 @@ export function GameView({
               The pin says "instead" once there is one: a single save point
               overwritten silently is the feature Paolo asked for, and the
               label is where that is said rather than in a dialog. */}
-          {/* One row for the pair, not two. The menu is a list of rare things
-              and a scratch feature had been given a sixth of it — Paolo's
-              objection, and he is right: pinning is the action with a
-              sentence to say, and going back is a glyph next to it. The way
-              back also has the pad's redo slot carrying its full name, so
-              nothing here is the only place it is spelled out.
+          {/* One button to make a pin, two side by side once there is one —
+              Paolo's shape, and it says something the earlier two-full-rows
+              version did not: before, there is a single thing you can do;
+              after, there are exactly two, and they are peers. A scratch
+              feature earns one row of this menu either way.
 
-              `flex-none` on the icon button is not decoration: `IconButton`
-              defaults to `flex-1` for the keypad's tool row, and without it
-              this glyph takes half the row. */}
-          <div className="flex items-stretch gap-2">
+              Going back comes first. It is the frequent one — the whole point
+              of pinning is getting back — and it is leftmost, where the thumb
+              lands. Both labels are short because half a phone's sheet is not
+              much: the pad's redo slot carries the way back under its full
+              name, so the long form is not lost. */}
+          {savePoint === null ? (
             <Button
               variant="secondary"
               size="lg"
-              className="min-w-0 flex-1"
+              block
               icon={<BookmarkIcon />}
               disabled={playerPaused || solved}
               onClick={() => {
@@ -1130,21 +1131,39 @@ export function GameView({
                 pinSavePoint(game);
               }}
             >
-              {savePoint === null ? t('savePoint.pin') : t('savePoint.replace')}
+              {t('savePoint.pin')}
             </Button>
-            {savePoint === null ? null : (
-              <IconButton
-                label={t('savePoint.back')}
+          ) : (
+            <div className="flex items-stretch gap-2">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="min-w-0 flex-1"
                 icon={<BookmarkBackIcon />}
-                className="flex-none px-4"
                 disabled={playerPaused || solved}
                 onClick={() => {
                   setMenuOpen(false);
                   restoreSavePoint();
                 }}
-              />
-            )}
-          </div>
+              >
+                {t('savePoint.backShort')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="min-w-0 flex-1"
+                icon={<BookmarkIcon />}
+                disabled={playerPaused || solved}
+                onClick={() => {
+                  setMenuOpen(false);
+                  haptic('tap');
+                  pinSavePoint(game);
+                }}
+              >
+                {t('savePoint.replace')}
+              </Button>
+            </div>
+          )}
           <Button
             variant="secondary"
             size="lg"
