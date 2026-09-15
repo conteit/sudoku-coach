@@ -34,6 +34,10 @@ const STAMP = buildStamp(new Date(), {
   vercelSha: process.env.VERCEL_GIT_COMMIT_SHA,
   githubSha: process.env.GITHUB_SHA,
   gitSha: gitSha(),
+  // A preview built from a PR says which PR. Vercel hands the number over
+  // directly; Actions only says it in the ref it is running against.
+  pullRequestId: process.env.VERCEL_GIT_PULL_REQUEST_ID,
+  ref: process.env.GITHUB_REF,
 });
 
 export default defineConfig({
