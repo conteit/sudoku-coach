@@ -6,7 +6,9 @@ node_modules/
 # build output
 dist/
 dist-ssr/
-build/
+# Anchored: a bare `build/` also swallows any source directory of that name,
+# which silently ate `src/build/` once.
+/build/
 dev-dist/
 *.tsbuildinfo
 
