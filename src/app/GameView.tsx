@@ -21,6 +21,7 @@ import { trackReview } from '../coach/reviewProgress';
 import { deadNotes } from '../state/deadNotes';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useProfile } from '../state/profile';
+import { useSavePoint } from '../state/savePoint';
 import { useGameStore } from '../state/store';
 import type { UiAction } from '../state/store';
 import { formatList } from '../i18n';
@@ -39,6 +40,8 @@ import { Button } from '../ui/primitives/Button';
 import { IconButton } from '../ui/primitives/IconButton';
 import { FOCUSABLE, Sheet } from '../ui/primitives/Sheet';
 import {
+  BookmarkBackIcon,
+  BookmarkIcon,
   ChevronLeftIcon,
   MoreIcon,
   PauseIcon,
@@ -124,6 +127,13 @@ export function GameView({
   // `useCoachSession` reaches into the profile store for mastery credit
   // rather than having it threaded down as a second prop for the same data.
   const profile = useProfile((state) => state.profile);
+  // The pinned board for this game, if there is one. A store rather than a
+  // field on `Game`: a save point is a scratch record with its own table and
+  // its own file in the app folder, which is what kept `Game`'s frozen shape
+  // (and therefore its Dexie and remote migrations) out of this feature.
+  const savePoint = useSavePoint((state) => state.point);
+  const watchSavePoint = useSavePoint((state) => state.watch);
+  const pinSavePoint = useSavePoint((state) => state.save);
 
   const [selected, setSelected] = useState<CellIndex | null>(null);
   // Not derived from `selected` on every render: a highlight that dies on the
@@ -588,6 +598,31 @@ export function GameView({
     [game.cells, settings.promoteLoneNote, sweptDigit, place, haptic],
   );
 
+  // Points the save point store at whatever game is on screen. Keyed on the id
+  // alone: `watch` is a no-op when it is already watching that game, so this
+  // does not re-read on every move.
+  useEffect(() => {
+    void watchSavePoint(game.id);
+  }, [game.id, watchSavePoint]);
+
+  /**
+   * Back to the pinned board.
+   *
+   * No confirmation, deliberately. Restoring is a single batch of ordinary
+   * moves, so undo puts the player back exactly where they were standing — a
+   * dialog guarding an action that is already one press from reversible is
+   * two presses of ceremony for nothing. (`reset` next to it in the menu does
+   * ask, and should: it wipes the board back to the givens.)
+   *
+   * The pin itself survives. Paolo's rule: back out twice without having to
+   * remember to re-pin in between.
+   */
+  const restoreSavePoint = useCallback(() => {
+    if (savePoint === null) return;
+    haptic('tap');
+    dispatchMove({ type: 'restoreSavePoint', cells: savePoint.cells });
+  }, [savePoint, dispatchMove, haptic]);
+
   // "Speaking" is the panel having something the player asked for on screen.
   const speaking =
     coach.hint !== null || coach.review !== null || coach.drill !== null || coach.exhausted;
@@ -807,6 +842,13 @@ export function GameView({
       onRedo={() => dispatchMove({ type: 'redo' })}
       canUndo={game.undoStack.length > 0}
       canRedo={game.redoStack.length > 0}
+      // Withheld with nothing pinned, while the board is paused or solved, and
+      // — the one that matters — whenever there is something to redo: the pad
+      // decides between the two, but only one of them may ever be on offer,
+      // and redo is the one the player pressed undo expecting.
+      onRestoreSavePoint={
+        savePoint === null || playerPaused || solved ? undefined : restoreSavePoint
+      }
       rewinding={rewind === 'active'}
       // The pad as a whole stays live with nothing selected — a long press
       // still has to reach a digit with none of its nine placed yet — but
@@ -1056,6 +1098,44 @@ export function GameView({
           for them anyway. */}
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title={t('game.menu')}>
         <div className="flex flex-col gap-2 pb-2">
+          {/* The save point's real home, and the only place it is *always*
+              reachable — the pad offers the way back opportunistically, in a
+              key that is only free while redo is dead. Both entries sit above
+              "Start over" because they are the two ways of going backwards
+              that do not throw the game away.
+
+              The pin says "instead" once there is one: a single save point
+              overwritten silently is the feature Paolo asked for, and the
+              label is where that is said rather than in a dialog. */}
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            icon={<BookmarkIcon />}
+            disabled={playerPaused || solved}
+            onClick={() => {
+              setMenuOpen(false);
+              haptic('tap');
+              pinSavePoint(game);
+            }}
+          >
+            {savePoint === null ? t('savePoint.pin') : t('savePoint.replace')}
+          </Button>
+          {savePoint === null ? null : (
+            <Button
+              variant="secondary"
+              size="lg"
+              block
+              icon={<BookmarkBackIcon />}
+              disabled={playerPaused || solved}
+              onClick={() => {
+                setMenuOpen(false);
+                restoreSavePoint();
+              }}
+            >
+              {t('savePoint.back')}
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="lg"

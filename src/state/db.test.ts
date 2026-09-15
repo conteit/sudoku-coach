@@ -5,8 +5,9 @@ import { formatGrid } from '../engine/board';
 import { Dexie } from 'dexie';
 import type { Digit } from '../engine/types';
 import {
-  applySchema, db, DB_NAME, deleteGame, listSummaries, loadGame, loadProfile, saveGame,
-  saveProfile, SCHEMA, SudokuCoachDB, toSummary,
+  applySchema, db, DB_NAME, deleteGame, deleteGameRecording, listSummaries, loadGame,
+  loadProfile, readSavePoint, savePointIndex, saveGame, saveProfile, SCHEMA, SudokuCoachDB,
+  toSummary, writeSavePoint,
 } from './db';
 import type { DatabaseBlock, SchemaVersion } from './db';
 import { observeBlocking, watchDatabaseBlock } from './db';
@@ -64,6 +65,7 @@ describe('schema', () => {
     expect(conn.tables.map((t) => t.name).sort()).toEqual([
       'games',
       'profile',
+      'savePoints',
       'sync',
       'tombstones',
     ]);
@@ -85,6 +87,31 @@ describe('schema', () => {
     expect(conn.verno).toBe(SCHEMA.length);
     expect(await conn.games.get('kept')).toBeDefined();
     expect(await conn.tombstones.toArray()).toEqual([]);
+  });
+
+  it('carries v2 data across the v3 upgrade, save points included', async () => {
+    // The same claim the v2 test makes, for the version that adds save points:
+    // v3 lists only its own store, so a reader that took it for the whole
+    // schema would drop the library. The tombstone is in here because it is
+    // the v2 store — a v3 that quietly reset sync's bookkeeping would
+    // resurrect every game deleted before the upgrade.
+    const name = `${DB_NAME}-v3-${counter++}`;
+    const v2 = new Dexie(name);
+    applySchema(v2, SCHEMA.slice(0, 2));
+    await v2.open();
+    await v2.table('games').put(playedGame('kept'));
+    await v2.table('tombstones').put({ id: 'gone', deletedAt: 5 });
+    v2.close();
+
+    const conn = new SudokuCoachDB(name);
+    opened.push(conn);
+    await conn.open();
+    expect(conn.verno).toBe(SCHEMA.length);
+    expect(await conn.games.get('kept')).toBeDefined();
+    expect(await conn.tombstones.toArray()).toEqual([{ id: 'gone', deletedAt: 5 }]);
+    // And the new store is usable on the upgraded database, not merely declared.
+    await conn.savePoints.put({ id: 'kept', updatedAt: 7, cells: [] });
+    expect(await conn.savePoints.get('kept')).toEqual({ id: 'kept', updatedAt: 7, cells: [] });
   });
 
   it('says so when another connection holds the old version open', async () => {
@@ -345,5 +372,45 @@ describe('the player profile', () => {
       theme: 'dark',
       haptics: false,
     });
+  });
+});
+
+describe('save points', () => {
+  const pointFor = (id: string, at: number) => ({
+    id,
+    updatedAt: at,
+    cells: toStored(newGame({ id, givens: PUZZLE, solution: SOLVED, difficulty: 'easy', at }))
+      .cells,
+  });
+
+  it('keeps one per game, so a second save overwrites the first', async () => {
+    const conn = freshDb();
+    await writeSavePoint(pointFor('g1', 1000), conn);
+    await writeSavePoint(pointFor('g1', 2000), conn);
+
+    expect(await conn.savePoints.count()).toBe(1);
+    expect((await readSavePoint('g1', conn))?.updatedAt).toBe(2000);
+  });
+
+  it('goes when its game goes, in the same breath', async () => {
+    // A snapshot that outlives its game is unreachable by any screen and would
+    // be uploaded by sync forever. The deletion is one transaction precisely
+    // so a crash cannot leave one behind.
+    const conn = freshDb();
+    await saveGame(playedGame('g1'), conn);
+    await writeSavePoint(pointFor('g1', 1000), conn);
+
+    await deleteGameRecording('g1', 3000, conn);
+
+    expect(await readSavePoint('g1', conn)).toBeUndefined();
+    expect(await conn.tombstones.get('g1')).toEqual({ id: 'g1', deletedAt: 3000 });
+  });
+
+  it('reports every id and timestamp without reading a single board', async () => {
+    const conn = freshDb();
+    await writeSavePoint(pointFor('g1', 1000), conn);
+    await writeSavePoint(pointFor('g2', 2000), conn);
+
+    expect(await savePointIndex(conn)).toEqual({ g1: 1000, g2: 2000 });
   });
 });

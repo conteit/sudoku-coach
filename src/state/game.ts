@@ -28,7 +28,7 @@
 
 import { Board, CELL_COUNT, parseGrid } from '../engine/board';
 import type { Cell, CellIndex, Difficulty, Digit } from '../engine/types';
-import type { CoachExchange, Game, LiveGame, Move, MoveBatch, MoveKind } from './types';
+import type { CoachExchange, Game, LiveGame, Move, MoveBatch, MoveKind, StoredCell } from './types';
 import { deadNotes } from './deadNotes';
 
 /**
@@ -98,6 +98,21 @@ export type GameAction =
       fixes: readonly { cell: CellIndex; digit: Digit; kind: 'missing' | 'invalid' }[];
       at: number;
     }
+  /**
+   * Puts the board back to a save point, in one undoable step.
+   *
+   * The cells are handed in rather than read from storage here, for the same
+   * reason `applyNoteFixes`'s are: the reducer is not allowed to reach for a
+   * database, and a snapshot loaded outside is a snapshot the caller can prove
+   * belongs to this game. Givens are skipped rather than trusted — a snapshot
+   * from the wrong puzzle cannot rewrite the puzzle.
+   *
+   * It is a batch of ordinary moves, which is what makes Paolo's semantic
+   * fall out for free: undoing after a restore returns to where the player
+   * *was*, not to a replay from the save point. The clock is left running for
+   * the same reason `reset` leaves it — the time was really spent.
+   */
+  | { type: 'restoreSavePoint'; cells: readonly StoredCell[]; at: number }
   | { type: 'reset'; at: number }
   | { type: 'undo'; at: number }
   | { type: 'redo'; at: number }
@@ -534,6 +549,73 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
         moves.push(move);
         draft[fix.cell] = applyAll([...draft], [move])[fix.cell];
       }
+      return commit(game, applyAll(game.cells, moves), moves, stamp);
+    }
+
+    case 'restoreSavePoint': {
+      const stamp = nextAt(game, action.at);
+      const moves: Move[] = [];
+      // The same one-snapshot-per-change discipline the two batches above use,
+      // taken off an evolving draft: a cell whose value *and* marks both move
+      // takes two moves, and `invertAll` unwinds them in reverse onto the
+      // state each one actually saw.
+      const draft = [...game.cells];
+      const push = (move: Move): void => {
+        moves.push(move);
+        draft[move.cell] = applyAll([...draft], [move])[move.cell];
+      };
+
+      for (let i = 0; i < CELL_COUNT; i++) {
+        const target = action.cells[i];
+        const cell = draft[i];
+        // A snapshot of a different puzzle is the one way this could rewrite
+        // the board into nonsense, and skipping givens is what makes that
+        // impossible rather than merely unlikely.
+        if (target === undefined || cell === undefined || cell.given) continue;
+
+        if (target.value !== cell.value) {
+          // Both kinds empty the cell's marks, so whatever the snapshot wants
+          // in there is added back below from a known-empty start.
+          push(
+            target.value === null
+              ? { kind: 'clear', cell: i as CellIndex, prev: snapshot(cell), at: stamp }
+              : {
+                  kind: 'set',
+                  cell: i as CellIndex,
+                  digit: target.value,
+                  prev: snapshot(cell),
+                  at: stamp,
+                },
+          );
+        }
+
+        // A filled cell holds no marks in this app — `set` empties them — so
+        // this loop is a no-op for one, and the diff is read off the draft
+        // rather than off `game.cells` for exactly that reason.
+        for (const digit of draft[i].candidates) {
+          if (!target.candidates.includes(digit)) {
+            push({
+              kind: 'removeCandidate',
+              cell: i as CellIndex,
+              digit,
+              prev: snapshot(draft[i]),
+              at: stamp,
+            });
+          }
+        }
+        for (const digit of target.candidates) {
+          if (!draft[i].candidates.has(digit)) {
+            push({
+              kind: 'addCandidate',
+              cell: i as CellIndex,
+              digit,
+              prev: snapshot(draft[i]),
+              at: stamp,
+            });
+          }
+        }
+      }
+
       return commit(game, applyAll(game.cells, moves), moves, stamp);
     }
 

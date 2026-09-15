@@ -19,7 +19,7 @@ import { useMemo } from 'react';
 import type { Digit } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { IconButton } from '../primitives/IconButton';
-import { EraserIcon, PencilIcon, RedoIcon, UndoIcon } from '../primitives/icons';
+import { BookmarkBackIcon, EraserIcon, PencilIcon, RedoIcon, UndoIcon } from '../primitives/icons';
 import { cx } from '../primitives/cx';
 import { useLongPress } from '../primitives/useLongPress';
 import { useT } from '../../i18n/locale';
@@ -57,6 +57,19 @@ export interface KeypadProps {
   onRedo: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  /**
+   * Goes back to the pinned board. Rendered *in the redo key's place*, and
+   * only while there is nothing to redo.
+   *
+   * The reasoning is Paolo's worry, not a desire to be clever: a save point is
+   * useless if you cannot remember you made one, and the moment you want it —
+   * you have gone down a line and it is not working — is exactly a moment
+   * when redo is dead. That key is then a 44px hole under the thumb already
+   * on the pad. Taking it costs nothing (a disabled key does nothing) and it
+   * never competes: the instant there is something to redo, redo wins and
+   * this goes back to the menu, which is where it is always available.
+   */
+  onRestoreSavePoint?: () => void;
   /**
    * The board cannot be finished and the wrong digit is still on it. Undo
    * wears the coach's amber and says what it is for, and goes back to being
@@ -126,6 +139,7 @@ export function Keypad({
   onRedo,
   canUndo = true,
   canRedo = true,
+  onRestoreSavePoint,
   rewinding = false,
   canErase = true,
   staleCount = 0,
@@ -351,13 +365,22 @@ export function Keypad({
           disabled={!canUndo}
           onClick={() => fire('tap', onUndo)}
         />
-        <IconButton
-          label={t('action.redo')}
-          caption={t('keypad.captionRedo')}
-          icon={<RedoIcon />}
-          disabled={!canRedo}
-          onClick={() => fire('tap', onRedo)}
-        />
+        {!canRedo && onRestoreSavePoint !== undefined ? (
+          <IconButton
+            label={t('savePoint.back')}
+            caption={t('savePoint.caption')}
+            icon={<BookmarkBackIcon />}
+            onClick={() => fire('tap', onRestoreSavePoint)}
+          />
+        ) : (
+          <IconButton
+            label={t('action.redo')}
+            caption={t('keypad.captionRedo')}
+            icon={<RedoIcon />}
+            disabled={!canRedo}
+            onClick={() => fire('tap', onRedo)}
+          />
+        )}
       </div>
     </div>
   );

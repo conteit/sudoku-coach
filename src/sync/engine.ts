@@ -21,19 +21,24 @@
 
 import {
   deleteGame,
+  deleteSavePoint,
   listTombstones,
   loadGame,
   pruneTombstones,
   readProfile,
+  readSavePoint,
   readSyncRecord,
   saveGame,
+  savePointIndex,
   saveProfile,
   withDefaultSettings,
+  writeSavePoint,
   writeSyncRecord,
   TOMBSTONE_TTL_MS,
   type SudokuCoachDB,
 } from '../state/db';
 import { db } from '../state/db';
+import type { SavePoint } from '../state/db';
 import type { Game, PlayerProfile } from '../state/types';
 import type { Drive, DriveFile } from './drive';
 import { isEmptyPlan, planSync, type ProfileMove, type RecordIndex } from './plan';
@@ -43,6 +48,9 @@ export const PROFILE_FILE = 'profile.json';
 
 /** `game-<id>.json`. The id is in the name so the manifest and the folder agree. */
 export const gameFile = (id: string): string => `game-${id}.json`;
+
+/** `savepoint-<id>.json`, for the game of the same id. One apiece, like the table. */
+export const savePointFile = (id: string): string => `savepoint-${id}.json`;
 
 /**
  * The manifest. `version` is here so a future shape change can be recognised
@@ -54,6 +62,26 @@ export interface RemoteIndex {
   games: RecordIndex;
   tombstones: RecordIndex;
   profileAt: number;
+  /**
+   * Save points, added after the fact — and optional for a reason worth
+   * spelling out, because the obvious alternative is worse.
+   *
+   * Bumping `version` to 2 would be the tidy way to announce a new field, and
+   * it would break every client still on the old build: `isIndex` rejects an
+   * unknown version and falls back to `EMPTY_INDEX`, so an old client would
+   * read the remote as empty, forget the tombstones, re-upload its whole
+   * library and rewrite the manifest as v1 — after which the new client does
+   * the same in reverse. Two clients erasing each other's manifest on
+   * alternate syncs is a much worse failure than anything this field can
+   * cause.
+   *
+   * Left optional at version 1, the worst an old client does is write a
+   * manifest without this key. The snapshot files stay in the folder; they are
+   * simply unlisted until a new client syncs again, which re-lists them. A
+   * save point that takes an extra sync to propagate is a scratch feature
+   * behaving slightly slowly, not data loss.
+   */
+  savePoints?: RecordIndex;
 }
 
 export const EMPTY_INDEX: RemoteIndex = {
@@ -61,6 +89,7 @@ export const EMPTY_INDEX: RemoteIndex = {
   games: {},
   tombstones: {},
   profileAt: 0,
+  savePoints: {},
 };
 
 export interface SyncOutcome {
@@ -81,6 +110,13 @@ export interface SyncOutcome {
   downloadedIds: readonly string[];
   /** Same reasoning as `downloadedIds`, for the local deletions actually applied. */
   droppedLocalIds: readonly string[];
+  /**
+   * Games whose save point changed on this device — pulled from the remote or
+   * dropped because the game was deleted. Its own list rather than a count:
+   * the screen showing a game has to know whether *its* snapshot moved, and it
+   * must not be told a board changed when only the snapshot did.
+   */
+  savePointIds: readonly string[];
 }
 
 export interface SyncDeps {
@@ -123,6 +159,7 @@ export async function syncOnce({
 
   const localGames = await localGameIndex(conn);
   const localTombstones = indexFrom(await listTombstones(conn));
+  const localSavePoints = await savePointIndex(conn);
   const sync = await readSyncRecord(conn);
 
   const plan = planSync({
@@ -132,6 +169,12 @@ export async function syncOnce({
     remoteTombstones: remote.tombstones,
     localProfileAt: sync.profileTouchedAt,
     remoteProfileAt: remote.profileAt,
+    localSavePoints,
+    // Absent on a manifest written by a client that predates save points, and
+    // an absent index is an empty one: every local snapshot then looks newer
+    // and is re-listed, which is the recovery path the field's comment
+    // describes rather than an error.
+    remoteSavePoints: remote.savePoints ?? {},
   });
 
   const at = now();
@@ -146,6 +189,7 @@ export async function syncOnce({
       profile: 'none',
       downloadedIds: [],
       droppedLocalIds: [],
+      savePointIds: [],
     };
   }
 
@@ -156,8 +200,10 @@ export async function syncOnce({
   };
 
   const games = { ...remote.games };
+  const savePoints = { ...(remote.savePoints ?? {}) };
   const downloadedIds: string[] = [];
   const droppedLocalIds: string[] = [];
+  const savePointIds: string[] = [];
 
   for (const id of plan.download) {
     const file = byName.get(gameFile(id));
@@ -186,6 +232,31 @@ export async function syncOnce({
     const file = byName.get(gameFile(id));
     if (file !== undefined) await drive.remove(file.id);
     delete games[id];
+  }
+
+  for (const id of plan.savePoints.download) {
+    const file = byName.get(savePointFile(id));
+    if (file === undefined) continue; // Manifest ahead of the folder; next run.
+    await writeSavePoint(await drive.read<SavePoint>(file.id), conn);
+    savePointIds.push(id);
+  }
+
+  for (const id of plan.savePoints.upload) {
+    const point = await readSavePoint(id, conn);
+    if (point === undefined) continue; // Overwritten or deleted mid-sync.
+    await put(savePointFile(id), point);
+    savePoints[id] = point.updatedAt;
+  }
+
+  for (const id of plan.savePoints.dropLocal) {
+    await deleteSavePoint(id, conn);
+    savePointIds.push(id);
+  }
+
+  for (const id of plan.savePoints.dropRemote) {
+    const file = byName.get(savePointFile(id));
+    if (file !== undefined) await drive.remove(file.id);
+    delete savePoints[id];
   }
 
   let profileAt = remote.profileAt;
@@ -219,6 +290,7 @@ export async function syncOnce({
     games,
     tombstones: plan.tombstones,
     profileAt,
+    savePoints,
   } satisfies RemoteIndex);
 
   await pruneTombstones(at - TOMBSTONE_TTL_MS, conn);
@@ -233,5 +305,6 @@ export async function syncOnce({
     profile: plan.profile,
     downloadedIds,
     droppedLocalIds,
+    savePointIds,
   };
 }

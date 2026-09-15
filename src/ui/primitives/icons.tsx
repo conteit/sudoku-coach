@@ -155,6 +155,30 @@ export const TargetIcon = (props: IconProps) => (
   </svg>
 );
 
+/**
+ * A save point: a bookmark. Deliberately not a floppy disk or a flag — the
+ * player is marking their place in something they are in the middle of, which
+ * is the one thing a bookmark has always meant.
+ */
+export const BookmarkIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M6.5 4.5h11v15l-5.5-4-5.5 4z" />
+  </svg>
+);
+
+/**
+ * Going back to the save point: the same bookmark with an arrow returning to
+ * it, so the pair reads as place-marked and place-resumed rather than as two
+ * unrelated glyphs.
+ */
+export const BookmarkBackIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M7 4.5h10v15l-5-3.6-5 3.6z" />
+    <path d="M14.5 9.5 12 12l2.5 2.5" />
+    <path d="M12 12h-2.5" />
+  </svg>
+);
+
 /** Sync: two arcs chasing each other, so it reads as motion even at rest. */
 export const SyncIcon = (props: IconProps) => (
   <svg {...base(props)}>

@@ -20,7 +20,63 @@ const inputs = (patch: Partial<SyncInputs> = {}): SyncInputs => ({
   remoteTombstones: {},
   localProfileAt: 0,
   remoteProfileAt: 0,
+  localSavePoints: {},
+  remoteSavePoints: {},
   ...patch,
+});
+
+describe('save points in the plan', () => {
+  it('pushes one the remote has never seen, and pulls a newer one', () => {
+    expect(planSync(inputs({ localSavePoints: { a: 5 } })).savePoints.upload).toEqual(['a']);
+    // And a plan that moves only a save point is not an empty plan. Without
+    // this the engine would skip the whole run — `isEmptyPlan` is the gate —
+    // and a save point on its own would never leave the device.
+    expect(isEmptyPlan(planSync(inputs({ localSavePoints: { a: 5 } })))).toBe(false);
+    expect(
+      planSync(inputs({ localSavePoints: { a: 5 }, remoteSavePoints: { a: 9 } })).savePoints
+        .download,
+    ).toEqual(['a']);
+  });
+
+  it('is nothing to do when the two sides already agree', () => {
+    const plan = planSync(inputs({ localSavePoints: { a: 5 }, remoteSavePoints: { a: 5 } }));
+    expect(isEmptyPlan(plan)).toBe(true);
+  });
+
+  it('goes from both sides when the game it belongs to is deleted', () => {
+    const plan = planSync(
+      inputs({
+        localGames: { a: 1 },
+        remoteGames: { a: 1 },
+        localTombstones: { a: 9 },
+        localSavePoints: { a: 5 },
+        remoteSavePoints: { a: 5 },
+      }),
+    );
+
+    expect(plan.dropLocal).toEqual(['a']);
+    expect(plan.savePoints.dropLocal).toEqual(['a']);
+    expect(plan.savePoints.dropRemote).toEqual(['a']);
+  });
+
+  it('survives a deletion that a later play outranked', () => {
+    // The case that rules out comparing a snapshot's date with a tombstone's.
+    // The game was deleted on one device at 9 and played on another at 12, so
+    // the game lives — and its save point, taken at 5 and therefore "older
+    // than the deletion", has to live with it.
+    const plan = planSync(
+      inputs({
+        localGames: { a: 12 },
+        remoteTombstones: { a: 9 },
+        localSavePoints: { a: 5 },
+        remoteSavePoints: { a: 5 },
+      }),
+    );
+
+    expect(plan.dropLocal).toEqual([]);
+    expect(plan.savePoints.dropLocal).toEqual([]);
+    expect(plan.savePoints.dropRemote).toEqual([]);
+  });
 });
 
 describe('planSync', () => {
@@ -126,6 +182,8 @@ describe('planSync', () => {
         remoteTombstones: index(),
         localProfileAt: fc.integer({ min: 0, max: 6 }),
         remoteProfileAt: fc.integer({ min: 0, max: 6 }),
+        localSavePoints: index(),
+        remoteSavePoints: index(),
       });
 
     it('never asks for two contradictory things about one game', () => {
@@ -174,6 +232,16 @@ describe('planSync', () => {
           for (const id of plan.dropLocal) delete local[id];
           for (const id of plan.dropRemote) delete remote[id];
 
+          // Save points converge on the same terms, and the property has to
+          // carry them or a planner that never settled a snapshot would still
+          // pass: `isEmptyPlan` counts their four lists too.
+          const localPoints = { ...given.localSavePoints };
+          const remotePoints = { ...given.remoteSavePoints };
+          for (const id of plan.savePoints.upload) remotePoints[id] = localPoints[id];
+          for (const id of plan.savePoints.download) localPoints[id] = remotePoints[id];
+          for (const id of plan.savePoints.dropLocal) delete localPoints[id];
+          for (const id of plan.savePoints.dropRemote) delete remotePoints[id];
+
           const profileAt = Math.max(given.localProfileAt, given.remoteProfileAt);
           const second = planSync({
             localGames: local,
@@ -182,6 +250,8 @@ describe('planSync', () => {
             remoteTombstones: plan.tombstones,
             localProfileAt: profileAt,
             remoteProfileAt: profileAt,
+            localSavePoints: localPoints,
+            remoteSavePoints: remotePoints,
           });
 
           expect(isEmptyPlan(second)).toBe(true);

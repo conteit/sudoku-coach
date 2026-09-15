@@ -8,6 +8,10 @@
  * wires them to something.
  */
 
+// Must come first: Dexie captures the global `indexedDB` when it is imported,
+// and this screen reaches it transitively — the save point store reads the
+// pinned board for whatever game is open. jsdom has no IndexedDB of its own.
+import 'fake-indexeddb/auto';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n/react';
