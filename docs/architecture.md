@@ -71,7 +71,7 @@ dependency.
 | `src/engine/exercise.ts` | Where along a solve path a technique becomes the move | solver, techniques |
 | `src/state/types.ts` | **Frozen contracts.** Move, Game, PlayerProfile, CoachExchange | engine/types |
 | `src/state/game.ts` | Game reducer, move log, undo/redo, timer | state/types |
-| `src/state/db.ts` | Dexie schema + migrations | state/types |
+| `src/state/db.ts` | Dexie schema + migrations, tombstones, save points | state/types |
 | `src/state/store.ts` | Multi-game registry, active game, autosave | game, db |
 | `src/state/mastery.ts` | Per-technique mastery state machine | state/types |
 | `src/coach/types.ts` | **Frozen contracts.** Lesson, Hint, CandidateReview | engine, state |
@@ -80,6 +80,7 @@ dependency.
 | `src/coach/candidates.ts` | Pencil-mark diff against true candidates | board |
 | `src/coach/roles.ts` | What each cell of a pattern is doing — hinge, arms, corners | engine |
 | `src/state/profile.ts` | Profile store: locale, settings, mastery. Write-through | db, mastery |
+| `src/state/savePoint.ts` | Save point store: the pinned board for the game on screen. Write-through | db, game |
 | `src/i18n/` | Flat dotted dictionary, `t()`, and the locale React context | state/types |
 | `src/ui/` | Presentational components: grid, keypad, game list, coach panel | engine, state, i18n |
 | `src/app/` | The assembled app: screens, and the hooks that bind them to the layers below | everything |
@@ -563,6 +564,38 @@ has already read the front door.
     premise of the question, and a player who could edit the cells the pattern
     rests on would be drilling a board that no longer contains it.
 
+15. **A save point is a scratch record, and it lives outside `Game`.** One
+    pinned board per game, in its own Dexie table keyed by the game's id and
+    its own file in the app folder. Two things follow, and both were the
+    reason for the shape:
+
+    `Game`'s frozen contract is untouched, so the feature costs no migration
+    of the game record and no merge rule on a game field — the snapshot is a
+    second synced entity rather than a second field, which is the cheaper half
+    of the same promise. And a save point dies with its game, in the same
+    transaction as the deletion and on the same tombstone across devices: a
+    snapshot that outlives its game is unreachable by any screen and would be
+    re-uploaded forever.
+
+    **It is a full snapshot, never an index into the move log.** An index is
+    smaller and it breaks in the ordinary case: undo past the save point, play
+    differently, and the stack is rewritten under it. That is not an edge — it
+    is exactly the "try a line, back out, try another" the feature exists for.
+    Trimming is not the argument (`MAX_HISTORY` is 2000 against an observed
+    depth of 224); divergence is.
+
+    **Restoring is a batch of ordinary moves, so undo after a restore returns
+    the player to where they were standing** rather than replaying them
+    forward from the pin. An index restore is a truncation and cannot express
+    that. The cells are handed to the reducer rather than read from storage
+    inside it — the same rule `applyNoteFixes` follows — and givens are
+    skipped rather than trusted, so a snapshot from the wrong puzzle cannot
+    rewrite the board.
+
+    Restoring does not spend the pin. It stands until deliberately replaced,
+    because backing out twice should not require remembering to re-pin in
+    between (Paolo's rule).
+
 ## Learn exercises
 
 A practice grid is a board frozen at the moment one technique is the way
@@ -697,6 +730,21 @@ not wait for the network and a failure is a line in Settings, never a dialog.
   rather than kept to re-delete the resurrected game. Tombstones are pruned
   past `TOMBSTONE_TTL_MS`, which bounds the table at the stated cost that a
   device silent for longer than that can resurrect a game.
+- **Save points sync as their own records, under an optional manifest field.**
+  `savepoint-<id>.json` beside the game files, listed in `index.json` under
+  `savePoints`. The field is optional at `version: 1` rather than announced by
+  a version bump, and that is a deliberate trade: `isIndex` treats an unknown
+  version as an empty remote, so bumping it would have every still-deployed
+  old client forget the tombstones, re-upload its library and rewrite the
+  manifest as v1 — two clients erasing each other's manifest on alternate
+  syncs. Left optional, the worst an old client does is write a manifest
+  without the key; the snapshot files stay in the folder and are re-listed on
+  the next sync by a new client. A save point that takes an extra sync to
+  propagate is a scratch feature behaving slowly, not data loss.
+- **A save point follows the decision about its game, not its own date.** It
+  is dropped when the game's tombstone actually wins. Comparing the snapshot's
+  timestamp with the deletion's would look equivalent and would throw away the
+  save point of a game that a later play legitimately resurrected.
 - **`PlayerProfile` stays frozen.** It has no timestamp and newest-wins needs
   one, so the stamp lives in the `sync` singleton next to it, written in the
   same transaction as the profile.
@@ -757,6 +805,11 @@ Two things make it worse than it sounds, and both are counter-intuitive:
 never be the obstruction, and being blocked is a state the shell renders —
 which window is in the way, that nothing has been lost, and a reload. Before
 adding a `SchemaVersion`, read that code rather than this paragraph.
+
+Schema v3 (save points) is the first upgrade shipped with that machinery in
+place. It is still an upgrade: a player with the installed app frozen in the
+background will see the blocked notice rather than a blank screen, which is
+the whole of what was fixed — not that upgrades stopped being events.
 
 ## Difficulty rating
 

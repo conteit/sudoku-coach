@@ -19,6 +19,7 @@ import { create } from 'zustand';
 import { db, readSyncRecord, writeSyncRecord, type SudokuCoachDB } from '../state/db';
 import { useAccount } from '../state/account';
 import { useGameStore } from '../state/store';
+import { useSavePoint } from '../state/savePoint';
 import { DriveError, driveFor } from './drive';
 import { syncOnce, type SyncOutcome } from './engine';
 import { requestGrant, syncAvailable, usable, type Grant } from './token';
@@ -130,6 +131,7 @@ export interface SyncStore {
 const appliedSomething = (outcome: SyncOutcome): boolean =>
   outcome.downloadedIds.length > 0 ||
   outcome.droppedLocalIds.length > 0 ||
+  outcome.savePointIds.length > 0 ||
   outcome.uploaded > 0 ||
   outcome.removedRemote > 0 ||
   outcome.profile !== 'none';
@@ -227,6 +229,15 @@ export const createSyncStore = (deps: SyncDeps = defaultDeps()) =>
           // from, so it goes first.
           await useGameStore.getState().refreshSummaries();
           await useGameStore.getState().refreshGames(outcome.downloadedIds);
+          // A snapshot that arrived for the game currently on screen has to
+          // reach the screen: the button that offers it reads this store, not
+          // the table, so without the re-read the player would be told there
+          // is no save point until they reopened the game. Forced, because
+          // the game id has not changed — only what is stored under it.
+          const watching = useSavePoint.getState().gameId;
+          if (watching !== null && outcome.savePointIds.includes(watching)) {
+            await useSavePoint.getState().watch(watching, { reload: true });
+          }
         }
       } catch (error) {
         // An expired or withdrawn grant is the one failure with a next step,

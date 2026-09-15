@@ -594,6 +594,56 @@ test.describe('the header at its narrowest', () => {
  * Only a browser can make this claim fail: jsdom lays nothing out, so nothing
  * overflows there and a sticky header is indistinguishable from a static one.
  */
+/*
+ * The save point, against the real build and the real database.
+ *
+ * The screen test covers the buttons; what only a browser can show is that the
+ * snapshot survives the round trip through IndexedDB — the store writes it
+ * through Dexie, and a snapshot that could not be stored would fail here and
+ * nowhere else.
+ */
+test.describe('save points', () => {
+  test('pins a board, tries a line, and gets back', async ({ page }) => {
+    await startEasyGame(page);
+
+    const board = await readBoard(page);
+    const open = board.find((cell) => !cell.given && cell.value === null)!;
+
+    await page.getByRole('button', { name: 'This puzzle' }).click();
+    const menu = page.getByRole('dialog', { name: 'This puzzle' });
+    await menu.getByRole('button', { name: 'Pin this board' }).click();
+    await expect(menu).toBeHidden();
+
+    await enter(page, open.index, 4);
+    await expect(boardCell(page, open.index)).toHaveText('4');
+
+    // Reloaded before restoring, and that is the point of running this in a
+    // browser at all: the pin has to come back off disk. Without the reload
+    // the store still holds it in memory and the test would pass with nothing
+    // ever written — which is exactly the kind of test this repo keeps
+    // catching. The board's own autosave is on a debounce, so the wait is the
+    // honest way to let both landings happen.
+    await page.waitForTimeout(1500);
+    await page.reload();
+    await expect(boardGrid(page)).toBeVisible();
+    await expect(boardCell(page, open.index)).toHaveText('4');
+
+    // From the pad, in the redo key: nothing has been undone, so redo is dead
+    // and the slot carries the way back.
+    await page
+      .getByRole('group', { name: /^Keypad/ })
+      .getByRole('button', { name: 'Back to the pinned board' })
+      .click();
+
+    await expect(boardCell(page, open.index)).toHaveText('');
+
+    // And the pin is still there afterwards — one save point, spent by
+    // nothing but a deliberate replacement.
+    await page.getByRole('button', { name: 'This puzzle' }).click();
+    await expect(menu.getByRole('button', { name: 'Back to the pinned board' })).toBeVisible();
+  });
+});
+
 test.describe('the coach sheet keeps its header', () => {
   test.skip(({ isMobile }) => !isMobile, 'the sheet only exists on the phone layout');
 

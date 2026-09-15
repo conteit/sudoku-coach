@@ -32,9 +32,25 @@ export interface SyncInputs {
   /** 0 when the profile has never been written on this side. */
   localProfileAt: number;
   remoteProfileAt: number;
+  localSavePoints: RecordIndex;
+  remoteSavePoints: RecordIndex;
 }
 
 export type ProfileMove = 'upload' | 'download' | 'none';
+
+/**
+ * The same four movements, for save points.
+ *
+ * Kept as its own sub-plan rather than folded into the game lists: the two
+ * share an id space but not a file, and an engine that could not tell them
+ * apart would upload a board where a snapshot belonged.
+ */
+export interface SavePointPlan {
+  upload: readonly string[];
+  download: readonly string[];
+  dropLocal: readonly string[];
+  dropRemote: readonly string[];
+}
 
 export interface SyncPlan {
   /** Local is newer: push the whole game. */
@@ -52,6 +68,7 @@ export interface SyncPlan {
    * the resurrected game on every future sync.
    */
   tombstones: RecordIndex;
+  savePoints: SavePointPlan;
 }
 
 /** Absent is older than anything that exists, including a zero timestamp. */
@@ -96,6 +113,40 @@ export function planSync(inputs: SyncInputs): SyncPlan {
     else if (remote > local) download.push(id);
   }
 
+  /*
+   * Save points ride on the *decision* about their game, not on their own
+   * timestamp against a tombstone.
+   *
+   * Comparing a snapshot's date with a deletion's would be the obvious thing
+   * and it would be wrong in one real case: a game deleted on the phone and
+   * then played on the laptop survives, because the play outranks the
+   * tombstone — but the save point taken before the deletion is older than it,
+   * so the same comparison would throw away the save point of a game that is
+   * still here. Asking instead whether the game's tombstone actually *won*
+   * ties the two together, which is what the player would expect: the snapshot
+   * goes when the game goes, and stays when the game stays.
+   */
+  const savePoints: {
+    upload: string[];
+    download: string[];
+    dropLocal: string[];
+    dropRemote: string[];
+  } = { upload: [], download: [], dropLocal: [], dropRemote: [] };
+
+  for (const id of idsOf(inputs.localSavePoints, inputs.remoteSavePoints)) {
+    const local = at(inputs.localSavePoints, id);
+    const remote = at(inputs.remoteSavePoints, id);
+
+    if (Object.hasOwn(tombstones, id)) {
+      if (local !== Number.NEGATIVE_INFINITY) savePoints.dropLocal.push(id);
+      if (remote !== Number.NEGATIVE_INFINITY) savePoints.dropRemote.push(id);
+      continue;
+    }
+
+    if (local > remote) savePoints.upload.push(id);
+    else if (remote > local) savePoints.download.push(id);
+  }
+
   const profile =
     inputs.localProfileAt > inputs.remoteProfileAt
       ? 'upload'
@@ -110,6 +161,12 @@ export function planSync(inputs: SyncInputs): SyncPlan {
     dropRemote: dropRemote.sort(),
     profile,
     tombstones,
+    savePoints: {
+      upload: savePoints.upload.sort(),
+      download: savePoints.download.sort(),
+      dropLocal: savePoints.dropLocal.sort(),
+      dropRemote: savePoints.dropRemote.sort(),
+    },
   };
 }
 
@@ -119,4 +176,8 @@ export const isEmptyPlan = (plan: SyncPlan): boolean =>
   plan.download.length === 0 &&
   plan.dropLocal.length === 0 &&
   plan.dropRemote.length === 0 &&
-  plan.profile === 'none';
+  plan.profile === 'none' &&
+  plan.savePoints.upload.length === 0 &&
+  plan.savePoints.download.length === 0 &&
+  plan.savePoints.dropLocal.length === 0 &&
+  plan.savePoints.dropRemote.length === 0;

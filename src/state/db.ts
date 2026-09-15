@@ -22,7 +22,7 @@ import { formatGrid } from '../engine/board';
 import type { Difficulty } from '../engine/types';
 import { elapsedAt, progress } from './game';
 import { DEFAULT_PROFILE } from './mastery';
-import type { Game, PlayerProfile } from './types';
+import type { Game, PlayerProfile, StoredCell } from './types';
 
 export const DB_NAME = 'sudoku-coach';
 
@@ -60,6 +60,20 @@ export const SCHEMA: readonly SchemaVersion[] = [
       // changes; `games` and `profile` carry over untouched.
       tombstones: 'id, deletedAt',
       sync: 'id',
+    },
+  },
+  {
+    version: 3,
+    stores: {
+      // Save points. Keyed by the game's own id, because there is exactly one
+      // per game — the feature is "get back to where I was", not a library of
+      // bookmarks, so a second save overwrites rather than accumulates.
+      //
+      // `updatedAt` is indexed for the same reason `games.updatedAt` is: sync
+      // reads the index alone to build its manifest, and reading whole
+      // snapshots off disk to learn their timestamps would load every board
+      // in the library to answer a question about numbers.
+      savePoints: 'id, updatedAt',
     },
   },
 ];
@@ -111,6 +125,25 @@ export interface SyncRecord {
   enabled: boolean;
 }
 
+/**
+ * A board the player pinned before trying something, and when they pinned it.
+ *
+ * `id` is the game's id: one save point per game, overwritten by the next
+ * save. Declared here beside `Tombstone` and `SyncRecord` rather than in
+ * `state/types.ts` — that file is a frozen contract and this is a new record
+ * with no bearing on `Game`'s shape, which is exactly the point of keeping it
+ * in a table of its own.
+ *
+ * `StoredCell[]`, the same serialized shape a `Game` holds: sets become sorted
+ * arrays, so a snapshot survives IndexedDB and a Drive round trip unchanged
+ * (architecture invariant 5).
+ */
+export interface SavePoint {
+  id: string;
+  updatedAt: number;
+  cells: StoredCell[];
+}
+
 export const DEFAULT_SYNC_RECORD: SyncRecord = {
   id: 'sync',
   profileTouchedAt: 0,
@@ -125,6 +158,7 @@ export class SudokuCoachDB extends Dexie {
   declare profile: Table<PlayerProfile, string>;
   declare tombstones: Table<Tombstone, string>;
   declare sync: Table<SyncRecord, string>;
+  declare savePoints: Table<SavePoint, string>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -356,9 +390,13 @@ export const deleteGameRecording = (
   at: number,
   conn: SudokuCoachDB = db,
 ): Promise<void> =>
-  conn.transaction('rw', conn.games, conn.tombstones, async () => {
+  conn.transaction('rw', conn.games, conn.tombstones, conn.savePoints, async () => {
     await conn.games.delete(id);
     await conn.tombstones.put({ id, deletedAt: at });
+    // In the same transaction, and not as an afterthought: a save point that
+    // outlives its game is a snapshot no screen can ever show and sync would
+    // upload forever. The game's tombstone speaks for both — they share an id.
+    await conn.savePoints.delete(id);
   });
 
 export const listTombstones = (conn: SudokuCoachDB = db): Promise<Tombstone[]> =>
@@ -388,3 +426,35 @@ export const pruneTombstones = async (
 
 /** Ninety days. Long enough that pruning is invisible; short enough to bound. */
 export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+/* -------------------------------------------------------------------------- */
+/* Save points                                                                */
+/* -------------------------------------------------------------------------- */
+
+export const readSavePoint = (
+  id: string,
+  conn: SudokuCoachDB = db,
+): Promise<SavePoint | undefined> => conn.savePoints.get(id);
+
+export const writeSavePoint = (point: SavePoint, conn: SudokuCoachDB = db): Promise<string> =>
+  conn.savePoints.put(point);
+
+export const deleteSavePoint = (id: string, conn: SudokuCoachDB = db): Promise<void> =>
+  conn.savePoints.delete(id);
+
+/**
+ * Every save point's id and timestamp, and nothing else.
+ *
+ * Read off the index rather than from the records, the same way sync reads the
+ * game manifest: the answer is two numbers per game, and loading the boards to
+ * get them would pull every snapshot in the library into memory.
+ */
+export async function savePointIndex(
+  conn: SudokuCoachDB = db,
+): Promise<Record<string, number>> {
+  const index: Record<string, number> = {};
+  await conn.savePoints.orderBy('updatedAt').eachKey((key, cursor) => {
+    index[String(cursor.primaryKey)] = Number(key);
+  });
+  return index;
+}

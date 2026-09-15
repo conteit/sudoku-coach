@@ -17,6 +17,15 @@ vi.mock('../state/store', () => ({
   useGameStore: { getState: () => ({ refreshSummaries, refreshGames }) },
 }));
 
+// Same reasoning for the save point store: the question here is whether a
+// snapshot that arrived for the game on screen makes the sync store go back
+// and re-read it. `watching` stands in for "this game is open".
+const watchSavePoint = vi.hoisted(() => vi.fn());
+const watching = vi.hoisted(() => ({ gameId: null as string | null }));
+vi.mock('../state/savePoint', () => ({
+  useSavePoint: { getState: () => ({ gameId: watching.gameId, watch: watchSavePoint }) },
+}));
+
 const { createSyncStore, forgetGrant } = await import('./store');
 
 /**
@@ -64,6 +73,7 @@ const EMPTY_OUTCOME = {
   profile: 'none' as const,
   downloadedIds: [],
   droppedLocalIds: [],
+  savePointIds: [],
 };
 
 beforeEach(() => {
@@ -74,6 +84,9 @@ beforeEach(() => {
   refreshSummaries.mockResolvedValue(undefined);
   refreshGames.mockReset();
   refreshGames.mockResolvedValue(undefined);
+  watchSavePoint.mockReset();
+  watchSavePoint.mockResolvedValue(undefined);
+  watching.gameId = null;
   useAccount.setState({ account: { uid: 'u1', email: 'a@b.c', displayName: null } });
 });
 
@@ -376,6 +389,40 @@ describe('the sync store', () => {
       expect(refreshSummaries).toHaveBeenCalledTimes(1);
       expect(refreshGames).toHaveBeenCalledTimes(1);
       expect(refreshGames).toHaveBeenCalledWith(['g1']);
+    });
+
+    it('re-reads the save point when a snapshot arrived for the game on screen', async () => {
+      watching.gameId = 'g1';
+      syncOnce.mockResolvedValue({ ...EMPTY_OUTCOME, savePointIds: ['g1'] });
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      // Forced: the game id has not changed, only what is stored under it, so
+      // a plain watch() would see the id it already has and do nothing.
+      expect(watchSavePoint).toHaveBeenCalledWith('g1', { reload: true });
+    });
+
+    it('leaves the open game alone when the snapshot that moved was another game\'s', async () => {
+      watching.gameId = 'g1';
+      syncOnce.mockResolvedValue({ ...EMPTY_OUTCOME, savePointIds: ['g2'] });
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(watchSavePoint).not.toHaveBeenCalled();
+    });
+
+    it('counts a save point as something applied, so the catch-up is not skipped', async () => {
+      // `appliedSomething` gates every refresh below it. A sync whose only
+      // movement was a snapshot used to look exactly like a no-op.
+      watching.gameId = 'g1';
+      syncOnce.mockResolvedValue({ ...EMPTY_OUTCOME, savePointIds: ['g1'] });
+      const useStore = storeWith(device());
+
+      await useStore.getState().enable();
+
+      expect(refreshSummaries).toHaveBeenCalledTimes(1);
     });
 
     it('does not ask the game store to catch up after a no-op sync', async () => {

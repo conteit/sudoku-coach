@@ -698,6 +698,90 @@ describe('applying the note check', () => {
   });
 });
 
+describe('restoring a save point', () => {
+  /** The board as a save point would carry it: the frozen `StoredCell` shape. */
+  const snapshotOf = (game: LiveGame) => toStored(game).cells;
+
+  it('puts back the values and the marks the snapshot was taken with', () => {
+    const saved = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'addCandidate', cell: OPEN, digit: 6, at: 2001 },
+      { type: 'setValue', cell: 5, digit: 3, at: 2002 },
+    );
+    const point = snapshotOf(saved);
+
+    // The line the player then tries and wants out of: a digit where the marks
+    // were, a different digit where the first one was, a fresh mark elsewhere.
+    const tried = run(
+      saved,
+      { type: 'setValue', cell: OPEN, digit: 4, at: 2003 },
+      { type: 'clearCell', cell: 5, at: 2004 },
+      { type: 'addCandidate', cell: 7, digit: 8, at: 2005 },
+    );
+
+    const back = reduce(tried, { type: 'restoreSavePoint', cells: point, at: 2006 });
+
+    expect(back.cells[OPEN].value).toBeNull();
+    expect(marks(back, OPEN)).toEqual([4, 6]);
+    expect(back.cells[5].value).toBe(3);
+    expect(marks(back, 7)).toEqual([]);
+  });
+
+  it('costs exactly one undo, and that undo returns to where the player was', () => {
+    // Paolo's semantic, and the reason this is a batch of ordinary moves
+    // rather than a truncation of the history: undoing a restore does not
+    // replay you forward from the save point, it puts you back where you
+    // were standing when you pressed it.
+    const saved = reduce(start(), { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 });
+    const point = snapshotOf(saved);
+    const tried = run(
+      saved,
+      { type: 'setValue', cell: OPEN, digit: 9, at: 2001 },
+      { type: 'setValue', cell: 5, digit: 3, at: 2002 },
+    );
+
+    const back = reduce(tried, { type: 'restoreSavePoint', cells: point, at: 2003 });
+    const undone = reduce(back, { type: 'undo', at: 2004 });
+
+    expect(undone.cells[OPEN].value).toBe(9);
+    expect(undone.cells[5].value).toBe(3);
+    expect(marks(undone, OPEN)).toEqual([]);
+  });
+
+  it('redoes as one step too, so the round trip is symmetric', () => {
+    const saved = reduce(start(), { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 });
+    const point = snapshotOf(saved);
+    const tried = reduce(saved, { type: 'setValue', cell: OPEN, digit: 9, at: 2001 });
+    const back = reduce(tried, { type: 'restoreSavePoint', cells: point, at: 2002 });
+
+    const again = reduce(reduce(back, { type: 'undo', at: 2003 }), { type: 'redo', at: 2004 });
+
+    expect(again.cells[OPEN].value).toBeNull();
+    expect(marks(again, OPEN)).toEqual([4]);
+  });
+
+  it('is a no-op on the board it was taken from, so it cannot cost an undo', () => {
+    const saved = reduce(start(), { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 });
+    const game = reduce(saved, { type: 'restoreSavePoint', cells: snapshotOf(saved), at: 2001 });
+    expect(game).toBe(saved);
+  });
+
+  it('cannot rewrite a given, whatever the snapshot claims', () => {
+    // The one way a snapshot from the wrong puzzle could turn the board into
+    // nonsense. Givens are skipped rather than trusted.
+    const game = start();
+    const wrong = snapshotOf(game).map((cell, i) =>
+      i === GIVEN ? { ...cell, value: 1 as Digit, given: false } : cell,
+    );
+
+    const after = reduce(game, { type: 'restoreSavePoint', cells: wrong, at: 2000 });
+
+    expect(after.cells[GIVEN].value).toBe(game.cells[GIVEN].value);
+    expect(after).toBe(game);
+  });
+});
+
 describe('idle', () => {
   it('folds the running stretch and stops the clock', () => {
     const idled = reduce(start({ running: true }), { type: 'idle', at: 4000 });

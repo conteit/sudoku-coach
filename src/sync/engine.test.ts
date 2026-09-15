@@ -1,12 +1,15 @@
 // Must come first: Dexie captures the global `indexedDB` when it is imported.
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DB_NAME, SudokuCoachDB, deleteGameRecording, loadGame, readSyncRecord, saveGame, saveProfile } from '../state/db';
+import {
+  DB_NAME, SudokuCoachDB, deleteGameRecording, loadGame, readSavePoint, readSyncRecord, saveGame,
+  saveProfile, writeSavePoint,
+} from '../state/db';
 import { newGame, toStored } from '../state/game';
 import { DEFAULT_PROFILE } from '../state/mastery';
 import type { Game } from '../state/types';
 import type { Drive, DriveFile } from './drive';
-import { INDEX_FILE, gameFile, syncOnce, type RemoteIndex } from './engine';
+import { INDEX_FILE, gameFile, savePointFile, syncOnce, type RemoteIndex } from './engine';
 
 /**
  * Two devices, one Drive.
@@ -233,6 +236,89 @@ describe('syncOnce', () => {
       // it on the next run.
       expect((await loadGame('g1', a))?.updatedAt).toBe(7000);
       expect(indexOf(drive).tombstones).toEqual({});
+    });
+  });
+
+  describe('save points', () => {
+    const pointAt = (id: string, at: number) => ({
+      id,
+      updatedAt: at,
+      cells: gameAt(id, at).cells,
+    });
+
+    it('travels to the other device, in its own file', async () => {
+      const drive = fakeDrive();
+      const a = device();
+      const b = device();
+      await saveGame(gameAt('g1', 1000), a);
+      await writeSavePoint(pointAt('g1', 1500), a);
+
+      await syncOnce({ drive, conn: a, now: () => 5000 });
+      const outcome = await syncOnce({ drive, conn: b, now: () => 5100 });
+
+      expect((await readSavePoint('g1', b))?.updatedAt).toBe(1500);
+      expect(outcome.savePointIds).toEqual(['g1']);
+      // Its own file, not smuggled into the game's: a corrupt snapshot must
+      // cost a snapshot, which is the same argument as one file per game.
+      expect([...drive.files.values()].map((f) => f.name)).toContain(savePointFile('g1'));
+      expect(indexOf(drive).savePoints).toEqual({ g1: 1500 });
+    });
+
+    it('is overwritten by a newer one from the other device', async () => {
+      const drive = fakeDrive();
+      const a = device();
+      const b = device();
+      await saveGame(gameAt('g1', 1000), a);
+      await writeSavePoint(pointAt('g1', 1500), a);
+      await syncOnce({ drive, conn: a, now: () => 5000 });
+      await syncOnce({ drive, conn: b, now: () => 5100 });
+
+      await writeSavePoint(pointAt('g1', 7000), b);
+      await syncOnce({ drive, conn: b, now: () => 7100 });
+      await syncOnce({ drive, conn: a, now: () => 7200 });
+
+      expect((await readSavePoint('g1', a))?.updatedAt).toBe(7000);
+    });
+
+    it('goes from the folder and the other device when its game is deleted', async () => {
+      const drive = fakeDrive();
+      const a = device();
+      const b = device();
+      await saveGame(gameAt('g1', 1000), a);
+      await writeSavePoint(pointAt('g1', 1500), a);
+      await syncOnce({ drive, conn: a, now: () => 5000 });
+      await syncOnce({ drive, conn: b, now: () => 5100 });
+      expect(await readSavePoint('g1', b)).toBeDefined();
+
+      await deleteGameRecording('g1', 6000, a);
+      await syncOnce({ drive, conn: a, now: () => 6100 });
+      await syncOnce({ drive, conn: b, now: () => 6200 });
+
+      expect(await readSavePoint('g1', b)).toBeUndefined();
+      expect([...drive.files.values()].map((f) => f.name)).not.toContain(savePointFile('g1'));
+      expect(indexOf(drive).savePoints).toEqual({});
+    });
+
+    it('re-lists itself after an older client wrote a manifest without the field', async () => {
+      // The forward-compatibility story the `savePoints?` comment tells, run
+      // rather than asserted: a client that predates the field rewrites the
+      // manifest without it, and the snapshot has to come back into the index
+      // on the next sync instead of being orphaned for good.
+      const drive = fakeDrive();
+      const a = device();
+      await saveGame(gameAt('g1', 1000), a);
+      await writeSavePoint(pointAt('g1', 1500), a);
+      await syncOnce({ drive, conn: a, now: () => 5000 });
+      expect(indexOf(drive).savePoints).toEqual({ g1: 1500 });
+
+      const [id, file] = [...drive.files.entries()].find(([, f]) => f.name === INDEX_FILE)!;
+      const { savePoints: _dropped, ...withoutField } = file.body as RemoteIndex;
+      drive.files.set(id, { name: INDEX_FILE, body: withoutField });
+
+      await syncOnce({ drive, conn: a, now: () => 5200 });
+
+      expect(indexOf(drive).savePoints).toEqual({ g1: 1500 });
+      expect((await readSavePoint('g1', a))?.updatedAt).toBe(1500);
     });
   });
 
