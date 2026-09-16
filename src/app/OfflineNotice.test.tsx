@@ -103,3 +103,28 @@ describe('the offline-ready notice', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+/*
+ * #147's scenario, asserted rather than assumed.
+ *
+ * `App` renders this component only while no game is open, and `autoUpdate`
+ * reloads the page under a player mid-puzzle — so the worry was that the
+ * update mark is written to a screen that is not listening and lost. It is
+ * not: the mark is `sessionStorage`, nothing else reads it, and the first
+ * mount after the player leaves the game is the mount that finds it.
+ */
+describe('an update that landed while a game was open', () => {
+  it('is announced when the player next leaves the game', async () => {
+    // The controllerchange handler runs at module scope during play, with no
+    // notice mounted anywhere.
+    sessionStorage.setItem(UPDATED_KEY, '1');
+
+    // Exiting to the library is what mounts it for the first time since.
+    show();
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Updated to the latest version.',
+    );
+    expect(sessionStorage.getItem(UPDATED_KEY)).toBeNull();
+  });
+});
