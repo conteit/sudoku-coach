@@ -726,7 +726,7 @@ export function GameView({
         label={coach.nudge === null ? t('coach.open') : t('coach.openWaiting')}
         icon={<CoachIcon />}
         className={cx(
-          'relative flex-none sm:hidden',
+          'relative flex-none roomy:hidden',
           // `!` (important), not the plain utility: `.hidden{display:none}`
           // sits *before* `.inline-flex{display:inline-flex}` in Tailwind's
           // generated stylesheet, so on equal specificity the later rule —
@@ -757,8 +757,8 @@ export function GameView({
     // was tried and is wrong: the coach panel is a different height on a
     // phone than on a laptop, and the board has to answer to what is
     // actually there.
-    <div className="flex min-h-0 flex-1 items-center justify-center sm:block sm:flex-none">
-      <div className="relative aspect-square h-full max-w-full sm:h-auto sm:w-full">
+    <div className="flex min-h-0 flex-1 items-center justify-center roomy:block roomy:flex-none">
+      <div className="relative aspect-square h-full max-w-full roomy:h-auto roomy:w-full">
         <SudokuGrid
           cells={game.cells}
           selected={selected}
@@ -880,7 +880,7 @@ export function GameView({
           aria-label={t('action.close')}
           tabIndex={-1}
           onClick={closeSheet}
-          className="absolute inset-0 z-10 cursor-default bg-ink/20 sm:hidden"
+          className="absolute inset-0 z-10 cursor-default bg-ink/20 roomy:hidden"
         />
       ) : null}
 
@@ -898,7 +898,7 @@ export function GameView({
         aria-modal={modalOpen ? true : undefined}
         aria-label={modalOpen ? t('coach.title') : undefined}
         className={cx(
-          'bg-paper-raised sm:static sm:block sm:max-h-none sm:overflow-visible sm:shadow-none',
+          'bg-paper-raised roomy:static roomy:block roomy:max-h-none roomy:overflow-visible roomy:shadow-none',
           sheetOpen
             ? // The inset for the same reason `GameLayout`'s phone column has
               // it: the sheet is anchored to the bottom of a viewport that

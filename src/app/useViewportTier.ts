@@ -13,13 +13,28 @@ import { useEffect, useState } from 'react';
 export type Tier = 'phone' | 'tablet' | 'laptop' | 'desktop';
 
 const PHONE = '(max-width: 639.98px)';
+/**
+ * A phone held sideways: wide enough to have escaped `phone` on width alone,
+ * and far too short to be treated as a tablet.
+ *
+ * It reports `phone` because everything gated on that tier is right for it —
+ * the coach is a sheet over the board rather than a static bar beside it, and
+ * the header keeps the button that opens it. What is *not* the same is the
+ * arrangement, and that is CSS's half: `compact:` in `index.css` mirrors this
+ * query exactly and turns the board and keypad into a row.
+ *
+ * Capped below the laptop breakpoint on purpose. A short, wide *desktop*
+ * window has width to spare for the coach column it already gets, and pulling
+ * it into the phone layout would be a bigger claim than this fixes.
+ */
+const COMPACT = '(min-width: 640px) and (max-width: 1023.98px) and (max-height: 480px)';
 const LAPTOP = '(min-width: 1024px)';
 const DESKTOP = '(min-width: 1536px)';
 
 function read(): Tier {
   if (window.matchMedia(DESKTOP).matches) return 'desktop';
   if (window.matchMedia(LAPTOP).matches) return 'laptop';
-  if (window.matchMedia(PHONE).matches) return 'phone';
+  if (window.matchMedia(PHONE).matches || window.matchMedia(COMPACT).matches) return 'phone';
   return 'tablet';
 }
 
@@ -32,7 +47,7 @@ function read(): Tier {
 export function useViewportTier(): Tier {
   const [tier, setTier] = useState<Tier>(read);
   useEffect(() => {
-    const queries = [PHONE, LAPTOP, DESKTOP].map((q) => window.matchMedia(q));
+    const queries = [PHONE, COMPACT, LAPTOP, DESKTOP].map((q) => window.matchMedia(q));
     const sync = () => setTier(read());
     // Closes the gap between the lazy `useState(read)` initializer (evaluated
     // at render, before these listeners exist) and the subscription below

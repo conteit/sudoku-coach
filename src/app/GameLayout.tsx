@@ -72,15 +72,41 @@ export function GameLayout({
        * so the board is the thing that gives: it takes whatever height the
        * chrome leaves and stays square.
        *
-       * `max-w-xl sm:max-w-[40rem]`, not a bare `max-w-[40rem]`: below 640
-       * the `sm:` rule never applies, so the phone keeps the 576px column it
+       * `compact:max-w-none` is what lets the row actually be a row: the
+       * 576px cap below is a *reading* width, right for a stacked column and
+       * wrong for a screen whose width is the whole point. Measured with the
+       * cap still on, the board and keypad divided 576px on an 852px screen
+       * and left 276 of it empty.
+       *
+       * `max-w-xl roomy:max-w-[40rem]`, not a bare `max-w-[40rem]`: below 640
+       * the `roomy:` rule never applies, so the phone keeps the 576px column it
        * shipped with — raising the cap there would widen a layout that was
        * already signed off. Above 640 (still one stacked column — the tablet
        * has no room for a second) the same column gets to use more of the
        * width it actually has.
        */
-      <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden sm:h-auto sm:min-h-dvh sm:max-w-[40rem] sm:overflow-visible">
+      <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden compact:max-w-none roomy:h-auto roomy:min-h-dvh roomy:max-w-[40rem] roomy:overflow-visible">
         {header}
+        {/* Side by side once the screen is wide and short — a phone held
+            sideways. Stacked, the board would have to fit the height left
+            after a 214px keypad, which at 393px tall is about 110px: nine
+            cells at twelve pixels each, every one of them "visible" and none
+            of them usable. In a row the board is bound by height instead and
+            comes out near the size it has in portrait, with the keypad in the
+            width that rotating just freed.
+
+            Only the direction changes. The board slot is already
+            `flex-1 items-center` with an `aspect-square h-full` inside, so it
+            stays square and height-bound in a row without being told again;
+            the keypad takes what is left, capped so its keys do not stretch
+            into a row of dinner plates.
+
+            No `items-center` on the row, and that is not an oversight: it
+            collapses the board to nothing. Centring makes each item shrink to
+            its content height, the board slot then has no height of its own,
+            and the `h-full` inside it resolves to zero — measured at 4px
+            square. The row has to stretch so the board has a height to be
+            square against; the keypad centres itself instead. */}
         {/* The bottom padding is the safe-area inset, not a fixed 2 — the
             keypad is the last thing in this column, so it is the thing that
             lands in the phone's rounded corner and behind its home indicator.
@@ -91,9 +117,14 @@ export function GameLayout({
             until the app was installed. `max()` rather than an addition, the
             same idiom `Sheet.tsx` uses: on a device with no inset nothing
             changes. */}
-        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] compact:flex-row compact:gap-3">
           {board}
-          {keypad}
+          {/* `contents` everywhere but compact, so the stacked layout is the
+              one it always was — this wrapper exists only to give the keypad
+              a width to be bound by in a row. */}
+          <div className="contents compact:block compact:min-w-0 compact:flex-1 compact:max-w-[24rem] compact:self-center">
+            {keypad}
+          </div>
         </main>
         {coach}
       </div>

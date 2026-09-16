@@ -303,11 +303,20 @@ describe('the game screen at each tier', () => {
   it('keeps the tablet stacked, but lets the board past the phone cap', () => {
     renderGame({ tier: 'tablet' });
     expect(screen.queryByTestId('coach-column')).toBeNull();
-    // The cap lives on the root column, not on <main>, and it is raised only
-    // from `sm` up — below 640 the phone keeps the 576px column it shipped with.
+    // The cap lives on the root column, not on <main>. Three widths, and each
+    // one is a decision: the phone keeps the 576px column it shipped with, a
+    // roomy screen gets 640 — and a *compact* one (wide and short, i.e. a
+    // phone held sideways) has no cap at all, because there the width is the
+    // whole point rather than a reading measure.
+    //
+    // `roomy:`, not `sm:`: the escape from the phone layout now asks for
+    // height as well as width. `sm:` alone let a rotated phone take the
+    // tablet layout and put its keypad below the fold (#152).
     const root = screen.getByRole('main').parentElement!;
     expect(root.className).toContain('max-w-xl');
-    expect(root.className).toContain('sm:max-w-[40rem]');
+    expect(root.className).toContain('roomy:max-w-[40rem]');
+    expect(root.className).toContain('compact:max-w-none');
+    expect(root.className).not.toContain('sm:max-w-');
   });
 });
 

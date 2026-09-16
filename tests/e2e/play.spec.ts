@@ -644,6 +644,59 @@ test.describe('save points', () => {
   });
 });
 
+/*
+ * #152. A phone held sideways used to take the tablet layout — the one-screen
+ * rule dropped, a 616px board inside a 393px screen, the keypad 500px below
+ * the fold and the page scrolling 738px. The layout decided on width alone,
+ * and a rotated phone is wide *because* it is short.
+ *
+ * There was no landscape case anywhere in this file, which is why it shipped:
+ * the board-height describe above pins 412x560 and the header one 320x700,
+ * both portrait. This is that gap.
+ */
+test.describe('a phone held sideways', () => {
+  test.skip(({ isMobile }) => !isMobile, 'this is the phone layout, rotated');
+
+  const LANDSCAPE = { width: 852, height: 393 };
+
+  test('keeps the whole view on one screen, board and keypad side by side', async ({ page }) => {
+    await page.setViewportSize(LANDSCAPE);
+    await startEasyGame(page);
+
+    const grid = (await boardGrid(page).boundingBox())!;
+    const pad = (await page.getByRole('group', { name: /^Keypad/ }).boundingBox())!;
+
+    // The promise itself: nothing below the fold, nothing to scroll to.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    );
+    expect(overflow, 'the page must not scroll — this was 738px').toBeLessThanOrEqual(0);
+    expect(pad.y + pad.height, 'the keypad must be on screen').toBeLessThanOrEqual(
+      LANDSCAPE.height + 1,
+    );
+
+    // Side by side rather than stacked: the keypad begins past the board's
+    // right edge. This is what the extra width is for.
+    expect(pad.x).toBeGreaterThanOrEqual(grid.x + grid.width - 1);
+
+    /*
+     * And the board is still worth looking at. Stacked inside this height —
+     * the other way to satisfy "everything visible" — it would get roughly
+     * 110px after the header and a 214px keypad: nine cells at twelve pixels
+     * each. This is the assertion that tells the two fixes apart, so the
+     * floor is set well above what stacking could ever produce.
+     */
+    expect(grid.height, 'a board this size is the point, not merely fitting').toBeGreaterThan(240);
+    expect(grid.width).toBeCloseTo(grid.height, 0);
+
+    // The width rotating freed is actually spent. With the column's 576px
+    // reading cap still applied the row works and looks broken — board and
+    // keypad dividing 576 of an 852px screen, 276 of it empty and the keypad
+    // squeezed to 219. Cheap to reinstate by accident, invisible without this.
+    expect(pad.width, 'the keypad should use the freed width').toBeGreaterThan(300);
+  });
+});
+
 test.describe('the coach sheet keeps its header', () => {
   test.skip(({ isMobile }) => !isMobile, 'the sheet only exists on the phone layout');
 
