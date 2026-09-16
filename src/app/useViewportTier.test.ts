@@ -80,6 +80,14 @@ describe('useViewportTier', () => {
     expect(renderHook(() => useViewportTier()).result.current).toBe('tablet');
   });
 
+  it('is phone when a phone is held sideways, wide though it is', () => {
+    // 852x393. Wide enough to clear the phone width query, and far too short
+    // to be a tablet — which is exactly what it got before, taking the tablet
+    // layout with no height to spend and putting the keypad below the fold.
+    matchOnly('(min-width: 640px) and (max-width: 1023.98px) and (max-height: 480px)');
+    expect(renderHook(() => useViewportTier()).result.current).toBe('phone');
+  });
+
   it('is laptop from 1024', () => {
     matchOnly('(min-width: 1024px)');
     expect(renderHook(() => useViewportTier()).result.current).toBe('laptop');
@@ -131,7 +139,11 @@ describe('useViewportTier', () => {
   it('unsubscribes on unmount', () => {
     const media = liveMatchMedia([LAPTOP]);
     const { unmount } = renderHook(() => useViewportTier());
-    expect(media.listenerCount).toBe(3);
+    // One per query the hook watches — phone, compact, laptop, desktop. The
+    // count is spelled out rather than derived so that adding a query without
+    // subscribing to it fails here: a tier that never updates is the silent
+    // version of this bug.
+    expect(media.listenerCount).toBe(4);
     unmount();
     expect(media.listenerCount).toBe(0);
   });

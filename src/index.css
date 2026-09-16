@@ -10,6 +10,32 @@
  */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/*
+ * The two halves of what `sm:` used to mean on the game screen, split by
+ * height — because a phone held sideways is wide *because* it is short.
+ *
+ * `sm:` (min-width: 640px) was the escape from the one-screen phone layout:
+ * let the column grow, let the page scroll, put the coach in a static bar.
+ * That is right for a tablet, which is wide and tall. A rotated phone matched
+ * it too and got a 616px board inside a 393px screen with the keypad below
+ * the fold — the whole view lost at the one viewport nothing measured.
+ *
+ * `roomy` is the old escape with the height it always assumed. `compact` is
+ * the case it was swallowing: wide, short, and below the laptop breakpoint,
+ * where the answer is to put the board and the keypad side by side and use
+ * the width rotating just freed.
+ *
+ * They are deliberately **non-overlapping**, and that is the whole point of
+ * writing them as two queries rather than one variant and an override: a
+ * viewport is in exactly one of them, so there is never a question of which
+ * rule wins. `useViewportTier` mirrors these same numbers — when JS and CSS
+ * disagree about which layout is current, the behaviour gated on it comes
+ * apart, which is how the coach sheet once trapped focus on a panel that was
+ * not a modal.
+ */
+@custom-variant roomy (@media (min-width: 640px) and (min-height: 481px));
+@custom-variant compact (@media (min-width: 640px) and (max-width: 1023.98px) and (max-height: 480px));
+
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;

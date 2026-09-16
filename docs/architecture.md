@@ -683,6 +683,50 @@ cannot be behind a button. The header's message box is a fixed two lines at
 every tier so that a refusal appearing and going never changes the board's
 box.
 
+## A phone held sideways
+
+The game screen has three arrangements, not two, and the third one exists
+because **width alone is the wrong question**. `sm:` (min-width 640) used to
+mean "escape the one-screen phone layout": let the column grow, let the page
+scroll, put the coach in a static bar. That is right for a tablet, which is
+wide *and* tall. A rotated phone is wide **because** it is short, matched the
+same query, and got a 616px board inside a 393px screen with the keypad 500px
+below the fold and the page scrolling 738px — invariant 9 broken outright at
+the one viewport nothing measured.
+
+`index.css` now splits that query in two, and the split is deliberately
+**non-overlapping** so there is never a question of which rule wins:
+
+| variant | query | arrangement |
+| --- | --- | --- |
+| *(base)* | — | stacked, one screen |
+| `compact` | `min-width: 640px` and `max-width: 1023.98px` and `max-height: 480px` | **board and keypad side by side**, one screen |
+| `roomy` | `min-width: 640px` and `min-height: 481px` | the old `sm:` escape |
+
+`useViewportTier` mirrors `compact` exactly and reports **`phone`** for it, so
+everything gated on that tier stays right — the coach is a sheet over the
+board rather than a static bar beside it, and the header keeps the button that
+opens it. When JS and CSS disagree about which layout is current, the behaviour
+gated on it comes apart; that is how the coach sheet once trapped focus on a
+panel that was not a modal.
+
+Two things that are counter-intuitive and cost a measurement each:
+
+- **The row must not be `items-center`.** Centring makes each item shrink to
+  its content height, so the board slot has no height of its own and the
+  `h-full` inside it resolves to zero — measured at 4px square. The row
+  stretches; the keypad centres itself.
+- **The column's `max-w-xl` has to be released in `compact`.** It is a
+  *reading* width, right for a stacked column and wrong for a screen whose
+  width is the point. With it still on, the board and keypad divided 576px of
+  an 852px screen and left 276 of it empty.
+
+Measured, 852×393: board 321px square (portrait gets 369), keypad 384 beside
+it, nothing off screen, nothing scrolling. Stacking inside that height would
+have given the board about 110px — nine cells at twelve pixels each, every one
+"visible" and none usable, which is why the fix is a row and not a smaller
+board.
+
 ## Build identity
 
 The app is **identified, not versioned**: `20260915-21-cb174ef` — UTC date, UTC
