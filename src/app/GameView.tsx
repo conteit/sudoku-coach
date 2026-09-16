@@ -62,7 +62,7 @@ import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, DEFAULT_STUCK_MS, deadEndCells } from '../coach/triggers';
 import { nextRewindPhase, rewindTrail, type RewindPhase, type RewindStep } from './rewind';
 import { coachCells, triggerCells, useCoachSession } from './useCoachSession';
-import { useViewportTier } from './useViewportTier';
+import { useCompact, useViewportTier } from './useViewportTier';
 
 /** How long a vibration says each thing. Absent hardware simply ignores it. */
 const HAPTICS: Record<HapticPattern, number | number[]> = {
@@ -219,6 +219,7 @@ export function GameView({
   // asked for (WCAG 2.1.2).
   const tier = useViewportTier();
   const isNarrow = tier === 'phone';
+  const compact = useCompact();
 
   const values = useMemo(() => game.cells.map((cell) => cell.value), [game.cells]);
 
@@ -350,7 +351,15 @@ export function GameView({
    * screen too (see `onHint` below): the static desktop bar is never a modal
    * no matter what this flag says.
    */
-  const modalOpen = sheetOpen && isNarrow;
+  /*
+   * Not in `compact`. There the panel hangs over the keypad's column and the
+   * board is still there to be read beside it — which is the arrangement's
+   * whole purpose — so the three things modality brings would each work
+   * against it: a scrim dimming the board, `aria-modal` hiding it from a
+   * screen reader, and a Tab trap keeping a keyboard off it. The coach is a
+   * panel there, the way it is on a desktop, rather than a sheet.
+   */
+  const modalOpen = sheetOpen && isNarrow && !compact;
 
   /*
    * Moves focus into the sheet on open and hands it back on close — the

@@ -724,6 +724,23 @@ test.describe('a phone held sideways', () => {
      * reason #141 records: no browser here reports one.
      */
     expect(pad.x + pad.width, 'the keypad is clear of the right edge').toBeLessThan(head.x);
+
+    /*
+     * And the coach hangs over the keypad's column rather than across the
+     * screen, so the board is still there to be read beside it — which is the
+     * point of asking for a hint at all. It is not a modal here: no scrim over
+     * the board, and nothing announced as a dialog, because both would work
+     * against seeing the grid while reading about it.
+     */
+    await page.getByRole('button', { name: /^Coach/ }).click();
+    const panel = page.getByRole('region', { name: 'Coach' });
+    await expect(panel).toBeVisible();
+    const coach = (await panel.boundingBox())!;
+
+    expect(coach.x, 'the coach must not cover the board').toBeGreaterThanOrEqual(
+      grid.x + grid.width,
+    );
+    await expect(page.getByRole('dialog', { name: 'Coach' })).toHaveCount(0);
   });
 });
 

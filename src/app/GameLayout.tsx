@@ -127,11 +127,20 @@ export function GameLayout({
           {/* `contents` everywhere but compact, so the stacked layout is the
               one it always was — this wrapper exists only to give the keypad
               a width to be bound by in a row. */}
-          <div className="contents compact:block compact:min-w-0 compact:flex-1 compact:max-w-[24rem] compact:self-center">
+          {/* The coach rides in here, and that is what confines it to the
+              keypad's column: `compact:relative` makes this the containing
+              block for the absolutely-positioned panel, so it hangs over the
+              keys and leaves the board to be read beside it — Paolo's ask.
+
+              In every other arrangement this wrapper is `display: contents`,
+              which generates no box and therefore cannot be a containing
+              block, so the panel falls through to the root exactly as it did
+              before. The `compact:relative` is the entire difference. */}
+          <div className="contents compact:relative compact:block compact:min-w-0 compact:flex-1 compact:max-w-[24rem] compact:self-center">
             {keypad}
+            {coach}
           </div>
         </main>
-        {coach}
       </div>
     );
   }

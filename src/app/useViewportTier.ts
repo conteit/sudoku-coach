@@ -39,6 +39,32 @@ function read(): Tier {
 }
 
 /**
+ * Whether the game screen is in its wide-and-short arrangement.
+ *
+ * `useViewportTier` folds this case into `phone`, which is right for almost
+ * everything gated on the tier — but not for modality. In portrait the coach
+ * sheet covers the board, so it is a modal and behaves like one. In `compact`
+ * it covers only the keypad's column and the board stays visible beside it,
+ * which is the whole point of the arrangement; a scrim over the board, a
+ * focus trap and `aria-modal` would each contradict it.
+ *
+ * Same query string as `compact:` in `index.css`, for the reason stated
+ * above `COMPACT`: two readings of one layout that can drift are two bugs
+ * waiting.
+ */
+export function useCompact(): boolean {
+  const [compact, setCompact] = useState(() => window.matchMedia(COMPACT).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(COMPACT);
+    const sync = () => setCompact(mql.matches);
+    sync();
+    mql.addEventListener('change', sync);
+    return () => mql.removeEventListener('change', sync);
+  }, []);
+  return compact;
+}
+
+/**
  * Read once for the first paint (so it's right immediately, not a frame
  * late) and kept live for anyone who resizes or rotates mid-game — a
  * one-shot read at mount was rejected in earlier work because the viewport
