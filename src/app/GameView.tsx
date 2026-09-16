@@ -662,7 +662,19 @@ export function GameView({
   });
 
   const header = (
-    <header className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2">
+    /*
+     * A column down the right-hand edge once the screen is wide and short.
+     *
+     * `order-last` rather than moving it in the tree: the header stays first
+     * in the DOM, so the reading and tab order are the same as in portrait
+     * (chrome, then the board) even though it is painted on the far side.
+     *
+     * The right inset is this element's job because in `compact` it is the
+     * rightmost thing on screen, and in landscape the hardware — notch one
+     * side, rounded corners both — eats the *sides* rather than the bottom.
+     * Same lesson as #141, other axis.
+     */
+    <header className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-2 compact:order-last compact:h-full compact:flex-col compact:gap-3 compact:px-2 compact:py-3 compact:pr-[max(0.5rem,env(safe-area-inset-right))]">
       <IconButton
         label={t('action.back')}
         icon={<ChevronLeftIcon />}
@@ -676,8 +688,21 @@ export function GameView({
           room) the badge painted past this div's edge and into the timer's
           digits without it. This clips instead of overlapping; it does not
           make the badge fit. */}
+      {/* The wrapper keeps its `flex-1` in both arrangements — it is also the
+          spacer that pushes the controls to the far end — and only the badge
+          inside it goes away in the vertical strip. Hiding the wrapper and
+          adding a second spacer would read the same and is what I tried
+          first; it put a second `div` in the header and broke the narrow-header
+          test, whose selector is `header > div` precisely because there has
+          only ever been one.
+
+          The badge is the one header item that is *identity* rather than a
+          control, and the only one that cannot shrink: a word — "Difficile" at
+          worst — laid across a 44px column would be clipped to nonsense. The
+          difficulty has not changed since the game was opened, and the library
+          row it was started from says it. */}
       <div className="min-w-0 flex-1 overflow-hidden">
-        <DifficultyBadge difficulty={game.difficulty} />
+        <DifficultyBadge difficulty={game.difficulty} className="compact:hidden" />
       </div>
       <Timer elapsedMs={game.elapsedMs} runningSince={game.runningSince} size="md" />
       <IconButton

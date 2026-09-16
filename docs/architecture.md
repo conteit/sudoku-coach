@@ -721,11 +721,26 @@ Two things that are counter-intuitive and cost a measurement each:
   width is the point. With it still on, the board and keypad divided 576px of
   an 852px screen and left 276 of it empty.
 
-Measured, 852×393: board 321px square (portrait gets 369), keypad 384 beside
-it, nothing off screen, nothing scrolling. Stacking inside that height would
-have given the board about 110px — nine cells at twelve pixels each, every one
-"visible" and none usable, which is why the fix is a row and not a smaller
-board.
+**The header is a column down the right-hand edge in `compact`, and that is
+what buys the board its size.** On top it costs 64px of the 393 there are; as
+a strip it costs none of them, and the board comes out *larger* than it is in
+portrait. `order-last` rather than moving it in the tree, so reading and tab
+order stay what they are in portrait — chrome, then the board. The difficulty
+badge is hidden there: it is the one header item that is identity rather than
+a control, and the only one that cannot shrink to a 44px column.
+
+**Landscape puts the hardware on the sides.** The notch is on one edge and the
+rounded corners on both, so `compact` pads with `env(safe-area-inset-left)` on
+the board's side and `env(safe-area-inset-right)` on the header strip's. The
+same lesson as #141, on the other axis — and the reason the row's top padding
+is `pt-2` and never `py-2`: `padding-block` sets the bottom too and would
+silently undo #141's bottom inset just where landscape needs it.
+
+Measured, 852×393: board **377px** square (portrait gets 369), keypad 378
+beside it, a 60px header strip on the right, nothing off screen, nothing
+scrolling. Stacking inside that height would have given the board about
+110px — nine cells at twelve pixels each, every one "visible" and none
+usable, which is why the fix is a row and not a smaller board.
 
 ## Build identity
 

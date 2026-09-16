@@ -85,7 +85,7 @@ export function GameLayout({
        * has no room for a second) the same column gets to use more of the
        * width it actually has.
        */
-      <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden compact:max-w-none roomy:h-auto roomy:min-h-dvh roomy:max-w-[40rem] roomy:overflow-visible">
+      <div className="relative mx-auto flex h-dvh w-full max-w-xl flex-col overflow-hidden compact:max-w-none compact:flex-row roomy:h-auto roomy:min-h-dvh roomy:max-w-[40rem] roomy:overflow-visible">
         {header}
         {/* Side by side once the screen is wide and short — a phone held
             sideways. Stacked, the board would have to fit the height left
@@ -100,6 +100,11 @@ export function GameLayout({
             stays square and height-bound in a row without being told again;
             the keypad takes what is left, capped so its keys do not stretch
             into a row of dinner plates.
+
+            `compact:pt-2`, never `py-2`: `padding-block` would set the bottom
+            too and override the safe-area inset on the line above, which is
+            the whole of #141 undone on the axis where landscape needs it
+            most. Top padding only; the bottom stays the hardware's.
 
             No `items-center` on the row, and that is not an oversight: it
             collapses the board to nothing. Centring makes each item shrink to
@@ -117,7 +122,7 @@ export function GameLayout({
             until the app was installed. `max()` rather than an addition, the
             same idiom `Sheet.tsx` uses: on a device with no inset nothing
             changes. */}
-        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] compact:flex-row compact:gap-3">
+        <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] compact:min-w-0 compact:flex-row compact:gap-3 compact:pt-2 compact:pl-[max(0.75rem,env(safe-area-inset-left))]">
           {board}
           {/* `contents` everywhere but compact, so the stacked layout is the
               one it always was — this wrapper exists only to give the keypad
