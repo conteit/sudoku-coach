@@ -686,7 +686,15 @@ test.describe('a phone held sideways', () => {
      * each. This is the assertion that tells the two fixes apart, so the
      * floor is set well above what stacking could ever produce.
      */
-    expect(grid.height, 'a board this size is the point, not merely fitting').toBeGreaterThan(240);
+    /*
+     * And the board is worth looking at — bigger than it is in portrait, not
+     * merely present. Stacked inside this height it would get roughly 110px
+     * after the header and a 214px keypad: nine cells at twelve pixels each.
+     * The floor is set above anything stacking could reach, and above the
+     * 321px the first version of this layout managed with the header still
+     * eating 64px off the top.
+     */
+    expect(grid.height, 'the board should gain from rotating, not lose').toBeGreaterThan(350);
     expect(grid.width).toBeCloseTo(grid.height, 0);
 
     // The width rotating freed is actually spent. With the column's 576px
@@ -694,6 +702,28 @@ test.describe('a phone held sideways', () => {
     // keypad dividing 576 of an 852px screen, 276 of it empty and the keypad
     // squeezed to 219. Cheap to reinstate by accident, invisible without this.
     expect(pad.width, 'the keypad should use the freed width').toBeGreaterThan(300);
+
+    /*
+     * The header is a column down the right-hand edge, which is what buys the
+     * board its height: on top it costs 64px of the 393 there are.
+     */
+    const head = (await page.locator('header').boundingBox())!;
+    expect(head.height, 'the header runs the full height, as a strip').toBeGreaterThan(
+      LANDSCAPE.height * 0.9,
+    );
+    expect(head.x, 'and sits to the right of everything else').toBeGreaterThanOrEqual(
+      pad.x + pad.width - 1,
+    );
+
+    /*
+     * Nothing lands in the rounded corner. Headless Chromium reports no
+     * safe-area inset, so this cannot check the inset itself — what it checks
+     * is that the keypad is not the thing against the right edge any more,
+     * which is the arrangement that made the insets reachable at all. The
+     * inset values are asserted as class strings in the unit tests, for the
+     * reason #141 records: no browser here reports one.
+     */
+    expect(pad.x + pad.width, 'the keypad is clear of the right edge').toBeLessThan(head.x);
   });
 });
 
