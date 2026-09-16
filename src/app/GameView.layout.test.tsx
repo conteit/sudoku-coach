@@ -726,6 +726,31 @@ describe('the board shortcuts', () => {
   });
 });
 
+describe('the coach sheet on a phone held sideways', () => {
+  it('opens beside the board instead of modalizing over it', async () => {
+    // 852x393 — the `compact` arrangement, where the board and the keypad
+    // sit side by side and the sheet hangs over the keypad's column only.
+    // The board is still on screen and still the thing the player is looking
+    // at, so every part of being a modal is wrong here: no `dialog` role
+    // telling a screen reader the page went away, and no yanking focus out of
+    // wherever the player left it. The tier is still `phone` throughout —
+    // this is the one behaviour that reads the arrangement rather than the
+    // tier, which is why `useCompact` exists separately.
+    window.innerWidth = 852;
+    window.innerHeight = 393;
+    const { user } = renderGame({ running: true });
+
+    await user.click(screen.getByRole('button', { name: 'Coach' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const panel = screen.getByRole('region', { name: 'Coach' });
+    expect(panel.contains(document.activeElement)).toBe(false);
+    // Dropping the scrim and the Escape handler would strand the sheet open
+    // if the panel had no way out of its own.
+    expect(within(panel).getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+});
+
 describe('the coach panel on a wide screen', () => {
   it('does not modalize or trap focus when "h" is pressed', async () => {
     window.innerWidth = 1024;

@@ -1,7 +1,15 @@
 import { useLayoutEffect } from 'react';
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { useViewportTier } from './useViewportTier';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { useCompact, useViewportTier } from './useViewportTier';
+
+/**
+ * The shared `tests/setup.ts` stub, captured before `matchOnly` replaces it.
+ * Everything else in this file pins the hook against a hand-driven set of
+ * matching queries; the block at the bottom drives the real stub instead,
+ * because the whole suite's notion of "which viewport am I" comes from it.
+ */
+const sharedMatchMedia = window.matchMedia;
 
 const PHONE = '(max-width: 639.98px)';
 const LAPTOP = '(min-width: 1024px)';
@@ -146,5 +154,34 @@ describe('useViewportTier', () => {
     expect(media.listenerCount).toBe(4);
     unmount();
     expect(media.listenerCount).toBe(0);
+  });
+});
+
+/**
+ * The stub is shared infrastructure, and it got the compound query wrong
+ * once already: it OR'd its clauses, so `(min-width: 640px) and (max-width:
+ * 1023.98px) and (max-height: 480px)` matched at `innerWidth = 375` on the
+ * strength of the middle clause alone, and every portrait test in the suite
+ * quietly believed it was a phone held sideways. These two are the pair that
+ * catches that class of mistake: they differ only in height, so a stub that
+ * ignores height or takes any clause for the whole query fails one of them.
+ */
+describe('the shared viewport stub', () => {
+  beforeEach(() => {
+    window.matchMedia = sharedMatchMedia;
+  });
+
+  it('reads a wide, short viewport as a phone held sideways', () => {
+    window.innerWidth = 852;
+    window.innerHeight = 393;
+    expect(renderHook(() => useViewportTier()).result.current).toBe('phone');
+    expect(renderHook(() => useCompact()).result.current).toBe(true);
+  });
+
+  it('reads the same width with room above it as a tablet', () => {
+    window.innerWidth = 852;
+    window.innerHeight = 900;
+    expect(renderHook(() => useViewportTier()).result.current).toBe('tablet');
+    expect(renderHook(() => useCompact()).result.current).toBe(false);
   });
 });

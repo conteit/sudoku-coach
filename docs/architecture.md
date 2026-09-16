@@ -742,6 +742,37 @@ scrolling. Stacking inside that height would have given the board about
 110px — nine cells at twelve pixels each, every one "visible" and none
 usable, which is why the fix is a row and not a smaller board.
 
+**The coach hangs over the keypad's column, not over the board — and so it is
+not a modal there.** In portrait the sheet covers the board, which is what
+makes a scrim, `aria-modal` and a focus trap the right behaviour: there is
+nothing behind it to look at. In `compact` the board is beside the sheet and
+still readable, and reading it while the coach explains something is the point
+of the arrangement. Every part of being a modal contradicts that — a scrim
+dims the board, `aria-modal` hides it from a screen reader, and the trap stops
+Tab reaching it — so `compact` gets none of them, and the board's keyboard
+shortcuts stay live. The panel's own close button is the way out, since
+dropping the modal machinery drops the Escape handler with it.
+
+Mechanically: the keypad and the coach share a wrapper that is `display:
+contents` everywhere else and `position: relative` in `compact`. A box that
+generates no box cannot be a containing block, so the absolutely-positioned
+sheet keeps resolving against the page column in portrait — the grouping
+changes nothing outside `compact`, which is the only reason it is safe to
+group them at all. This is the one behaviour that reads the *arrangement*
+rather than the tier, which is why `useCompact` exists next to
+`useViewportTier` instead of inside it.
+
+A note on the unit-test stub, because it failed silently and for a whole
+suite: `tests/setup.ts`'s `matchMedia` used to pull one `min-width` and one
+`max-width` out of a query and **OR** them. That is right for a single-clause
+query and wrong for the `compact` one — `max-width: 1023.98px` is satisfied by
+a 375px portrait viewport, so every test in the suite reported itself as a
+phone held sideways and the coach quietly stopped being a modal in the tests
+that exist to prove it is. It now requires **every** clause to hold and reads
+heights against `innerHeight`. Two tests in `useViewportTier.test.ts` differ
+only in height and drive the real stub rather than a hand-fed one, so both
+halves of that mistake fail something.
+
 ## Build identity
 
 The app is **identified, not versioned**: `20260915-21-cb174ef` — UTC date, UTC
