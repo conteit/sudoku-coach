@@ -17,6 +17,7 @@
  *   typically three to six; if fourteen is bearable here, the real one is.
  */
 
+import type { ChainVerdict } from '../../engine/claim';
 import type { CellIndex, Digit, TechniqueId } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { cellName } from '../../engine/board';
@@ -25,13 +26,24 @@ import { cx } from '../primitives/cx';
 
 export type ClaimStage = 'technique' | 'digit' | 'cells' | 'verdict';
 
+/**
+ * A claim comes in two shapes, and flattening them was the spike's first
+ * mistake. A `set` is a bag of cells whose order carries nothing — the four
+ * corners of a fish are interchangeable. A `chain` is a sequence: the links
+ * and their alternation *are* the technique, and a colouring reduced to a bag
+ * of cells has had its content thrown away.
+ */
+export type ClaimShape = 'set' | 'chain';
+
 export interface ClaimPanelProps {
   stage: ClaimStage;
+  shape: ClaimShape;
   techniques: readonly { id: TechniqueId; name: string; enabled: boolean }[];
   technique: string | null;
   digit: Digit | null;
   cells: readonly CellIndex[];
   holds: boolean | null;
+  chain: ChainVerdict | null;
   onTechnique: (id: TechniqueId) => void;
   onDigit: (digit: Digit) => void;
   onDropCell: (cell: CellIndex) => void;
@@ -43,11 +55,13 @@ export interface ClaimPanelProps {
 
 export function ClaimPanel({
   stage,
+  shape,
   techniques,
   technique,
   digit,
   cells,
   holds,
+  chain,
   onTechnique,
   onDigit,
   onDropCell,
@@ -93,7 +107,7 @@ export function ClaimPanel({
 
       {stage === 'digit' ? (
         <>
-          <p className="text-ink-faint">Which digit?</p>
+          <p className="text-ink-faint">Which digit are you following?</p>
           <ul className="flex flex-wrap gap-1.5">
             {DIGITS.map((d) => (
               <li key={d}>
@@ -108,11 +122,18 @@ export function ClaimPanel({
 
       {stage === 'cells' ? (
         <>
-          <p className="text-ink-faint">Tap the four corners on the board.</p>
+          <p className="text-ink-faint">
+            {shape === 'chain'
+              ? `Tap the chain in order. Each link is a house where only two cells can still take the ${digit}.`
+              : 'Tap the four corners on the board.'}
+          </p>
+          {/* A chain's chips are numbered and drop everything after them: you
+              cannot pull a link out of the middle and still have a chain. */}
           <ul className="flex flex-wrap gap-1.5">
-            {cells.map((cell) => (
+            {cells.map((cell, i) => (
               <li key={cell}>
                 <Button variant="secondary" size="sm" onClick={() => onDropCell(cell)}>
+                  {shape === 'chain' ? `${i + 1}. ` : ''}
                   {cellName(cell)} ✕
                 </Button>
               </li>
@@ -122,7 +143,7 @@ export function ClaimPanel({
             variant="primary"
             size="sm"
             className="self-start"
-            disabled={cells.length !== 4}
+            disabled={shape === 'chain' ? cells.length < 3 : cells.length !== 4}
             onClick={onCheck}
           >
             Check
@@ -135,13 +156,28 @@ export function ClaimPanel({
           {/* One sentence, and the same one whatever went wrong: "not a
               pattern at all" and "right cells, wrong digit" would be a graded
               hint channel, which invariant 4 forbids as surely as prose. */}
-          <p role="status" className={holds === true ? 'text-match' : 'text-ink'}>
-            {holds === true
-              ? `Yes — that is an X-Wing on ${digit}. Every other ${digit} in those two lines can go.`
-              : `Those cells are not an X-Wing on ${digit}.`}
+          <p
+            role="status"
+            className={holds === true || chain?.kind === 'proves' ? 'text-match' : 'text-ink'}
+          >
+            {shape === 'set'
+              ? holds === true
+                ? // The digit is told, not asked: it follows from the cells
+                  // once the technique is named, and saying which one it was
+                  // is part of confirming the claim.
+                  `Yes — that is an X-Wing on ${digit}. Every other ${digit} in those two lines can go.`
+                : 'Those cells are not an X-Wing.'
+              : chain?.kind === 'proves'
+                ? `Yes — that colouring holds, and it clears the ${digit} from ${chain.cells} ${chain.cells === 1 ? 'cell' : 'cells'}.`
+                : chain?.kind === 'barren'
+                  ? // Not a failure. The player did the technique correctly
+                    // and it happens to pay nothing; calling that "wrong"
+                    // would teach them to distrust a method that worked.
+                    'That chain holds — but nothing follows from it yet.'
+                  : `Your chain breaks between ${chain?.link ?? 1} and ${(chain?.link ?? 1) + 1}.`}
           </p>
           <div className="flex gap-2">
-            {holds === true ? null : (
+            {holds === true || chain?.kind === 'proves' ? null : (
               <Button variant="primary" size="sm" onClick={onRetry}>
                 Try again
               </Button>

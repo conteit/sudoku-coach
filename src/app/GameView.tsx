@@ -60,8 +60,9 @@ import { GameLayout } from './GameLayout';
 // SPIKE (#140) — these three imports and everything they touch come out with
 // the spike. See the proposal on the issue for what replaces them.
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
-import { xWingHolds } from '../engine/claim';
-import { TECHNIQUE_IDS } from '../engine/types';
+import { ChainOverlay } from '../ui/claim/ChainOverlay';
+import { colouringClaim, xWingHolds, type ChainVerdict } from '../engine/claim';
+import { DIGITS, TECHNIQUE_IDS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, DEFAULT_STUCK_MS, deadEndCells } from '../coach/triggers';
@@ -190,11 +191,15 @@ export function GameView({
    */
   const [claim, setClaim] = useState<{
     stage: ClaimStage;
+    // The spike verifies two, one of each shape.
+    technique: 'x_wing' | 'simple_coloring';
     digit: Digit | null;
     cells: readonly CellIndex[];
     holds: boolean | null;
+    chain: ChainVerdict | null;
   } | null>(null);
   const claiming = claim !== null && claim.stage === 'cells';
+  const chaining = claim !== null && claim.technique === 'simple_coloring';
   // The coach's own open/closed state, not derived from `speaking`: opening
   // the sheet is how the player asks to be spoken to, and closing it is a
   // deliberate dismissal — neither should flip because a hint arrived.
@@ -571,16 +576,23 @@ export function GameView({
           haptic('blocked');
           return;
         }
-        setClaim((open) =>
-          open === null
-            ? open
-            : {
-                ...open,
-                cells: open.cells.includes(cell)
-                  ? open.cells.filter((c) => c !== cell)
-                  : [...open.cells, cell],
-              },
-        );
+        setClaim((open) => {
+          if (open === null) return open;
+          // A chain is built forwards and unwound backwards: tapping a cell
+          // already in it drops that link and everything after, because a
+          // chain with a hole in the middle is not a chain. A set has no
+          // order, so a second tap simply takes the cell back.
+          if (open.technique === 'simple_coloring') {
+            const at = open.cells.indexOf(cell);
+            return { ...open, cells: at === -1 ? [...open.cells, cell] : open.cells.slice(0, at) };
+          }
+          return {
+            ...open,
+            cells: open.cells.includes(cell)
+              ? open.cells.filter((c) => c !== cell)
+              : [...open.cells, cell],
+          };
+        });
         return;
       }
       setSelected(cell);
@@ -686,7 +698,9 @@ export function GameView({
   // and `match` are already separated by opacity alone (#125).
   const spotlight =
     claim !== null
-      ? claim.cells
+      ? claim.technique === 'simple_coloring'
+        ? []
+        : claim.cells
       : reviewSpotlight.length > 0
         ? reviewSpotlight
         : (coach.hint?.spotlight ?? []);
@@ -879,6 +893,7 @@ export function GameView({
           celebrate={solved || previewWin}
           className={playerPaused ? 'pointer-events-none blur-md select-none' : undefined}
         />
+        {chaining ? <ChainOverlay cells={claim.cells} /> : null}
         {playerPaused ? (
           <div className="absolute inset-0 grid place-items-center bg-paper/80">
             <Button
@@ -915,39 +930,74 @@ export function GameView({
         // so neither occupant has to know the other's.
         className="h-[13.375rem] shrink-0"
         stage={claim.stage}
+        shape={claim.technique === 'simple_coloring' ? 'chain' : 'set'}
         techniques={TECHNIQUE_IDS.map((id) => ({
           id,
           name: getLesson(locale, id).name,
-          // The spike verifies one technique. The rest are rendered anyway,
-          // because fourteen chips is the worst case for the space question
-          // this is here to answer.
-          enabled: id === 'x_wing',
+          // Two of the fourteen verify: one of each shape. The rest are
+          // rendered anyway, because fourteen chips is the worst case for the
+          // space question this is here to answer.
+          enabled: id === 'x_wing' || id === 'simple_coloring',
         }))}
-        technique={claim.stage === 'technique' ? null : getLesson(locale, 'x_wing').name}
+        technique={claim.stage === 'technique' ? null : getLesson(locale, claim.technique).name}
         digit={claim.digit}
         cells={claim.cells}
         holds={claim.holds}
-        onTechnique={() => setClaim({ stage: 'digit', digit: null, cells: [], holds: null })}
-        onDigit={(digit) => setClaim({ stage: 'cells', digit, cells: [], holds: null })}
-        onDropCell={(cell) =>
+        chain={claim.chain}
+        onTechnique={(id) => {
+          const technique = id === 'simple_coloring' ? 'simple_coloring' : 'x_wing';
+          // A fish needs no digit: once the technique is named, the cells
+          // determine it, and asking was a fix for an ambiguity the technique
+          // picker had already removed. A chain genuinely is *of* a digit —
+          // and the board already has a control that means "I am following
+          // the 7s", so a player who armed the green highlight has already
+          // answered, and is not asked again.
+          const known = technique === 'x_wing' ? null : highlightDigit;
+          setClaim({
+            stage: technique === 'x_wing' || known !== null ? 'cells' : 'digit',
+            technique,
+            digit: known,
+            cells: [],
+            holds: null,
+            chain: null,
+          });
+        }}
+        onDigit={(digit) =>
           setClaim((open) =>
-            open === null ? open : { ...open, cells: open.cells.filter((c) => c !== cell) },
+            open === null ? open : { ...open, stage: 'cells', digit, cells: [] },
           )
+        }
+        onDropCell={(cell) =>
+          setClaim((open) => {
+            if (open === null) return open;
+            if (open.technique === 'simple_coloring') {
+              const at = open.cells.indexOf(cell);
+              return { ...open, cells: at === -1 ? open.cells : open.cells.slice(0, at) };
+            }
+            return { ...open, cells: open.cells.filter((c) => c !== cell) };
+          })
         }
         onCheck={() =>
-          setClaim((open) =>
-            open === null || open.digit === null
-              ? open
-              : {
-                  ...open,
-                  stage: 'verdict',
-                  holds: xWingHolds(values, open.digit, open.cells),
-                },
-          )
+          setClaim((open) => {
+            if (open === null) return open;
+            if (open.technique === 'simple_coloring') {
+              if (open.digit === null) return open;
+              return {
+                ...open,
+                stage: 'verdict',
+                chain: colouringClaim(values, open.digit, open.cells),
+              };
+            }
+            // The digit is inferred rather than asked for. Measured over the
+            // 24 fixture boards: of 31,104 rectangles, 5 hold as an x-wing at
+            // all and every one holds for exactly one digit.
+            const holds = DIGITS.filter((digit) => xWingHolds(values, digit, open.cells));
+            return { ...open, stage: 'verdict', holds: holds.length > 0, digit: holds[0] ?? null };
+          })
         }
-        // Back to the cells with them still marked: adjusting one corner is
-        // where the learning is, and being wrong costs a retry and nothing
-        // else — no miss, no rung, no correction.
+        // Back to the cells with them still marked: adjusting one corner, or
+        // one link, is where the learning is, and being wrong costs a retry
+        // and nothing else — no miss, no rung, no correction.
         onRetry={() => setClaim((open) => (open === null ? open : { ...open, stage: 'cells' }))}
         onCancel={() => setClaim(null)}
       />
@@ -1080,7 +1130,14 @@ export function GameView({
           // point at. Same rule in every arrangement, so there is one.
           onClaim={() => {
             closeSheet();
-            setClaim({ stage: 'technique', digit: null, cells: [], holds: null });
+            setClaim({
+              stage: 'technique',
+              technique: 'x_wing',
+              digit: null,
+              cells: [],
+              holds: null,
+              chain: null,
+            });
           }}
           onDismissDrill={coach.dismissDrill}
           onLearn={onLearn}

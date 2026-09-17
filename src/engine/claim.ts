@@ -14,7 +14,7 @@
  * manufacture a pattern that is not there and the app would confirm it.
  */
 
-import { COLS, ROWS, colOf, rowOf, Board } from './board';
+import { COLS, HOUSES, ROWS, colOf, rowOf, Board } from './board';
 import type { CellIndex, Digit, House } from './types';
 import { cellsWithCandidate } from './techniques/util';
 
@@ -61,4 +61,84 @@ export function xWingHolds(
   return covers.some((house) =>
     house.cells.some((cell) => !claimed.has(cell) && board.trueCandidates(cell).has(digit)),
   );
+}
+
+/**
+ * What a colouring chain the player built turns out to be.
+ *
+ * `broken` carries the link it failed at, which is a deliberate loosening of
+ * the disclosure discipline and Paolo's call, on the record: it discloses
+ * that the links before it are real conjugate pairs. The argument for it is
+ * invariant 11's — it points at a mistake in the player's own assertion
+ * rather than at anything on the board — and the argument against is that a
+ * graded verdict is a hint channel, which is why the *set* claims get one
+ * flat sentence and this does not.
+ */
+export type ChainVerdict =
+  | { kind: 'proves'; cells: number }
+  | { kind: 'broken'; link: number }
+  | { kind: 'barren' };
+
+/** A house in which `digit` has exactly these two homes, and no third. */
+function conjugate(board: Board, digit: Digit, a: CellIndex, b: CellIndex): boolean {
+  return HOUSES.some((house) => {
+    const spots = cellsWithCandidate(board, house, digit);
+    return spots.length === 2 && spots.includes(a) && spots.includes(b);
+  });
+}
+
+/**
+ * SPIKE (#140). Whether a chain of conjugate pairs, two-coloured by the order
+ * it was built in, holds — and whether it proves anything.
+ *
+ * Mirrors `coloring.ts`: the same two conclusions (a colour that traps itself,
+ * a cell outside that sees both colours) and the same three-cell floor, below
+ * which a chain is a conjugate pair wearing a bigger name.
+ */
+export function colouringClaim(
+  values: readonly (Digit | null)[],
+  digit: Digit,
+  cells: readonly CellIndex[],
+): ChainVerdict {
+  if (cells.length < 3) return { kind: 'broken', link: cells.length };
+  const board = Board.fromValues(values);
+
+  // Colour by position: the alternation is not a choice the player makes, it
+  // is forced by the chain, which is the whole idea being taught.
+  const colours = new Map<CellIndex, number>();
+  for (const [i, cell] of cells.entries()) {
+    // A chain visits each cell once. Coming back to one is the player's own
+    // chain folding over itself, and it fails at the link that closed it.
+    // This also covers a cell "linked" to itself: an explicit `a === b` guard
+    // in `conjugate` was written and deleted, because this check runs first
+    // and no mutation could reach past it.
+    if (colours.has(cell)) return { kind: 'broken', link: i };
+    if (i > 0 && !conjugate(board, digit, cells[i - 1], cell)) return { kind: 'broken', link: i };
+    colours.set(cell, i % 2);
+  }
+
+  const wearing = (colour: number): CellIndex[] =>
+    [...colours.entries()].filter(([, c]) => c === colour).map(([cell]) => cell);
+
+  // A colour that traps itself is the false one, and every cell wearing it
+  // gives the digit up.
+  for (const colour of [0, 1]) {
+    const worn = wearing(colour);
+    const trapped = worn.some((a) =>
+      worn.some((b) => a !== b && HOUSES.some((h) => h.cells.includes(a) && h.cells.includes(b))),
+    );
+    if (trapped) return { kind: 'proves', cells: worn.length };
+  }
+
+  // Otherwise: anything outside the chain that can see both colours.
+  const sees = (cell: CellIndex, colour: number): boolean =>
+    wearing(colour).some((c) => board.peers(cell).includes(c));
+  const wings = [...Array(81).keys()].filter(
+    (cell) =>
+      !colours.has(cell as CellIndex) &&
+      board.trueCandidates(cell as CellIndex).has(digit) &&
+      sees(cell as CellIndex, 0) &&
+      sees(cell as CellIndex, 1),
+  );
+  return wings.length > 0 ? { kind: 'proves', cells: wings.length } : { kind: 'barren' };
 }

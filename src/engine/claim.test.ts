@@ -10,8 +10,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { Board } from './board';
-import { EXAMPLES } from './techniques/fixtures';
-import { xWingHolds } from './claim';
+import { EXAMPLES, PUZZLES } from './techniques/fixtures';
+import { colouringClaim, xWingHolds } from './claim';
 
 // `fish.test.ts` proves the detector finds exactly this: a 2 in r2c4, r2c6,
 // r4c4, r4c6, based on columns 4 and 6, eliminating r2c1 and r2c2.
@@ -70,5 +70,54 @@ describe('the spike x-wing verifier', () => {
     // have.
     const values = Board.fromString(EXAMPLES.hidden_single).values;
     expect(xWingHolds(values, 7, [54, 72, 16, 25])).toBe(false);
+  });
+});
+
+/**
+ * The chain half. `EXAMPLES.simple_coloring` carries one: the 3s make a
+ * six-cell chain of conjugate pairs, 15-16-43-37-46-51, and `coloring.ts`
+ * finds exactly one elimination from it.
+ */
+const CHAIN = [15, 16, 43, 37, 46, 51];
+
+describe('the spike colouring verifier', () => {
+  it('accepts the chain the detector proves something from', () => {
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    expect(colouringClaim(values, 3, CHAIN)).toEqual({ kind: 'proves', cells: 1 });
+  });
+
+  it('says a real chain that proves nothing is barren, not broken', () => {
+    // Three cells of the same chain, genuinely linked — the player did the
+    // technique correctly and it happens to pay nothing. Telling them it was
+    // "wrong" would teach them to distrust a method that worked.
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    expect(colouringClaim(values, 3, CHAIN.slice(0, 3))).toEqual({ kind: 'barren' });
+  });
+
+  it('names the link a chain breaks at', () => {
+    // 15 and 16 are conjugate; 51 is nowhere near 16.
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    expect(colouringClaim(values, 3, [15, 16, 51])).toEqual({ kind: 'broken', link: 2 });
+  });
+
+  it('refuses a chain that comes back to a cell it already used', () => {
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    expect(colouringClaim(values, 3, [15, 16, 43, 16])).toEqual({ kind: 'broken', link: 3 });
+  });
+
+  it('proves a colour that traps itself, not just a cell that sees both', () => {
+    // The other of colouring's two conclusions, and the fixture chain above
+    // does not reach it: in `PUZZLES[0]` the 7s make a three-cell chain whose
+    // two end cells wear the same colour and share a house, so that colour is
+    // the false one and both give the digit up.
+    const values = Board.fromString(PUZZLES[0].givens).values;
+    expect(colouringClaim(values, 7, [24, 26, 17])).toEqual({ kind: 'proves', cells: 2 });
+  });
+
+  it('refuses a chain too short to be one', () => {
+    // Two cells is a conjugate pair, which the intersections already use —
+    // `coloring.ts` sets the same floor for the same reason.
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    expect(colouringClaim(values, 3, [15, 16])).toEqual({ kind: 'broken', link: 2 });
   });
 });
