@@ -107,6 +107,14 @@ export interface CoachPanelProps {
   drill?: { technique: TechniqueId; solved: boolean; gone: boolean } | null;
   /** Offered while there is something on the board to be challenged about. */
   onDrill?: () => void;
+  /**
+   * SPIKE (#140). The inverse door: the drill is the coach naming a technique
+   * and waiting, this is the player naming one. It sits beside the drill
+   * because that is the same mental slot — player-initiated, before a hint —
+   * and spelled out at every width, because the whole question the spike asks
+   * is whether anyone finds it.
+   */
+  onClaim?: () => void;
   onDismissDrill?: () => void;
   /**
    * Opens the full lesson for the technique on screen. Offered only once the
@@ -376,6 +384,7 @@ export function CoachPanel({
   notesBlocked = false,
   drill = null,
   onDrill,
+  onClaim,
   onDismissDrill,
   onLearn,
   onAnother,
@@ -629,6 +638,11 @@ export function CoachPanel({
               </Button>
             </span>
           </>
+        ) : null}
+        {onClaim && drill === null && hint === null && !unfinishable ? (
+          <Button variant="ghost" size="lg" onClick={onClaim}>
+            I&apos;ve spotted something
+          </Button>
         ) : null}
         {/* Spelled out at every width. Asking whether your notes are right is
             one of the two things the coach is for, and a player who cannot find
