@@ -57,6 +57,11 @@ import { useAccount } from '../state/account';
 import { buildDiagnosticReport, formatDiagnosticReport } from './diagnostics';
 import { isDevUser } from './devTools';
 import { GameLayout } from './GameLayout';
+// SPIKE (#140) — these three imports and everything they touch come out with
+// the spike. See the proposal on the issue for what replaces them.
+import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
+import { xWingHolds } from '../engine/claim';
+import { TECHNIQUE_IDS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, DEFAULT_STUCK_MS, deadEndCells } from '../coach/triggers';
@@ -178,6 +183,18 @@ export function GameView({
   const [previewWin, setPreviewWin] = useState(false);
   const devUser = isDevUser(useAccount((state) => state.account));
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
+
+  /**
+   * SPIKE (#140). A claim in flight, or null. One `useState` on purpose: a
+   * spike that grows a reducer is a spike that is being designed.
+   */
+  const [claim, setClaim] = useState<{
+    stage: ClaimStage;
+    digit: Digit | null;
+    cells: readonly CellIndex[];
+    holds: boolean | null;
+  } | null>(null);
+  const claiming = claim !== null && claim.stage === 'cells';
   // The coach's own open/closed state, not derived from `speaking`: opening
   // the sheet is how the player asks to be spoken to, and closing it is a
   // deliberate dismissal — neither should flip because a hint arrived.
@@ -542,11 +559,35 @@ export function GameView({
    */
   const selectCell = useCallback(
     (cell: CellIndex) => {
+      // SPIKE (#140). While a claim is open the digits are off the screen, so
+      // a tap on a cell has only one thing it can mean. Toggling, so a
+      // mis-tap costs one tap rather than a restart.
+      if (claiming) {
+        // A filled cell cannot be part of a pattern about where a digit can
+        // still go. Refused rather than accepted-then-failed: a ring around
+        // a given would read as a legal choice, and the verdict would then
+        // be punishing a move the board invited.
+        if ((game.cells[cell]?.value ?? null) !== null) {
+          haptic('blocked');
+          return;
+        }
+        setClaim((open) =>
+          open === null
+            ? open
+            : {
+                ...open,
+                cells: open.cells.includes(cell)
+                  ? open.cells.filter((c) => c !== cell)
+                  : [...open.cells, cell],
+              },
+        );
+        return;
+      }
       setSelected(cell);
       const value = game.cells[cell]?.value ?? null;
       setHighlightDigit((current) => selectHighlight(value, current, sweeping));
     },
-    [game.cells, sweeping],
+    [game.cells, sweeping, claiming, haptic],
   );
 
   /**
@@ -639,7 +680,16 @@ export function GameView({
 
   // The coach's spotlight is the hint's, unless the player is pointing at a
   // note the review flagged — that is a more specific thing to be looking at.
-  const spotlight = reviewSpotlight.length > 0 ? reviewSpotlight : (coach.hint?.spotlight ?? []);
+  // SPIKE (#140): the cells of an open claim are what the board should be
+  // showing, over anything the coach had up. Reusing the spotlight ring
+  // rather than inventing a wash — the wash stack is full, and `excluded`
+  // and `match` are already separated by opacity alone (#125).
+  const spotlight =
+    claim !== null
+      ? claim.cells
+      : reviewSpotlight.length > 0
+        ? reviewSpotlight
+        : (coach.hint?.spotlight ?? []);
 
   useBoardShortcuts({
     onToggleNotes: () => setPencilMode((on) => !on),
@@ -667,7 +717,15 @@ export function GameView({
     // this task, and `onHint` above opens it deliberately, so "h" twice would
     // otherwise re-capture the focus-restore target and strand focus on
     // Escape. A paused or finished board takes no moves either.
-    enabled: confirming === null && !playerPaused && !solved && !modalOpen && !menuOpen,
+    enabled:
+      confirming === null &&
+      !playerPaused &&
+      !solved &&
+      !modalOpen &&
+      !menuOpen &&
+      // SPIKE (#140): 'n' and 'u' mean nothing to a claim, and 'h' would
+      // open the coach over the board being pointed at.
+      claim === null,
   });
 
   const header = (
@@ -798,9 +856,13 @@ export function GameView({
           selected={selected}
           onSelect={selectCell}
           onActivate={activateCell}
-          onEnter={enter}
-          onClear={(cell) => dispatchMove({ type: 'clearCell', cell })}
-          onPromote={playerPaused || solved ? undefined : promote}
+          // SPIKE (#140). The grid has its own keyboard — 1-9 writes, Enter
+          // promotes — and a claim takes the keypad away without touching
+          // it. Withheld rather than ignored, so the board is as inert to a
+          // keyboard during a claim as it is to a thumb.
+          onEnter={claim === null ? enter : undefined}
+          onClear={claim === null ? (cell) => dispatchMove({ type: 'clearCell', cell }) : undefined}
+          onPromote={playerPaused || solved || claim !== null ? undefined : promote}
           spotlight={spotlight}
           tintedHouses={coach.hint?.houses ?? []}
           conflicts={conflicts}
@@ -834,6 +896,62 @@ export function GameView({
       </div>
     </div>
   );
+
+  /**
+   * SPIKE (#140). The claim takes the keypad's box — its class string, not a
+   * box of its own — so the board's geometry is identical with a claim open
+   * (invariant 9), and the digits being *gone* is what tells the player the
+   * board means something different right now.
+   */
+  const claimPanel =
+    claim === null ? null : (
+      <ClaimPanel
+        // 13.375rem is the keypad's measured height (214px at every width it
+        // was checked at: 393, 412 and 852). Pinned, not `min-h`, because a
+        // panel even 4px shorter than the pad moves the board on a short
+        // phone — measured 266 -> 270 at 412x560, which is invariant 9 no
+        // matter which direction it goes. Hardcoding the pad's height is the
+        // spike's shortcut; the real fix is for the *slot* to own its height
+        // so neither occupant has to know the other's.
+        className="h-[13.375rem] shrink-0"
+        stage={claim.stage}
+        techniques={TECHNIQUE_IDS.map((id) => ({
+          id,
+          name: getLesson(locale, id).name,
+          // The spike verifies one technique. The rest are rendered anyway,
+          // because fourteen chips is the worst case for the space question
+          // this is here to answer.
+          enabled: id === 'x_wing',
+        }))}
+        technique={claim.stage === 'technique' ? null : getLesson(locale, 'x_wing').name}
+        digit={claim.digit}
+        cells={claim.cells}
+        holds={claim.holds}
+        onTechnique={() => setClaim({ stage: 'digit', digit: null, cells: [], holds: null })}
+        onDigit={(digit) => setClaim({ stage: 'cells', digit, cells: [], holds: null })}
+        onDropCell={(cell) =>
+          setClaim((open) =>
+            open === null ? open : { ...open, cells: open.cells.filter((c) => c !== cell) },
+          )
+        }
+        onCheck={() =>
+          setClaim((open) =>
+            open === null || open.digit === null
+              ? open
+              : {
+                  ...open,
+                  stage: 'verdict',
+                  holds: xWingHolds(values, open.digit, open.cells),
+                },
+          )
+        }
+        // Back to the cells with them still marked: adjusting one corner is
+        // where the learning is, and being wrong costs a retry and nothing
+        // else — no miss, no rung, no correction.
+        onRetry={() => setClaim((open) => (open === null ? open : { ...open, stage: 'cells' }))}
+        onCancel={() => setClaim(null)}
+      />
+    );
 
   const keypad = (
     <Keypad
@@ -957,6 +1075,13 @@ export function GameView({
           notesBlocked={coach.notesBlocked}
           drill={coach.drill}
           onDrill={coach.startDrill}
+          // SPIKE (#140). Closing the sheet is the point, not a side effect:
+          // in portrait it is covering the board the player is about to
+          // point at. Same rule in every arrangement, so there is one.
+          onClaim={() => {
+            closeSheet();
+            setClaim({ stage: 'technique', digit: null, cells: [], holds: null });
+          }}
           onDismissDrill={coach.dismissDrill}
           onLearn={onLearn}
           // Undefined rather than hidden by the panel: "Show me another" ran
@@ -1122,7 +1247,7 @@ export function GameView({
         tier={tier}
         header={header}
         board={board}
-        keypad={keypad}
+        keypad={claimPanel ?? keypad}
         coach={coachRegion}
         lesson={lessonRegion}
       />
