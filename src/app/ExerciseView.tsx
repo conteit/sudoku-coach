@@ -52,6 +52,13 @@ import { IconButton } from '../ui/primitives/IconButton';
 import { ChevronLeftIcon, TargetIcon } from '../ui/primitives/icons';
 import { cx } from '../ui/primitives/cx';
 import { SudokuGrid } from '../ui/board/SudokuGrid';
+// SPIKE (#140). The exercise screen marked every named cell with one
+// undifferentiated ring, so the roles it is asking about — pivot, then wings —
+// were named in the prompt and invisible on the board. The same overlay the
+// claim flow uses gives them the same two tones there as here, which is the
+// consistency Paolo asked for and, on this screen, also a straight
+// improvement: the thing being taught is now drawn.
+import { PatternOverlay, type PatternNode } from '../ui/claim/PatternOverlay';
 import { Keypad } from '../ui/keypad/Keypad';
 import { ExercisePanel } from '../ui/learn/ExercisePanel';
 import { LessonBody } from '../ui/learn/LessonBody';
@@ -249,9 +256,22 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
     [dispatch, pencil],
   );
 
-  const spotlight = useMemo(
-    () => [...new Set([...(session?.named ?? []), ...(hint?.spotlight ?? [])])],
-    [session?.named, hint],
+  // The hint's own spotlight stays the board's, but the cells the *player*
+  // has named are the overlay's — the same division the game screen keeps.
+  const spotlight = useMemo(() => [...new Set(hint?.spotlight ?? [])], [hint]);
+
+  /**
+   * Tone by role, on the rule the overlay is built around: one tone unless the
+   * pattern genuinely divides, and then the distinguished role takes the
+   * second. Only XY-Wing divides, which is `roles.ts`'s own finding.
+   */
+  const named = useMemo<PatternNode[]>(
+    () =>
+      (session?.named ?? []).map((cell) => ({
+        cell,
+        tone: session?.roles.find((role) => role.cells.includes(cell))?.id === 'pivot' ? 'b' : 'a',
+      })),
+    [session?.named, session?.roles],
   );
 
   const title =
@@ -376,6 +396,7 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
           shadeDigitPeers={profile.settings.shadeDigitPeers}
           colorEntries={profile.settings.colorEntries}
         />
+        <PatternOverlay nodes={named} />
       </div>
     </div>
   );

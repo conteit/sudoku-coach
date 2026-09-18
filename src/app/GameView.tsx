@@ -60,8 +60,9 @@ import { GameLayout } from './GameLayout';
 // SPIKE (#140) — these three imports and everything they touch come out with
 // the spike. See the proposal on the issue for what replaces them.
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
-import { ChainOverlay } from '../ui/claim/ChainOverlay';
-import { colouringClaim, xWingHolds, type ChainVerdict } from '../engine/claim';
+import { PatternOverlay } from '../ui/claim/PatternOverlay';
+import { drawingOf, type ClaimShape } from '../ui/claim/shape';
+import { colouringClaim, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
 import { DIGITS, TECHNIQUE_IDS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
@@ -191,15 +192,23 @@ export function GameView({
    */
   const [claim, setClaim] = useState<{
     stage: ClaimStage;
-    // The spike verifies two, one of each shape.
-    technique: 'x_wing' | 'simple_coloring';
+    // The spike verifies three, one of each shape.
+    technique: 'x_wing' | 'simple_coloring' | 'xy_wing';
     digit: Digit | null;
     cells: readonly CellIndex[];
     holds: boolean | null;
     chain: ChainVerdict | null;
+    pivot: CellIndex | null;
   } | null>(null);
   const claiming = claim !== null && claim.stage === 'cells';
-  const chaining = claim !== null && claim.technique === 'simple_coloring';
+  const claimShape: ClaimShape | null =
+    claim === null
+      ? null
+      : claim.technique === 'simple_coloring'
+        ? 'chain'
+        : claim.technique === 'xy_wing'
+          ? 'wing'
+          : 'set';
   // The coach's own open/closed state, not derived from `speaking`: opening
   // the sheet is how the player asks to be spoken to, and closing it is a
   // deliberate dismissal — neither should flip because a hint arrived.
@@ -698,9 +707,8 @@ export function GameView({
   // and `match` are already separated by opacity alone (#125).
   const spotlight =
     claim !== null
-      ? claim.technique === 'simple_coloring'
-        ? []
-        : claim.cells
+      ? // The overlay is the whole marking language now, for every shape.
+        []
       : reviewSpotlight.length > 0
         ? reviewSpotlight
         : (coach.hint?.spotlight ?? []);
@@ -893,7 +901,27 @@ export function GameView({
           celebrate={solved || previewWin}
           className={playerPaused ? 'pointer-events-none blur-md select-none' : undefined}
         />
-        {chaining ? <ChainOverlay cells={claim.cells} /> : null}
+        {claim !== null && claimShape !== null
+          ? (() => {
+              const drawing = drawingOf(claimShape, claim.cells, claim.pivot);
+              return (
+                <PatternOverlay
+                  nodes={drawing.nodes}
+                  links={drawing.links}
+                  broken={
+                    claim.chain?.kind === 'broken'
+                      ? [claim.cells[claim.chain.link - 1], claim.cells[claim.chain.link]]
+                      : null
+                  }
+                  active={
+                    claimShape === 'chain' && claim.stage === 'cells'
+                      ? (claim.cells.at(-1) ?? null)
+                      : null
+                  }
+                />
+              );
+            })()
+          : null}
         {playerPaused ? (
           <div className="absolute inset-0 grid place-items-center bg-paper/80">
             <Button
@@ -930,14 +958,14 @@ export function GameView({
         // so neither occupant has to know the other's.
         className="h-[13.375rem] shrink-0"
         stage={claim.stage}
-        shape={claim.technique === 'simple_coloring' ? 'chain' : 'set'}
+        shape={claimShape ?? 'set'}
         techniques={TECHNIQUE_IDS.map((id) => ({
           id,
           name: getLesson(locale, id).name,
           // Two of the fourteen verify: one of each shape. The rest are
           // rendered anyway, because fourteen chips is the worst case for the
           // space question this is here to answer.
-          enabled: id === 'x_wing' || id === 'simple_coloring',
+          enabled: id === 'x_wing' || id === 'simple_coloring' || id === 'xy_wing',
         }))}
         technique={claim.stage === 'technique' ? null : getLesson(locale, claim.technique).name}
         digit={claim.digit}
@@ -945,7 +973,8 @@ export function GameView({
         holds={claim.holds}
         chain={claim.chain}
         onTechnique={(id) => {
-          const technique = id === 'simple_coloring' ? 'simple_coloring' : 'x_wing';
+          const technique =
+            id === 'simple_coloring' ? 'simple_coloring' : id === 'xy_wing' ? 'xy_wing' : 'x_wing';
           // A fish needs no digit: once the technique is named, the cells
           // determine it, and asking was a fix for an ambiguity the technique
           // picker had already removed. A chain genuinely is *of* a digit —
@@ -953,14 +982,17 @@ export function GameView({
           // the 7s", so a player who armed the green highlight has already
           // answered, and is not asked again.
           const known = technique === 'x_wing' ? null : highlightDigit;
-          setClaim({
-            stage: technique === 'x_wing' || known !== null ? 'cells' : 'digit',
+          setClaim((open) => ({
+            stage: technique !== 'simple_coloring' || known !== null ? 'cells' : 'digit',
             technique,
             digit: known,
-            cells: [],
+            // Kept, not cleared: naming the pattern wrongly and pointing at it
+            // correctly are different mistakes, and only one of them was made.
+            cells: open?.cells ?? [],
             holds: null,
             chain: null,
-          });
+            pivot: null,
+          }));
         }}
         onDigit={(digit) =>
           setClaim((open) =>
@@ -991,6 +1023,15 @@ export function GameView({
             // The digit is inferred rather than asked for. Measured over the
             // 24 fixture boards: of 31,104 rectangles, 5 hold as an x-wing at
             // all and every one holds for exactly one digit.
+            if (open.technique === 'xy_wing') {
+              const wing = xyWingClaim(values, open.cells);
+              return {
+                ...open,
+                stage: 'verdict',
+                holds: wing.holds,
+                pivot: wing.holds ? wing.pivot : null,
+              };
+            }
             const holds = DIGITS.filter((digit) => xWingHolds(values, digit, open.cells));
             return { ...open, stage: 'verdict', holds: holds.length > 0, digit: holds[0] ?? null };
           })
@@ -998,7 +1039,23 @@ export function GameView({
         // Back to the cells with them still marked: adjusting one corner, or
         // one link, is where the learning is, and being wrong costs a retry
         // and nothing else — no miss, no rung, no correction.
-        onRetry={() => setClaim((open) => (open === null ? open : { ...open, stage: 'cells' }))}
+        onRetry={() =>
+          setClaim((open) =>
+            open === null ? open : { ...open, stage: 'cells', holds: null, chain: null, pivot: null },
+          )
+        }
+        // Back to the list with the cells kept.
+        onRename={() =>
+          setClaim((open) =>
+            open === null ? open : { ...open, stage: 'technique', holds: null, chain: null },
+          )
+        }
+        // "I cannot find it" has an answer that is not "start over": the
+        // coach, which is what the player would have pressed anyway.
+        onGiveUp={() => {
+          setClaim(null);
+          openSheet();
+        }}
         onCancel={() => setClaim(null)}
       />
     );
@@ -1137,6 +1194,7 @@ export function GameView({
               cells: [],
               holds: null,
               chain: null,
+              pivot: null,
             });
           }}
           onDismissDrill={coach.dismissDrill}
