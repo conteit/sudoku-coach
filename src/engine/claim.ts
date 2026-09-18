@@ -1,21 +1,28 @@
 /**
- * SPIKE (#140) — throwaway. Delete this file, do not build on it.
+ * Checking a claim: whether the cells a player named really are the pattern
+ * they said, and what it proves.
  *
- * One technique, written by hand, so that a crude claim panel can be played
- * on a real phone before the feature is designed properly. The real verifier
- * turns every detector into a generator and defines `detect` as "the first
- * one it yields", so that the rule has exactly one reading; this file is the
- * second reading that approach exists to avoid, and it is acceptable only
- * because nothing downstream of it is meant to survive.
+ * **This is not detection, and the difference is the whole reason the module
+ * exists.** `DETECTORS[x].detect(board)` answers "is there one of these", by
+ * returning the *first* it meets and stopping — so a player who spots the
+ * second, equally valid X-Wing on the same board would be told they are
+ * wrong. `claim.test.ts` pins exactly that case on a fixture. A verifier
+ * answers "is *this* one", which is a different question and needs its own
+ * code until the detectors become generators and `detect` is defined as the
+ * first thing one yields. That is the end state; see #140.
  *
- * What it does share with the real design, because the spike is worthless
- * otherwise: it judges the claim against **true candidates computed from the
- * values**, never the player's notes. A missing note would otherwise
- * manufacture a pattern that is not there and the app would confirm it.
+ * Until then these are a second reading of rules `techniques/` already
+ * encodes, and two readings that can drift are two bugs waiting. What keeps
+ * them honest is the cross-check in `claim.test.ts`: every finding a detector
+ * reports, on every fixture board, must be accepted here.
+ *
+ * Judged against **true candidates computed from the values**, never the
+ * player's notes (invariant 3b). A missing note would otherwise manufacture a
+ * pattern that is not there, and the app would confirm it.
  */
 
 import { COLS, HOUSES, ROWS, colOf, rowOf, Board } from './board';
-import type { CellIndex, Digit, House } from './types';
+import type { CellIndex, Digit, House, TechniqueId } from './types';
 import { cellsWithCandidate, commonPeers } from './techniques/util';
 
 /**
@@ -24,6 +31,22 @@ import { cellsWithCandidate, commonPeers } from './techniques/util';
  * Mirrors `fish.ts` deliberately, including its last condition: a pattern
  * that eliminates nothing is not a finding there and is not a claim here.
  */
+/**
+ * The techniques a claim can be made about, in catalog order.
+ *
+ * Two things keep this list shorter than the catalog. The verifiers below
+ * cover three shapes, one technique each, and the rest wait on the detectors
+ * becoming generators. And the two **singles are excluded on principle, not
+ * for now**: confirming "there is a naked single here, and it is a 7" is
+ * confirming a digit, which is the one thing this app never does. They stay
+ * out when the rest arrive.
+ */
+export const CLAIMABLE: readonly TechniqueId[] = Object.freeze([
+  'x_wing',
+  'xy_wing',
+  'simple_coloring',
+]);
+
 export function xWingHolds(
   values: readonly (Digit | null)[],
   digit: Digit,
@@ -88,7 +111,7 @@ function conjugate(board: Board, digit: Digit, a: CellIndex, b: CellIndex): bool
 }
 
 /**
- * SPIKE (#140). Whether a chain of conjugate pairs, two-coloured by the order
+ * Whether a chain of conjugate pairs, two-coloured by the order
  * it was built in, holds — and whether it proves anything.
  *
  * Mirrors `coloring.ts`: the same two conclusions (a colour that traps itself,
@@ -144,7 +167,7 @@ export function colouringClaim(
 }
 
 /**
- * SPIKE (#140). Whether three cells are an XY-Wing, and which is the pivot.
+ * Whether three cells are an XY-Wing, and which is the pivot.
  *
  * The one technique whose cells are not interchangeable, so the verdict has to
  * carry the roles: the overlay colours the pivot differently from its wings,

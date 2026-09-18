@@ -108,11 +108,11 @@ export interface CoachPanelProps {
   /** Offered while there is something on the board to be challenged about. */
   onDrill?: () => void;
   /**
-   * SPIKE (#140). The inverse door: the drill is the coach naming a technique
+   * The inverse door: the drill is the coach naming a technique
    * and waiting, this is the player naming one. It sits beside the drill
    * because that is the same mental slot — player-initiated, before a hint —
-   * and spelled out at every width, because the whole question the spike asks
-   * is whether anyone finds it.
+   * and spelled out at every width, because a door nobody finds is not a
+   * door.
    */
   onClaim?: () => void;
   onDismissDrill?: () => void;
@@ -641,7 +641,7 @@ export function CoachPanel({
         ) : null}
         {onClaim && drill === null && hint === null && !unfinishable ? (
           <Button variant="ghost" size="lg" onClick={onClaim}>
-            I&apos;ve spotted something
+            {t('claim.open')}
           </Button>
         ) : null}
         {/* Spelled out at every width. Asking whether your notes are right is

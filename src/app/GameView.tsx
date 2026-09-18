@@ -19,6 +19,7 @@ import { getLesson } from '../coach/lessons';
 import { recap } from '../coach/recap';
 import { trackReview } from '../coach/reviewProgress';
 import { deadNotes } from '../state/deadNotes';
+import { hasReached } from '../state/mastery';
 import type { CoachExchange, LiveGame, Locale, PlayerProfile } from '../state/types';
 import { useProfile } from '../state/profile';
 import { useSavePoint } from '../state/savePoint';
@@ -32,7 +33,7 @@ import { ConfirmDialog } from '../ui/game/ConfirmDialog';
 import { DifficultyBadge } from '../ui/game/DifficultyBadge';
 import { Timer } from '../ui/game/Timer';
 import { formatDuration } from '../ui/game/duration';
-import { Keypad, type HapticPattern } from '../ui/keypad/Keypad';
+import { Keypad, PAD_SLOT, type HapticPattern } from '../ui/keypad/Keypad';
 import { LessonBody } from '../ui/learn/LessonBody';
 import { TechniqueIndex } from '../ui/learn/TechniqueIndex';
 import { cx } from '../ui/primitives/cx';
@@ -57,13 +58,13 @@ import { useAccount } from '../state/account';
 import { buildDiagnosticReport, formatDiagnosticReport } from './diagnostics';
 import { isDevUser } from './devTools';
 import { GameLayout } from './GameLayout';
-// SPIKE (#140) — these three imports and everything they touch come out with
-// the spike. See the proposal on the issue for what replaces them.
+// Claiming a technique (#140): the player naming a pattern rather than
+// asking the coach for one.
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
 import { PatternOverlay } from '../ui/claim/PatternOverlay';
 import { drawingOf, type ClaimShape } from '../ui/claim/shape';
-import { colouringClaim, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
-import { DIGITS, TECHNIQUE_IDS } from '../engine/types';
+import { CLAIMABLE, colouringClaim, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
+import { DIGITS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, DEFAULT_STUCK_MS, deadEndCells } from '../coach/triggers';
@@ -187,20 +188,37 @@ export function GameView({
   const [reviewSpotlight, setReviewSpotlight] = useState<readonly CellIndex[]>([]);
 
   /**
-   * SPIKE (#140). A claim in flight, or null. One `useState` on purpose: a
-   * spike that grows a reducer is a spike that is being designed.
+   * A claim in flight, or null.
+   *
+   * One `useState` rather than a reducer of its own: every transition here is
+   * "replace the whole thing", and a claim is scratch — it is not saved, not
+   * synced and not part of `Game`, so there is nothing for a reducer to be
+   * the single source of truth about.
    */
   const [claim, setClaim] = useState<{
     stage: ClaimStage;
-    // The spike verifies three, one of each shape.
+    // One of each shape, which is what `CLAIMABLE` currently holds.
     technique: 'x_wing' | 'simple_coloring' | 'xy_wing';
     digit: Digit | null;
     cells: readonly CellIndex[];
     holds: boolean | null;
     chain: ChainVerdict | null;
     pivot: CellIndex | null;
+    showingAll: boolean;
   } | null>(null);
   const claiming = claim !== null && claim.stage === 'cells';
+  /**
+   * What may be claimed at all: the techniques this app can *check*, which is
+   * not the whole catalog. `CLAIMABLE` is the engine's answer to that, and the
+   * singles are absent from it on purpose — confirming "there is a naked
+   * single here, and it is a 7" is confirming a digit, which is the one thing
+   * this app never does.
+   */
+  const claimable = useMemo(
+    () => CLAIMABLE.map((id) => ({ id, name: getLesson(locale, id).name })),
+    [locale],
+  );
+
   const claimShape: ClaimShape | null =
     claim === null
       ? null
@@ -573,7 +591,7 @@ export function GameView({
    */
   const selectCell = useCallback(
     (cell: CellIndex) => {
-      // SPIKE (#140). While a claim is open the digits are off the screen, so
+      // While a claim is open the digits are off the screen, so
       // a tap on a cell has only one thing it can mean. Toggling, so a
       // mis-tap costs one tap rather than a restart.
       if (claiming) {
@@ -701,7 +719,7 @@ export function GameView({
 
   // The coach's spotlight is the hint's, unless the player is pointing at a
   // note the review flagged — that is a more specific thing to be looking at.
-  // SPIKE (#140): the cells of an open claim are what the board should be
+  // the cells of an open claim are what the board should be
   // showing, over anything the coach had up. Reusing the spotlight ring
   // rather than inventing a wash — the wash stack is full, and `excluded`
   // and `match` are already separated by opacity alone (#125).
@@ -745,7 +763,7 @@ export function GameView({
       !solved &&
       !modalOpen &&
       !menuOpen &&
-      // SPIKE (#140): 'n' and 'u' mean nothing to a claim, and 'h' would
+      // 'n' and 'u' mean nothing to a claim, and 'h' would
       // open the coach over the board being pointed at.
       claim === null,
   });
@@ -878,7 +896,7 @@ export function GameView({
           selected={selected}
           onSelect={selectCell}
           onActivate={activateCell}
-          // SPIKE (#140). The grid has its own keyboard — 1-9 writes, Enter
+          // The grid has its own keyboard — 1-9 writes, Enter
           // promotes — and a claim takes the keypad away without touching
           // it. Withheld rather than ignored, so the board is as inert to a
           // keyboard during a claim as it is to a thumb.
@@ -941,7 +959,7 @@ export function GameView({
   );
 
   /**
-   * SPIKE (#140). The claim takes the keypad's box — its class string, not a
+   * The claim takes the keypad's box — its class string, not a
    * box of its own — so the board's geometry is identical with a claim open
    * (invariant 9), and the digits being *gone* is what tells the player the
    * board means something different right now.
@@ -949,24 +967,15 @@ export function GameView({
   const claimPanel =
     claim === null ? null : (
       <ClaimPanel
-        // 13.375rem is the keypad's measured height (214px at every width it
-        // was checked at: 393, 412 and 852). Pinned, not `min-h`, because a
-        // panel even 4px shorter than the pad moves the board on a short
-        // phone — measured 266 -> 270 at 412x560, which is invariant 9 no
-        // matter which direction it goes. Hardcoding the pad's height is the
-        // spike's shortcut; the real fix is for the *slot* to own its height
-        // so neither occupant has to know the other's.
-        className="h-[13.375rem] shrink-0"
+        className={PAD_SLOT}
         stage={claim.stage}
         shape={claimShape ?? 'set'}
-        techniques={TECHNIQUE_IDS.map((id) => ({
-          id,
-          name: getLesson(locale, id).name,
-          // Two of the fourteen verify: one of each shape. The rest are
-          // rendered anyway, because fourteen chips is the worst case for the
-          // space question this is here to answer.
-          enabled: id === 'x_wing' || id === 'simple_coloring' || id === 'xy_wing',
-        }))}
+        techniques={claimable.filter(({ id }) => hasReached(profile, id, 'taught'))}
+        all={claimable}
+        showingAll={claim.showingAll}
+        onShowAll={() =>
+          setClaim((open) => (open === null ? open : { ...open, showingAll: true }))
+        }
         technique={claim.stage === 'technique' ? null : getLesson(locale, claim.technique).name}
         digit={claim.digit}
         cells={claim.cells}
@@ -992,6 +1001,7 @@ export function GameView({
             holds: null,
             chain: null,
             pivot: null,
+            showingAll: open?.showingAll ?? false,
           }));
         }}
         onDigit={(digit) =>
@@ -1062,7 +1072,7 @@ export function GameView({
 
   const keypad = (
     <Keypad
-      className="min-h-[11.5rem] shrink-0"
+      className={PAD_SLOT}
       values={values}
       pencilMode={pencilMode}
       onTogglePencil={() => setPencilMode((on) => !on)}
@@ -1182,7 +1192,7 @@ export function GameView({
           notesBlocked={coach.notesBlocked}
           drill={coach.drill}
           onDrill={coach.startDrill}
-          // SPIKE (#140). Closing the sheet is the point, not a side effect:
+          // Closing the sheet is the point, not a side effect:
           // in portrait it is covering the board the player is about to
           // point at. Same rule in every arrangement, so there is one.
           onClaim={() => {
@@ -1195,6 +1205,7 @@ export function GameView({
               holds: null,
               chain: null,
               pivot: null,
+              showingAll: false,
             });
           }}
           onDismissDrill={coach.dismissDrill}

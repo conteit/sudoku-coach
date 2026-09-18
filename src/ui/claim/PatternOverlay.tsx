@@ -1,6 +1,4 @@
 /**
- * SPIKE (#140) — throwaway. Delete with the spike.
- *
  * One way of drawing a pattern on the board, for every technique that has one.
  *
  * Paolo, on the first chain: *"I feel the need to have consistent

@@ -891,3 +891,63 @@ test.describe('the keyboard', () => {
     await expect(coach.getByLabel('Disclosure level 1 of 4')).toBeVisible();
   });
 });
+
+test.describe('claiming a technique', () => {
+  test('takes the keypad box, leaves the board where it was, and answers', async ({ page }) => {
+    // 412x560 and not the project's own viewport, because this is where the
+    // geometry claim below can actually fail. On a tall phone the board is
+    // bound by width and does not move whatever the panel does — the
+    // assertion passes with the bug in place, which is no assertion at all.
+    // Here the board takes the height nobody else claimed, so an occupant of
+    // the pad's slot even a few pixels shorter than the pad grows it.
+    await page.setViewportSize({ width: 412, height: 560 });
+    await startEasyGame(page);
+    const grid = boardGrid(page);
+    const before = await grid.boundingBox();
+
+    const coach = await openCoach(page);
+    await coach.getByRole('button', { name: /spotted something/ }).click();
+
+    // The claim replaces the keypad rather than taking space from anything.
+    // Both halves matter: the pad is *gone*, which is the whole of how a
+    // player is told a tap on a cell means something else now, and the board
+    // has not moved, which is invariant 9 — a panel even a few pixels shorter
+    // than the pad grows the board on a short phone.
+    const claim = page.getByRole('region', { name: 'Your claim' });
+    await expect(claim).toBeVisible();
+    await expect(page.getByRole('group', { name: /^Keypad/ })).toBeHidden();
+    expect(await grid.boundingBox()).toEqual(before);
+
+    // The list never says what is on *this* board — it is the same list on
+    // every puzzle — so the technique is chosen blind, and the claim below is
+    // wrong on purpose. What is being pinned is that an answer arrives at
+    // all, and that being wrong is survivable.
+    // A new profile has met none of them, so the list is empty and says so —
+    // the filter is by what the player has been taught, never by what is on
+    // the board, which would make the list itself the strongest hint in the
+    // app. The way past it is offered rather than assumed.
+    await expect(claim.getByText(/have not met any/)).toBeVisible();
+    await claim.getByRole('button', { name: 'Show every technique' }).click();
+    await claim.getByRole('button', { name: 'X-Wing', exact: true }).click();
+
+    // Four empty cells, read off the board rather than written down: a given
+    // refuses the tap on purpose (a filled cell cannot be part of a pattern
+    // about where a digit can still go), and a hardcoded four would silently
+    // become a three-cell claim on a puzzle that happened to fill one.
+    const empty = (await readBoard(page))
+      .map((cell, index) => ({ cell, index }))
+      .filter(({ cell }) => cell.value === null)
+      .slice(0, 4)
+      .map(({ index }) => index);
+    expect(empty).toHaveLength(4);
+    for (const cell of empty) await boardCell(page, cell).click();
+    await claim.getByRole('button', { name: 'Check' }).click();
+    await expect(claim.getByRole('status')).toBeVisible();
+
+    // And the way back is the way back: the pad returns, the board still has
+    // not moved, and nothing was written to it.
+    await claim.getByRole('button', { name: /Done|Never mind/ }).first().click();
+    await expect(page.getByRole('group', { name: /^Keypad/ })).toBeVisible();
+    expect(await grid.boundingBox()).toEqual(before);
+  });
+});

@@ -52,7 +52,7 @@ import { IconButton } from '../ui/primitives/IconButton';
 import { ChevronLeftIcon, TargetIcon } from '../ui/primitives/icons';
 import { cx } from '../ui/primitives/cx';
 import { SudokuGrid } from '../ui/board/SudokuGrid';
-// SPIKE (#140). The exercise screen marked every named cell with one
+// The exercise screen marked every named cell with one
 // undifferentiated ring, so the roles it is asking about — pivot, then wings —
 // were named in the prompt and invisible on the board. The same overlay the
 // claim flow uses gives them the same two tones there as here, which is the
