@@ -845,3 +845,50 @@ describe('suggestions and corrections do not look alike', () => {
     expect(screen.queryByText(/cannot go on your notes/i)).toBeNull();
   });
 });
+
+/**
+ * Paolo, playing the claim spike: "in coach I feel like there are lot of
+ * controls but are not very identifiable."
+ *
+ * Eight actions can be in this footer at once, and they were one wrapping row
+ * of identical buttons — the ladder told apart from the exits and the
+ * housekeeping by colour alone. These pin the grouping that replaced it,
+ * because the grouping is the whole fix and it is invisible to every other
+ * test in this file: all of them ask whether a button exists, and it still
+ * would with the rows merged back into one.
+ */
+describe('the footer groups what it offers', () => {
+  const group = (button: HTMLElement) => button.closest('div');
+
+  const speaking = (
+    <CoachPanel
+      hint={hintAt(2, 'Hidden single: a digit with only one home left.')}
+      onAsk={() => undefined}
+      onEscalate={() => undefined}
+      onReviewCandidates={() => undefined}
+      onAnother={() => undefined}
+      onDismissHint={() => undefined}
+      onLearn={() => undefined}
+    />
+  );
+
+  it('gives the ladder a row to itself', () => {
+    render(speaking);
+    const ladder = screen.getByRole('button', { name: /Show me the cells/ });
+
+    // The one control the whole product is about does not share a line with
+    // "check my notes". Everything else in the footer is somewhere else.
+    expect(within(group(ladder) as HTMLElement).getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('keeps the ways out apart from the ways further in', () => {
+    render(speaking);
+    const out = screen.getByRole('button', { name: /take it from here/i });
+    const deeper = screen.getByRole('button', { name: 'Check my notes' });
+
+    expect(group(out)).not.toBe(group(deeper));
+    // And both exits are together, rather than one of them drifting up into
+    // the offers.
+    expect(group(screen.getByRole('button', { name: /show me another/ }))).toBe(group(out));
+  });
+});

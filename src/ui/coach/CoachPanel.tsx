@@ -595,7 +595,24 @@ export function CoachPanel({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3">
+      {/*
+       * Two rows, not one, and this is the whole of the fix Paolo asked for:
+       * "lots of controls but not very identifiable".
+       *
+       * Eight actions can be in this footer at once and they were one wrapping
+       * row of identical `ghost` `lg` buttons — the ladder distinguished from
+       * the exits, the housekeeping and the navigation by *colour alone*. So
+       * the panel gave the same weight to the one control that is the whole
+       * product and to "clear dead notes".
+       *
+       * Size cannot carry the difference: every one of these is a touch target
+       * and `md` is 40px, under the 44px floor the rest of the app keeps. So
+       * the hierarchy is spatial. The ladder takes a line of its own, the rest
+       * sit below a hairline — the app's own device, used here for what it is
+       * for — and within that line the ways *out* are pushed to the far end,
+       * away from the ways further in.
+       */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
         {drill && !drill.solved && !drill.gone ? (
           <Button variant="ghost" size="lg" onClick={onDismissDrill}>
             {t('action.dismiss')}
@@ -624,6 +641,13 @@ export function CoachPanel({
         ) : (
           <p className="py-2 text-sm text-ink-soft">{t('coach.done')}</p>
         )}
+      </div>
+
+      {/* Only ruled when it is separating something: an empty row with a line
+          above it is a line drawn under nothing. `empty:` alone cannot do it,
+          because the border would still be painted on the hidden box in the
+          states where the group has content but the one above it does not. */}
+      <div className="flex flex-wrap items-center gap-2 px-4 empty:hidden [&:not(:empty)]:border-t [&:not(:empty)]:border-rule [&:not(:empty)]:pt-3 [&:not(:empty)]:pb-3">
         {/* Resting, the coach's other two offers are glyphs: three sentences
             side by side wrap to three lines on a phone, and every line is a
             line of board. On a wide screen they are spelled out. */}
@@ -671,6 +695,19 @@ export function CoachPanel({
         {/* `!unfinishable` as well as the callback `GameView` withholds: a
             panel that is refusing to teach must not be drawing an offer to
             teach something else in the same row, whatever it was handed. */}
+        {onLearn && namedTechnique !== null ? (
+          <Button variant="ghost" size="lg" onClick={() => onLearn(namedTechnique)}>
+            {t('coach.whatIsThis')}
+          </Button>
+        ) : null}
+      </div>
+
+      {/* The ways *out*, kept apart from the ways further in. Their own group
+          rather than a nudge to the right of the same row: on a phone every
+          one of these is a full line already, so pushing one item right
+          produces a staircase rather than a grouping — which is what the
+          first attempt at this did. A rule reads the same at every width. */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-3 empty:hidden [&:not(:empty)]:border-t [&:not(:empty)]:border-rule [&:not(:empty)]:pt-3">
         {onAnother && hint !== null && !unfinishable ? (
           <Button variant="ghost" size="lg" onClick={onAnother}>
             {t('coach.another')}
@@ -687,11 +724,6 @@ export function CoachPanel({
         {onDismissHint && (hint !== null || exhausted) ? (
           <Button variant="ghost" size="lg" onClick={onDismissHint}>
             {t('coach.putAway')}
-          </Button>
-        ) : null}
-        {onLearn && namedTechnique !== null ? (
-          <Button variant="ghost" size="lg" onClick={() => onLearn(namedTechnique)}>
-            {t('coach.whatIsThis')}
           </Button>
         ) : null}
       </div>
