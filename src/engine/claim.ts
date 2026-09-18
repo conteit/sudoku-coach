@@ -16,7 +16,7 @@
 
 import { COLS, HOUSES, ROWS, colOf, rowOf, Board } from './board';
 import type { CellIndex, Digit, House } from './types';
-import { cellsWithCandidate } from './techniques/util';
+import { cellsWithCandidate, commonPeers } from './techniques/util';
 
 /**
  * Whether `cells` really are an X-Wing on `digit`.
@@ -141,4 +141,59 @@ export function colouringClaim(
       sees(cell as CellIndex, 1),
   );
   return wings.length > 0 ? { kind: 'proves', cells: wings.length } : { kind: 'barren' };
+}
+
+/**
+ * SPIKE (#140). Whether three cells are an XY-Wing, and which is the pivot.
+ *
+ * The one technique whose cells are not interchangeable, so the verdict has to
+ * carry the roles: the overlay colours the pivot differently from its wings,
+ * and that distinction is the entire lesson of the pattern.
+ *
+ * The player does not say which cell is the pivot. They cannot mistype it —
+ * at most one of three cells can be — so asking would be a question with one
+ * possible answer, which is the same mistake the digit stage was.
+ */
+export type WingVerdict = { holds: false } | { holds: true; pivot: CellIndex; wings: CellIndex[] };
+
+export function xyWingClaim(
+  values: readonly (Digit | null)[],
+  cells: readonly CellIndex[],
+): WingVerdict {
+  if (new Set(cells).size !== 3) return { holds: false };
+  const board = Board.fromValues(values);
+  const pairs = cells.map((cell) => board.trueCandidates(cell));
+
+  for (const [i, pivot] of cells.entries()) {
+    const wings = cells.filter((_, j) => j !== i);
+    const hinge = pairs[i];
+    // The pivot must be bivalue. A third digit in it forces neither wing, so
+    // dropping this accepts a shape that proves nothing — which is why the
+    // check is here and not on the wings: a wing that is not bivalue has
+    // either two digits outside the hinge or two inside it, and both of the
+    // tests below already refuse that. An explicit all-three-are-bivalue
+    // guard was written and deleted for exactly that reason.
+    if (hinge.size !== 2) continue;
+    if (!wings.every((wing) => board.peers(pivot).includes(wing))) continue;
+
+    const [left, right] = wings.map((wing) => board.trueCandidates(wing));
+    // Both wings hang off the pivot by the same outside digit...
+    const outside = [...left].filter((d) => !hinge.has(d));
+    if (outside.length !== 1 || !right.has(outside[0]) || hinge.has(outside[0])) continue;
+    if ([...right].filter((d) => !hinge.has(d)).length !== 1) continue;
+    // ...and grip different pivot digits, or the pivot proves nothing.
+    const grips = [left, right].map((pair) => [...pair].filter((d) => hinge.has(d)));
+    if (grips.some((g) => g.length !== 1) || grips[0][0] === grips[1][0]) continue;
+
+    // And, as everywhere else here, it has to eliminate something.
+    const proves = commonPeers(board, wings[0], wings[1]).some(
+      (cell) => cell !== pivot && board.trueCandidates(cell).has(outside[0]),
+    );
+    // Sorted, so the verdict is a function of the cells and not of the order
+    // they were tapped in. The two wings are interchangeable — the same
+    // argument `roles.ts` makes about the corners of a fish, and the reason
+    // the overlay gives them one colour between them.
+    if (proves) return { holds: true, pivot, wings: [...wings].sort((a, b) => a - b) };
+  }
+  return { holds: false };
 }

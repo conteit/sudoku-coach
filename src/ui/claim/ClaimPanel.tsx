@@ -18,6 +18,7 @@
  */
 
 import type { ChainVerdict } from '../../engine/claim';
+import type { ClaimShape } from './shape';
 import type { CellIndex, Digit, TechniqueId } from '../../engine/types';
 import { DIGITS } from '../../engine/types';
 import { cellName } from '../../engine/board';
@@ -27,13 +28,13 @@ import { cx } from '../primitives/cx';
 export type ClaimStage = 'technique' | 'digit' | 'cells' | 'verdict';
 
 /**
- * A claim comes in two shapes, and flattening them was the spike's first
+ * A claim comes in three shapes, and flattening them was the spike's first
  * mistake. A `set` is a bag of cells whose order carries nothing — the four
  * corners of a fish are interchangeable. A `chain` is a sequence: the links
- * and their alternation *are* the technique, and a colouring reduced to a bag
- * of cells has had its content thrown away.
+ * and their alternation *are* the technique. A `wing` is three cells of which
+ * one is doing something different from the other two.
  */
-export type ClaimShape = 'set' | 'chain';
+export type { ClaimShape } from './shape';
 
 export interface ClaimPanelProps {
   stage: ClaimStage;
@@ -47,6 +48,10 @@ export interface ClaimPanelProps {
   onTechnique: (id: TechniqueId) => void;
   onDigit: (digit: Digit) => void;
   onDropCell: (cell: CellIndex) => void;
+  /** Back to the list, keeping the cells. */
+  onRename: () => void;
+  /** Hand over to the coach — the answer to "I cannot find it". */
+  onGiveUp: () => void;
   onCheck: () => void;
   onRetry: () => void;
   onCancel: () => void;
@@ -65,6 +70,8 @@ export function ClaimPanel({
   onTechnique,
   onDigit,
   onDropCell,
+  onRename,
+  onGiveUp,
   onCheck,
   onRetry,
   onCancel,
@@ -79,10 +86,18 @@ export function ClaimPanel({
       )}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-semibold text-ink">
-          {technique === null ? 'What do you see?' : technique}
-          {digit === null ? '' : ` on ${digit}`}
-        </h2>
+        {/* The title is the way back. Changing your mind about the technique
+            used to mean cancelling and starting over, which threw away cells
+            that were very possibly right — you can misname a pattern you are
+            pointing at correctly. */}
+        {technique === null ? (
+          <h2 className="font-semibold text-ink">What do you see?</h2>
+        ) : (
+          <Button variant="ghost" size="sm" className="!px-0 font-semibold" onClick={onRename}>
+            {technique}
+            {digit === null ? '' : ` on ${digit}`} ▾
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Never mind
         </Button>
@@ -125,15 +140,16 @@ export function ClaimPanel({
           <p className="text-ink-faint">
             {shape === 'chain'
               ? `Tap the chain in order. Each link is a house where only two cells can still take the ${digit}.`
-              : 'Tap the four corners on the board.'}
+              : shape === 'wing'
+                ? 'Tap the three cells. You do not have to say which is the pivot.'
+                : 'Tap the four corners on the board.'}
           </p>
           {/* A chain's chips are numbered and drop everything after them: you
               cannot pull a link out of the middle and still have a chain. */}
           <ul className="flex flex-wrap gap-1.5">
-            {cells.map((cell, i) => (
+            {cells.map((cell) => (
               <li key={cell}>
                 <Button variant="secondary" size="sm" onClick={() => onDropCell(cell)}>
-                  {shape === 'chain' ? `${i + 1}. ` : ''}
                   {cellName(cell)} ✕
                 </Button>
               </li>
@@ -143,7 +159,11 @@ export function ClaimPanel({
             variant="primary"
             size="sm"
             className="self-start"
-            disabled={shape === 'chain' ? cells.length < 3 : cells.length !== 4}
+            disabled={
+              shape === 'chain'
+                ? cells.length < 3
+                : cells.length !== (shape === 'wing' ? 3 : 4)
+            }
             onClick={onCheck}
           >
             Check
@@ -160,13 +180,13 @@ export function ClaimPanel({
             role="status"
             className={holds === true || chain?.kind === 'proves' ? 'text-match' : 'text-ink'}
           >
-            {shape === 'set'
+            {shape !== 'chain'
               ? holds === true
                 ? // The digit is told, not asked: it follows from the cells
                   // once the technique is named, and saying which one it was
                   // is part of confirming the claim.
-                  `Yes — that is an X-Wing on ${digit}. Every other ${digit} in those two lines can go.`
-                : 'Those cells are not an X-Wing.'
+                  `Yes — that holds${digit === null ? '' : `, on ${digit}`}.`
+                : 'That is not one of those.'
               : chain?.kind === 'proves'
                 ? `Yes — that colouring holds, and it clears the ${digit} from ${chain.cells} ${chain.cells === 1 ? 'cell' : 'cells'}.`
                 : chain?.kind === 'barren'
@@ -174,12 +194,19 @@ export function ClaimPanel({
                     // and it happens to pay nothing; calling that "wrong"
                     // would teach them to distrust a method that worked.
                     'That chain holds — but nothing follows from it yet.'
-                  : `Your chain breaks between ${chain?.link ?? 1} and ${(chain?.link ?? 1) + 1}.`}
+                  : // The link that fails is drawn as the link that fails, so
+                    // the sentence does not have to count anything.
+                    'Your chain breaks at the link marked on the board.'}
           </p>
           <div className="flex gap-2">
             {holds === true || chain?.kind === 'proves' ? null : (
               <Button variant="primary" size="sm" onClick={onRetry}>
                 Try again
+              </Button>
+            )}
+            {holds === true || chain?.kind === 'proves' ? null : (
+              <Button variant="secondary" size="sm" onClick={onGiveUp}>
+                Ask the coach
               </Button>
             )}
             <Button variant="secondary" size="sm" onClick={onCancel}>

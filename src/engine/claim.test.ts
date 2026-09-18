@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { Board } from './board';
 import { EXAMPLES, PUZZLES } from './techniques/fixtures';
-import { colouringClaim, xWingHolds } from './claim';
+import { colouringClaim, xWingHolds, xyWingClaim } from './claim';
 
 // `fish.test.ts` proves the detector finds exactly this: a 2 in r2c4, r2c6,
 // r4c4, r4c6, based on columns 4 and 6, eliminating r2c1 and r2c2.
@@ -119,5 +119,67 @@ describe('the spike colouring verifier', () => {
     // `coloring.ts` sets the same floor for the same reason.
     const values = Board.fromString(EXAMPLES.simple_coloring).values;
     expect(colouringClaim(values, 3, [15, 16])).toEqual({ kind: 'broken', link: 2 });
+  });
+});
+
+describe('the spike xy-wing verifier', () => {
+  // `wings.test.ts` pins the detector on this fixture: pivot r1c1 with its
+  // two pincers r1c7 and r1c9, proving one elimination.
+  const VALUES = Board.fromString(EXAMPLES.xy_wing).values;
+
+  it('finds the pivot whatever order the three cells were tapped in', () => {
+    // The role is the lesson of this pattern, and the player never states it:
+    // at most one of three cells can be the pivot, so asking would be a
+    // question with one possible answer.
+    for (const order of [
+      [0, 6, 8],
+      [8, 0, 6],
+      [6, 8, 0],
+    ]) {
+      expect(xyWingClaim(VALUES, order)).toEqual({ holds: true, pivot: 0, wings: [6, 8] });
+    }
+  });
+
+  it('refuses a pivot that is not bivalue', () => {
+    // In `EXAMPLES.naked_single` these three fit the shape in every other
+    // respect — the wings are bivalue, both hang off the pivot by the same
+    // outside digit and grip different ones, and something would be
+    // eliminated. Only the pivot's third candidate stops it, and it stops it
+    // completely: a pivot free to take a third digit forces neither wing.
+    const fat = Board.fromString(EXAMPLES.naked_single).values;
+    expect(xyWingClaim(fat, [59, 54, 62])).toEqual({ holds: false });
+  });
+
+  it('refuses two wings that grip the same digit of the pivot', () => {
+    // In `EXAMPLES.remote_pairs` the pivot holds {1,8} and both wings hold
+    // {1,5} — same outside digit, both gripping the 1, and a cell seeing both
+    // wings really does hold a 5, so the shape is refused on the grips alone
+    // and on nothing else. It proves nothing all the same: the pivot taking
+    // the 8 leaves both wings free, and neither is forced to the 5.
+    const same = Board.fromString(EXAMPLES.remote_pairs).values;
+    expect(xyWingClaim(same, [21, 13, 48])).toEqual({ holds: false });
+  });
+
+  it('refuses three cells whose digits fit but which are not connected', () => {
+    // r1c1, r1c9 and r6c2 fit the digit shape for one assignment of the
+    // roles — and for that assignment the pivot cannot see both wings, and no
+    // other assignment fits at all. The pattern is an argument about what one
+    // cell forces on two others; three cells that cannot see each other force
+    // nothing, however their candidates happen to line up.
+    expect(xyWingClaim(VALUES, [0, 8, 46])).toEqual({ holds: false });
+  });
+
+  it('accepts a valid xy-wing the detector never reports', () => {
+    // This is the whole argument for a verifier rather than `detect()`, as a
+    // test. `wings.test.ts` pins the detector on this board at r1c1/r1c7/r1c9
+    // — it returns the first pattern it meets and stops. But r1c7 is *also*
+    // the pivot of a second, equally valid xy-wing, with r1c1 and r2c9 as its
+    // wings. A player who sees that one and claims it is right, and any check
+    // built on the detector would tell them they are wrong.
+    expect(xyWingClaim(VALUES, [0, 6, 17])).toEqual({ holds: true, pivot: 6, wings: [0, 17] });
+  });
+
+  it('refuses two cells', () => {
+    expect(xyWingClaim(VALUES, [0, 6])).toEqual({ holds: false });
   });
 });
