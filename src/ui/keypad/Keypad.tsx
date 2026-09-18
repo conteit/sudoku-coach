@@ -118,6 +118,22 @@ export interface KeypadProps {
   className?: string;
 }
 
+/**
+ * The height of the pad's slot, for whatever is occupying it.
+ *
+ * The keypad's own height is content-driven and width-independent — three rows
+ * of `min-h-12` keys plus the tool row — and comes out at 214px everywhere it
+ * has been measured (393, 412 and 852 wide). Anything that *replaces* the pad
+ * has to be exactly this tall, because the board takes the height nobody else
+ * claimed: a panel even four pixels shorter grows the board, and the board
+ * changing size when a panel opens is invariant 9 whichever direction it goes.
+ * Measured at 266 -> 270 on a 412x560 phone before this was pinned.
+ *
+ * One constant rather than the number written twice, so the two occupants
+ * cannot drift apart.
+ */
+export const PAD_SLOT = 'h-[13.375rem] shrink-0';
+
 /** 9 minus placements, floored at 0 so a contradictory board never goes negative. */
 function remainingCounts(values: readonly (Digit | null)[]): Record<Digit, number> {
   const counts = { 1: 9, 2: 9, 3: 9, 4: 9, 5: 9, 6: 9, 7: 9, 8: 9, 9: 9 } as Record<Digit, number>;

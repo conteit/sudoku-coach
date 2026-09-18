@@ -597,6 +597,90 @@ has already read the front door.
     because backing out twice should not require remembering to re-pin in
     between (Paolo's rule).
 
+16. **A claim is the player naming a pattern, and checking one is not
+    detecting one.** `DETECTORS[x].detect(board)` answers *is there one of
+    these*: it returns the first it meets and stops. A claim asks *is **this**
+    one*, and the two come apart the moment a board holds two — a second valid
+    XY-Wing exists on the fixture the detector is pinned against, and anything
+    built on `detect()` tells the player who spotted it that they are wrong.
+    `engine/claim.ts` therefore verifies rather than detects, and pins that
+    case as a test.
+
+    Until the detectors become generators, with `detect` defined as the first
+    thing one yields, those verifiers are a **second reading** of rules
+    `techniques/` already encodes. The cross-check in `claim.test.ts` is what
+    keeps them from drifting: every finding a detector reports, on every
+    fixture board, must be accepted by the verifier that shadows it. The
+    weaker direction is deliberate — a verifier accepting *more* than its
+    detector reports is the entire point.
+
+    Three rules bind the surface:
+
+    - **Judged against true candidates from the values, never the player's
+      notes** (invariant 3b). A missing note would manufacture a pattern that
+      is not there and the app would confirm it.
+    - **The list of claimable techniques is filtered by what the player has
+      been taught, and never by what is on the board.** Mastery is
+      board-independent, so the same list appears on every puzzle and
+      discloses nothing about this one; filtering by what is present would be
+      the strongest hint in the app. The **singles are excluded on principle**
+      rather than pending: confirming "there is a naked single here, and it is
+      a 7" is confirming a digit.
+    - **A claim is not logged as an exchange.** Nothing is charged to mastery
+      for making one, so a correct claim followed by applying what it proves
+      earns *unaided* credit through the path that already exists — which is
+      the stronger evidence the feature is for, at no cost to the frozen
+      `PlayerProfile`.
+
+    A wrong claim costs a retry and nothing else — no miss, no rung, no
+    correction — and the verdict does not vary with *why* it failed, because a
+    graded verdict is a hint channel as surely as prose is.
+
+    **One exception, and it is on the record as Paolo's decision:** a broken
+    colouring chain says *where* it broke. That discloses that the links
+    before it are real conjugate pairs. The argument for it is invariant 11's
+    — it points at a mistake in the player's own assertion, not at the board —
+    and the argument against is that it is a graded verdict. It was taken
+    deliberately, the same way invariant 11's amber rewind was.
+
+## Claims are drawn, not described
+
+Three claim shapes, one drawing language, and `ExerciseView` uses it too.
+
+| Mark | Means |
+| --- | --- |
+| a ring | a cell the player named |
+| two tones | the pattern **divides** — and nothing else means that |
+| a line | a link the technique actually claims |
+
+So a fish's corners share one tone and draw no lines, because they are
+interchangeable and the pattern claims no links between them; an XY-Wing's
+pivot takes the second tone and its two links are drawn; a colouring
+alternates, which is the same statement made link by link. A broken link is
+drawn as the link that broke, which is why the sentence does not have to count
+anything — an earlier version numbered every node so the verdict could say
+"between 3 and 4", which was a drawing problem being solved with a sentence.
+
+`PatternOverlay` is an overlay rather than cell tints for two reasons.
+`Cell.tsx` paints exactly one wash and the stack is full, so a chain would be
+fighting the selection, the peer shading and the green — and `excluded` and
+`match` are already separated by opacity alone. But mostly **the links are the
+technique**: a colouring drawn as coloured cells is a bag of cells again.
+
+It knows nothing about pivots or conjugate pairs — it takes tones and links,
+the division `CoachPanel` keeps. `ui/claim/shape.ts` holds the per-technique
+rule, in one place.
+
+**The claim takes the keypad's slot** (`PAD_SLOT`), which is the whole
+placement argument: a claim places no digits, so the pad is exactly the space
+that can be spent, in all three arrangements, with no new chrome. It also
+makes the mode unmistakable without inventing a gesture — the only gestures in
+this app are a tap and one 500ms long press — because the digits are visibly
+gone. The slot's height is a constant rather than a number written twice: the
+board takes the height nobody else claimed, so an occupant even four pixels
+shorter than the pad grows the board, which is invariant 9 whichever direction
+it goes.
+
 ## Learn exercises
 
 A practice grid is a board frozen at the moment one technique is the way

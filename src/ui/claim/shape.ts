@@ -1,6 +1,4 @@
 /**
- * SPIKE (#140) — throwaway. Delete with the spike.
- *
  * Turning a claim into the one drawing language, per shape. Kept out of the
  * overlay so that the overlay stays ignorant of techniques, and out of the
  * view so the rule lives in one place.

@@ -1,16 +1,15 @@
 /**
- * SPIKE (#140) — throwaway, and tested anyway.
- *
- * The spike exists to be judged by a person playing it, and a verifier that
- * says "yes" to a pattern that is not there would make that judgement
- * worthless — worse than no spike, because the answer it produces is
- * confident. So the one thing it does is pinned against the same fixture the
- * real detector is pinned against.
+ * A verifier that says "yes" to a pattern that is not there is worse than no
+ * verifier, because the answer it gives is confident — and the app's whole
+ * claim is that it cannot be wrong. So each rule is pinned against the same
+ * fixtures the detector it shadows is pinned against, and the cross-check at
+ * the bottom binds the two together for as long as both exist.
  */
 
 import { describe, expect, it } from 'vitest';
 import { Board } from './board';
 import { EXAMPLES, PUZZLES } from './techniques/fixtures';
+import { CATALOG } from './techniques';
 import { colouringClaim, xWingHolds, xyWingClaim } from './claim';
 
 // `fish.test.ts` proves the detector finds exactly this: a 2 in r2c4, r2c6,
@@ -18,7 +17,7 @@ import { colouringClaim, xWingHolds, xyWingClaim } from './claim';
 const VALUES = Board.fromString(EXAMPLES.x_wing).values;
 const CORNERS = [12, 14, 30, 32];
 
-describe('the spike x-wing verifier', () => {
+describe('the x-wing verifier', () => {
   it('accepts the x-wing the detector finds', () => {
     expect(xWingHolds(VALUES, 2, CORNERS)).toBe(true);
   });
@@ -80,7 +79,7 @@ describe('the spike x-wing verifier', () => {
  */
 const CHAIN = [15, 16, 43, 37, 46, 51];
 
-describe('the spike colouring verifier', () => {
+describe('the colouring verifier', () => {
   it('accepts the chain the detector proves something from', () => {
     const values = Board.fromString(EXAMPLES.simple_coloring).values;
     expect(colouringClaim(values, 3, CHAIN)).toEqual({ kind: 'proves', cells: 1 });
@@ -122,7 +121,7 @@ describe('the spike colouring verifier', () => {
   });
 });
 
-describe('the spike xy-wing verifier', () => {
+describe('the xy-wing verifier', () => {
   // `wings.test.ts` pins the detector on this fixture: pivot r1c1 with its
   // two pincers r1c7 and r1c9, proving one elimination.
   const VALUES = Board.fromString(EXAMPLES.xy_wing).values;
@@ -181,5 +180,46 @@ describe('the spike xy-wing verifier', () => {
 
   it('refuses two cells', () => {
     expect(xyWingClaim(VALUES, [0, 6])).toEqual({ holds: false });
+  });
+});
+
+/**
+ * The verifiers and the detectors are two readings of the same rules, and two
+ * readings that can drift are two bugs waiting. Until the detectors become
+ * generators — at which point the duplication goes away and `detect` is
+ * defined as the first thing a verifier yields — this is what keeps them
+ * honest: every finding a detector reports must be accepted by the verifier
+ * for the same technique, on every fixture board in the repo.
+ *
+ * It is a weaker statement than equality, deliberately. A verifier accepting
+ * *more* than its detector reports is the whole point — the detector stops at
+ * the first pattern and the player may have spotted the second. What must
+ * never happen is the other direction: a pattern the engine itself calls an
+ * X-Wing that the claim flow then refuses.
+ */
+describe('the verifiers agree with the detectors they shadow', () => {
+  const BOARDS = [
+    ...Object.entries(EXAMPLES),
+    ...PUZZLES.map((puzzle, i) => [`puzzle${i}`, puzzle.givens] as const),
+  ];
+
+  it.each(BOARDS)('accepts every finding the detectors report on %s', (_name, grid) => {
+    const board = Board.fromString(grid);
+    let checked = 0;
+
+    for (const detector of CATALOG) {
+      const finding = detector.detect(board);
+      if (finding === null) continue;
+      checked += 1;
+      if (finding.technique === 'x_wing') {
+        expect(xWingHolds(board.values, finding.digits[0], finding.cells)).toBe(true);
+      } else if (finding.technique === 'xy_wing') {
+        expect(xyWingClaim(board.values, finding.cells)).toMatchObject({ holds: true });
+      }
+    }
+
+    // Without this the test passes on a board where no detector fires at all,
+    // which is the shape of an assertion that cannot fail.
+    expect(checked).toBeGreaterThan(0);
   });
 });
