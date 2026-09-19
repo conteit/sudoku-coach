@@ -55,7 +55,7 @@ test('the board is clean, with a hint open and notes flagged', async ({ page }) 
   await coach.getByRole('button', { name: 'Where should I look?' }).click();
   await coach.getByRole('button', { name: /Name the technique/ }).click();
   await coach.getByRole('button', { name: /Show me the cells/ }).click();
-  await coach.getByRole('button', { name: 'Check my notes' }).click();
+  await coach.getByRole('button', { name: 'Check notes' }).click();
 
   expect((await audit(page).analyze()).violations).toEqual([]);
 });
