@@ -54,11 +54,27 @@ export function PatternOverlay({ nodes, links = [], broken = null, active = null
   const isBroken = (a: CellIndex, b: CellIndex) =>
     broken !== null && ((broken[0] === a && broken[1] === b) || (broken[0] === b && broken[1] === a));
 
+  /*
+   * `aspect-square` and pinned to the top, **not** `inset-0 h-full`.
+   *
+   * The box this sits in is the board's *slot*, which is the same shape as
+   * the board only when the board is what constrains it. On a phone in
+   * portrait the slot is bound by width and keeps the height nobody else
+   * claimed — measured 369x558 around a 369x369 grid — and an SVG stretched
+   * to that box scales its 9x9 viewBox to the width and then *centres* it
+   * vertically, which is what `preserveAspectRatio` does by default. Every
+   * ring it drew sat 93px, about two rows, below the cell it named. Landscape
+   * is square, so the two coincide there, and landscape is where it was
+   * checked.
+   *
+   * Squaring the element to the width makes the viewBox the grid's own
+   * coordinate space again, in every arrangement.
+   */
   return (
     <svg
       viewBox="0 0 9 9"
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className="pointer-events-none absolute inset-x-0 top-0 aspect-square w-full"
     >
       {links.map(([a, b]) => {
         const from = at(a);
