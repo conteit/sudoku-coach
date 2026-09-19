@@ -762,6 +762,15 @@ test.describe('the coach sheet keeps its header', () => {
     await coach.getByRole('button', { name: 'Where should I look?' }).click();
     await coach.getByRole('button', { name: /Name the technique/ }).click();
 
+    // And the note check, because the panel has to *overflow* for any of this
+    // to be about scrolling — the guard below says so. A hint alone no longer
+    // reaches the cap on this viewport: the footer's actions used to be five
+    // stacked full-size buttons and are now two rows of small ones, which took
+    // the panel from over the cap to 327px under it. The report is what a
+    // genuinely long panel looks like in use, and it is the case where a
+    // player most needs the way out to stay put.
+    await coach.getByRole('button', { name: 'Check notes' }).click();
+
     const header = coach.locator(':scope > div').first();
     await expect(header).toBeVisible();
     await expect(header, 'the header has to have a name in it to lose one').not.toHaveText('');
@@ -776,7 +785,16 @@ test.describe('the coach sheet keeps its header', () => {
       'the sheet must actually overflow its cap, or nothing here is being tested',
     ).toBeGreaterThan(0);
 
-    await expect(header).toBeInViewport();
+    // Pinned to the top of the scroller, which is the property — not merely
+    // "still somewhere on screen". `toBeInViewport` counts any sliver, and
+    // this header is 44px tall against 33px of scroll, so an unstuck one
+    // passed it: the test could not fail for the thing it is named after.
+    const pinned = await coach.evaluate((section) => {
+      const sheet = section.parentElement!;
+      const head = section.firstElementChild!.getBoundingClientRect();
+      return Math.round(head.top - sheet.getBoundingClientRect().top);
+    });
+    expect(pinned).toBe(0);
     await expect(coach.getByRole('button', { name: 'Close' })).toBeInViewport();
   });
 });
