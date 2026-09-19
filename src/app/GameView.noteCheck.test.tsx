@@ -145,7 +145,7 @@ describe('fixing the notes the check found', () => {
     const withBoth = reduce(game, { type: 'addCandidate', cell: 2, digit: 4, at: 1150 });
     const { user } = renderGame({}, withBoth);
 
-    await user.click(screen.getByRole('button', { name: /check my notes/i }));
+    await user.click(screen.getByRole('button', { name: /check notes/i }));
     expect(screen.getByRole('button', { name: 'Fix them all' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Fix them all' }));
@@ -178,7 +178,7 @@ describe('fixing the notes the check found', () => {
     );
     const { user } = renderGame({}, game);
 
-    await user.click(screen.getByRole('button', { name: /check my notes/i }));
+    await user.click(screen.getByRole('button', { name: /check notes/i }));
     await user.click(screen.getByRole('button', { name: 'Fix them all' }));
     await user.click(screen.getByRole('button', { name: 'Undo' }));
 
@@ -198,7 +198,7 @@ describe('the sheet as a viewport rather than a lifecycle event', () => {
     // rather than the plain `coach.open` — a regex over both rather than
     // pinning one, per `coach.open`/`coach.openWaiting` in `src/i18n/en.ts`.
     await user.click(screen.getByRole('button', { name: /^Coach/ }));
-    await user.click(screen.getByRole('button', { name: 'Check my notes' }));
+    await user.click(screen.getByRole('button', { name: 'Check notes' }));
     // r1c3 is the only noted cell on the board. The placement in r1c4 makes
     // its noted 9 invalid, and the check also finds a genuine 2 the player
     // never noted — two open issues, not a clean report. (Verified against

@@ -285,7 +285,7 @@ export function GameView({
    * may act on. With `markDeadNotes` off the board strikes nothing through,
    * and the two eraser affordances go with it: a key offering to clear
    * something the board never marked is a control with no visible referent.
-   * "Check my notes" still finds them — that path was always the one meant
+   * "Check notes" still finds them — that path was always the one meant
    * to, and it says so in words rather than in colour.
    */
   const flaggedStale = settings.markDeadNotes ? stale : NO_STALE;

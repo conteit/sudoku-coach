@@ -225,7 +225,6 @@ export type RewindStep =
 
 function Ladder({ level }: { level: DisclosureLevel }) {
   const t = useT();
-  const reached = RUNGS.find((rung) => rung.level === level);
   return (
     <>
       <ol className="flex gap-1.5" aria-label={t('coach.ladderAria', { level })}>
@@ -257,12 +256,26 @@ function Ladder({ level }: { level: DisclosureLevel }) {
           );
         })}
       </ol>
-      <p className="mt-2 text-[0.6875rem] text-ink-faint sm:hidden">
-        {reached
-          ? t('coach.ladderReached', { level, gives: t(reached.gives).toLocaleLowerCase() })
-          : t('coach.ladderNone')}
-      </p>
     </>
+  );
+}
+
+/**
+ * Which rung the player is on, in words. On a phone the strip above cannot
+ * carry each rung's cost — four captions do not fit — so this line does, and
+ * it rides in the panel's header rather than under the strip: below `sm` that
+ * header holds the close button and nothing else, which was a whole row of
+ * paper spent on one glyph in a sheet already covering the board.
+ */
+function LevelLine({ level }: { level: DisclosureLevel }) {
+  const t = useT();
+  const reached = RUNGS.find((rung) => rung.level === level);
+  return (
+    <p className="min-w-0 flex-1 truncate text-[0.6875rem] text-ink-faint sm:hidden">
+      {reached
+        ? t('coach.ladderReached', { level, gives: t(reached.gives).toLocaleLowerCase() })
+        : t('coach.ladderNone')}
+    </p>
   );
 }
 
@@ -432,6 +445,7 @@ export function CoachPanel({
         <h2 className="hidden text-[0.6875rem] font-semibold tracking-[0.16em] text-ink-soft uppercase sm:block">
           {t('coach.title')}
         </h2>
+        <LevelLine level={level} />
         {/* The technique is a level-2 disclosure; the view honours that too. */}
         {hint && level >= 2 ? (
           <p className="font-display min-w-0 flex-1 truncate text-right text-base text-ink">
@@ -596,25 +610,35 @@ export function CoachPanel({
       </div>
 
       {/*
-       * Two rows, not one, and this is the whole of the fix Paolo asked for:
-       * "lots of controls but not very identifiable".
+       * Eight actions can be in this footer at once, and they were one
+       * wrapping row of identical `ghost` `lg` buttons — the ladder told apart
+       * from the exits, the housekeeping and the navigation by *colour alone*.
        *
-       * Eight actions can be in this footer at once and they were one wrapping
-       * row of identical `ghost` `lg` buttons — the ladder distinguished from
-       * the exits, the housekeeping and the navigation by *colour alone*. So
-       * the panel gave the same weight to the one control that is the whole
-       * product and to "clear dead notes".
+       * The weight is carried by size. An earlier version ruled the groups
+       * apart with hairlines instead, on the belief that every control here
+       * had to clear 44px: not so. That floor is `IconButton`'s, for square
+       * glyphs in the thumb zone, and this panel already ships 36px ones. What
+       * the rules bought in legibility they charged in height — five stacked
+       * lines of `lg` buttons on a phone, in a sheet that is already covering
+       * the board.
        *
-       * Size cannot carry the difference: every one of these is a touch target
-       * and `md` is 40px, under the 44px floor the rest of the app keeps. So
-       * the hierarchy is spatial. The ladder takes a line of its own, the rest
-       * sit below a hairline — the app's own device, used here for what it is
-       * for — and within that line the ways *out* are pushed to the far end,
-       * away from the ways further in.
+       * So: the ladder takes the full width, which says "this is the thing"
+       * without a line drawn under it, and the rest share rows beneath it.
+       *
+       * They are `secondary`, not `ghost`. Ghost is transparent to the paper
+       * with no border, so a row of them reads as bold *prose* — Paolo's
+       * words: "text written in bold is not always clear is an action we can
+       * take". A control has to look like one, and in this system that is the
+       * hairline box.
+       *
+       * The text does not shrink to buy the space back. What buys it is the
+       * labels being labels: a button whose text is a sentence cannot share a
+       * 393px row with anything, and four of those are four lines of a sheet
+       * that is already covering the board.
        */}
-      <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3">
         {drill && !drill.solved && !drill.gone ? (
-          <Button variant="ghost" size="lg" onClick={onDismissDrill}>
+          <Button variant="secondary" size="lg" onClick={onDismissDrill}>
             {t('action.dismiss')}
           </Button>
         ) : null}
@@ -625,13 +649,14 @@ export function CoachPanel({
             {t('coach.deadEnd')}
           </p>
         ) : hint === null ? (
-          <Button variant="coach" size="lg" onClick={onAsk}>
+          <Button variant="coach" size="lg" block onClick={onAsk}>
             {t('coach.rung1.ask')}
           </Button>
         ) : next && hint.canEscalate ? (
           <Button
             variant="coach"
             size="lg"
+            block
             icon={<ChevronDownIcon />}
             onClick={onEscalate}
             aria-label={t('coach.escalateAria', { ask: t(next.ask), level: next.level })}
@@ -641,13 +666,6 @@ export function CoachPanel({
         ) : (
           <p className="py-2 text-sm text-ink-soft">{t('coach.done')}</p>
         )}
-      </div>
-
-      {/* Only ruled when it is separating something: an empty row with a line
-          above it is a line drawn under nothing. `empty:` alone cannot do it,
-          because the border would still be painted on the hidden box in the
-          states where the group has content but the one above it does not. */}
-      <div className="flex flex-wrap items-center gap-2 px-4 empty:hidden [&:not(:empty)]:border-t [&:not(:empty)]:border-rule [&:not(:empty)]:pt-3 [&:not(:empty)]:pb-3">
         {/* Resting, the coach's other two offers are glyphs: three sentences
             side by side wrap to three lines on a phone, and every line is a
             line of board. On a wide screen they are spelled out. */}
@@ -657,14 +675,14 @@ export function CoachPanel({
               <IconButton size="sm" label={t('coach.drill')} icon={<TargetIcon />} onClick={onDrill} />
             </span>
             <span className="hidden sm:block">
-              <Button variant="ghost" size="lg" onClick={onDrill}>
+              <Button variant="secondary" size="lg" onClick={onDrill}>
                 {t('coach.drill')}
               </Button>
             </span>
           </>
         ) : null}
         {onClaim && drill === null && hint === null && !unfinishable ? (
-          <Button variant="ghost" size="lg" onClick={onClaim}>
+          <Button variant="secondary" size="lg" onClick={onClaim}>
             {t('claim.open')}
           </Button>
         ) : null}
@@ -672,7 +690,7 @@ export function CoachPanel({
             one of the two things the coach is for, and a player who cannot find
             it does not have it — which is exactly how it read as a glyph. */}
         {onReviewCandidates ? (
-          <Button variant="ghost" size="lg" icon={<CheckIcon />} onClick={onReviewCandidates}>
+          <Button variant="secondary" size="lg" icon={<CheckIcon />} onClick={onReviewCandidates}>
             {t('action.checkMarks')}
           </Button>
         ) : null}
@@ -680,7 +698,7 @@ export function CoachPanel({
             and deleting are rare enough to earn a permanent line, and this is
             not that — it is offered exactly while there is something to clear. */}
         {onClearStale && staleCount ? (
-          <Button variant="ghost" size="lg" icon={<EraserIcon />} onClick={onClearStale}>
+          <Button variant="secondary" size="lg" icon={<EraserIcon />} onClick={onClearStale}>
             {staleCount === 1
               ? t('action.clearStaleOne')
               : t('action.clearStaleCount', { count: staleCount })}
@@ -696,24 +714,16 @@ export function CoachPanel({
             panel that is refusing to teach must not be drawing an offer to
             teach something else in the same row, whatever it was handed. */}
         {onLearn && namedTechnique !== null ? (
-          <Button variant="ghost" size="lg" onClick={() => onLearn(namedTechnique)}>
+          <Button variant="secondary" size="lg" onClick={() => onLearn(namedTechnique)}>
             {t('coach.whatIsThis')}
           </Button>
         ) : null}
-      </div>
-
-      {/* The ways *out*, kept apart from the ways further in. Their own group
-          rather than a nudge to the right of the same row: on a phone every
-          one of these is a full line already, so pushing one item right
-          produces a staircase rather than a grouping — which is what the
-          first attempt at this did. A rule reads the same at every width. */}
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-3 empty:hidden [&:not(:empty)]:border-t [&:not(:empty)]:border-rule [&:not(:empty)]:pt-3">
         {onAnother && hint !== null && !unfinishable ? (
-          <Button variant="ghost" size="lg" onClick={onAnother}>
+          <Button variant="secondary" size="lg" onClick={onAnother}>
             {t('coach.another')}
           </Button>
         ) : null}
-        {/* Next to "show me another" because it answers the same question and
+        {/* Next to "show another" because it answers the same question and
             gives the opposite answer: that one steps sideways to a different
             pattern, this one steps out. Spelled out at every width rather than
             reduced to a glyph on a phone — a player who cannot find the way
@@ -722,7 +732,7 @@ export function CoachPanel({
             screen to take away; a live challenge has its own dismissal, and
             `hint` is null while one is running. */}
         {onDismissHint && (hint !== null || exhausted) ? (
-          <Button variant="ghost" size="lg" onClick={onDismissHint}>
+          <Button variant="secondary" size="lg" onClick={onDismissHint}>
             {t('coach.putAway')}
           </Button>
         ) : null}

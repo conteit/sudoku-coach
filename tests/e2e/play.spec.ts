@@ -135,7 +135,7 @@ test.describe('one puzzle, end to end', () => {
     await enter(page, pair.cell, pair.digit);
 
     const coach = await openCoach(page);
-    await coach.getByRole('button', { name: 'Check my notes' }).click();
+    await coach.getByRole('button', { name: 'Check notes' }).click();
     // `coach.marksNeedLook` — what this used to assert — stopped rendering when
     // the report became something that ages: the panel now counts what is still
     // open against what it found. The claim is the same one, in the copy the
