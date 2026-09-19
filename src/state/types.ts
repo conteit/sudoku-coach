@@ -124,7 +124,7 @@ export interface PlayerProfile {
      * Off means the app does not flag them *anywhere* — no strike-through, no
      * amber key on the pad, no eraser in the coach panel. A control offering
      * to clear something the board never marked is a control with no visible
-     * referent. "Check my notes" still finds them, which is the path that was
+     * referent. "Check notes" still finds them, which is the path that was
      * always meant to.
      */
     markDeadNotes: boolean;

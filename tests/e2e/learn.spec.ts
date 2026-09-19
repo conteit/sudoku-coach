@@ -69,7 +69,7 @@ test('a named technique links from the coach panel to its lesson', async ({ page
   await coach.getByRole('button', { name: 'Where should I look?' }).click();
 
   // Level 1 names nothing, so there is nothing to link to yet (R7).
-  await expect(coach.getByRole('button', { name: 'What is this technique?' })).toHaveCount(0);
+  await expect(coach.getByRole('button', { name: 'Lesson' })).toHaveCount(0);
 
   await coach.getByRole('button', { name: /Name the technique/ }).click();
 
@@ -83,7 +83,7 @@ test('a named technique links from the coach panel to its lesson', async ({ page
   const technique = hintText.match(/^(.+?)\s(?:in|on)\s/)?.[1];
   expect(technique, `could not read a technique name out of hint text: "${hintText}"`).toBeTruthy();
 
-  await coach.getByRole('button', { name: 'What is this technique?' }).click();
+  await coach.getByRole('button', { name: 'Lesson' }).click();
 
   // Unscoped, `level: 1` would find Learn's own page heading at laptop/wide
   // ("Learn") and pass without ever looking at the lesson — the same bug

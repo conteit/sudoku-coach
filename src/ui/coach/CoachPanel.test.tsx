@@ -245,7 +245,7 @@ describe('the way into the lesson', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'What is this technique?' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lesson' })).toBeNull();
   });
 
   it('opens the named technique during a drill, with no hint on screen', async () => {
@@ -261,7 +261,7 @@ describe('the way into the lesson', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'What is this technique?' }));
+    await user.click(screen.getByRole('button', { name: 'Lesson' }));
     expect(onLearn).toHaveBeenCalledWith('hidden_single');
   });
 });
@@ -357,7 +357,7 @@ describe('setting a finding aside', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /show me another/i }));
+    await user.click(screen.getByRole('button', { name: /Show another/i }));
     expect(onAnother).toHaveBeenCalledOnce();
   });
 
@@ -373,7 +373,7 @@ describe('setting a finding aside', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: /show me another/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Show another/i })).toBeNull();
   });
 });
 
@@ -746,7 +746,7 @@ describe('a board that cannot be finished', () => {
   it('still offers the note check, which reads only the player own marks', () => {
     render(<CoachPanel {...base} unfinishable onReviewCandidates={() => undefined} />);
 
-    expect(screen.getByRole('button', { name: 'Check my notes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check notes' })).toBeInTheDocument();
   });
 
   it('offers a hint again once the board is finishable', () => {
@@ -769,7 +769,7 @@ describe('a board that cannot be finished', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'Not that one — show me another' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show another' })).toBeNull();
   });
 
   it('offers another hint on a board that can still be finished', () => {
@@ -778,7 +778,7 @@ describe('a board that cannot be finished', () => {
     render(<CoachPanel {...base} hint={hintAt(1, 'Look at box 4.')} onAnother={() => undefined} />);
 
     expect(
-      screen.getByRole('button', { name: 'Not that one — show me another' }),
+      screen.getByRole('button', { name: 'Show another' }),
     ).toBeInTheDocument();
   });
 
@@ -843,5 +843,74 @@ describe('suggestions and corrections do not look alike', () => {
     render(<CoachPanel hint={null} onAsk={vi.fn()} onEscalate={vi.fn()} exhausted />);
     expect(screen.getByText(/nothing further here/i)).toBeTruthy();
     expect(screen.queryByText(/cannot go on your notes/i)).toBeNull();
+  });
+});
+
+/**
+ * Paolo, twice: "in coach I feel like there are lot of controls but are not
+ * very identifiable", then "text written in bold is not always clear is an
+ * action we can take" and "on phone shall take not much area on the screen".
+ *
+ * Eight actions can be in this footer at once. They were one wrapping row of
+ * `ghost` `lg` buttons — transparent to the paper, no border, told apart from
+ * the ladder by colour alone — so they read as bold prose, and each one took
+ * a line of a sheet that is already covering the board.
+ *
+ * These pin what replaced it. Every other test in this file asks whether a
+ * button *exists*, and it would under any of the arrangements tried here;
+ * none of them can see the defect Paolo reported.
+ */
+describe('the footer reads as controls, and takes as little room as it can', () => {
+  const speaking = (
+    <CoachPanel
+      hint={hintAt(2, 'Hidden single: a digit with only one home left.')}
+      onAsk={() => undefined}
+      onEscalate={() => undefined}
+      onReviewCandidates={() => undefined}
+      onAnother={() => undefined}
+      onDismissHint={() => undefined}
+      onLearn={() => undefined}
+    />
+  );
+
+  const footerButtons = () =>
+    screen
+      .getAllByRole('button')
+      .filter((button) => !/close/i.test(button.getAttribute('aria-label') ?? ''));
+
+  it('draws every action as a box, never as bare text', () => {
+    render(speaking);
+
+    // The affordance, asserted the only way jsdom can: a control here has a
+    // border. `ghost` has `border-transparent`, which is what made a row of
+    // them look like a paragraph in bold.
+    for (const button of footerButtons()) {
+      expect(button.className).not.toMatch(/border-transparent/);
+    }
+  });
+
+  it('gives the ladder the width, and nothing else', () => {
+    render(speaking);
+    const [ladder, ...rest] = footerButtons();
+
+    // The one control the product is about fills its line, which is what says
+    // "this is the thing" now that no rule is drawn under it. Everything else
+    // shares rows, and that sharing is the whole of the space saving.
+    expect(ladder).toHaveAccessibleName(/Show me the cells/);
+    expect(ladder.className).toMatch(/w-full/);
+    for (const button of rest) expect(button.className).not.toMatch(/w-full/);
+  });
+
+  it('keeps the ways out after the ways further in', () => {
+    render(speaking);
+    const names = footerButtons().map((button) => button.textContent ?? '');
+
+    // Order is what separates them now that the rule between them is gone.
+    expect(names.findIndex((name) => /Check notes/.test(name))).toBeLessThan(
+      names.findIndex((name) => /Take it from here/.test(name)),
+    );
+    expect(names.findIndex((name) => /Show another/.test(name))).toBeLessThan(
+      names.findIndex((name) => /Take it from here/.test(name)),
+    );
   });
 });

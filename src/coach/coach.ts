@@ -380,7 +380,7 @@ export function createCoach({ cells, locale, library }: CoachOptions): Coach {
    * The bug this fixes was reported from a real board. The player had worked
    * five techniques' worth of eliminations into his notes; the engine, seeing
    * only the values, kept offering the first of them back to him and made him
-   * press "show me another" five times to reach the x-wing that was actually
+   * press "show another" five times to reach the x-wing that was actually
    * the next move. Preferring an unspent finding is the whole fix.
    *
    * When everything left is spent, the answer is **nothing** — the caller's
