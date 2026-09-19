@@ -950,4 +950,38 @@ test.describe('claiming a technique', () => {
     await expect(page.getByRole('group', { name: /^Keypad/ })).toBeVisible();
     expect(await grid.boundingBox()).toEqual(before);
   });
+
+  test('draws the pattern on the cells it names, not near them', async ({ page }) => {
+    // Portrait, and that is the point. The overlay sits in the board's *slot*,
+    // which is square only when the board is what constrains it: here the slot
+    // keeps the height nobody else claimed, and an SVG stretched to it centres
+    // its 9x9 viewBox in a 369x558 box. Every ring landed 93px — about two
+    // rows — below the cell it named, and the chips in the panel named the
+    // right cells the whole time. Landscape is square, so it drew correctly
+    // there, which is where it was looked at.
+    await page.setViewportSize({ width: 393, height: 852 });
+    await startEasyGame(page);
+
+    const coach = await openCoach(page);
+    await coach.getByRole('button', { name: /spotted something/ }).click();
+    const claim = page.getByRole('region', { name: 'Your claim' });
+    await claim.getByRole('button', { name: 'Show every technique' }).click();
+    await claim.getByRole('button', { name: 'X-Wing', exact: true }).click();
+
+    const target = (await readBoard(page)).findIndex((cell) => cell.value === null);
+    expect(target).toBeGreaterThanOrEqual(0);
+    await boardCell(page, target).click();
+
+    const cell = await boardCell(page, target).boundingBox();
+    const ring = await page.locator('main svg[viewBox="0 0 9 9"] circle').first().boundingBox();
+    expect(cell).not.toBeNull();
+    expect(ring).not.toBeNull();
+
+    // Centres within a few pixels: the ring is drawn slightly inside the cell,
+    // so this is about where it is centred, not how big it is.
+    const dx = ring!.x + ring!.width / 2 - (cell!.x + cell!.width / 2);
+    const dy = ring!.y + ring!.height / 2 - (cell!.y + cell!.height / 2);
+    expect(Math.abs(dx)).toBeLessThan(6);
+    expect(Math.abs(dy)).toBeLessThan(6);
+  });
 });
