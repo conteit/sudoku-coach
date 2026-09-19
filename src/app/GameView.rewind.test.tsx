@@ -405,7 +405,7 @@ describe('the amber rewind', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Where should I look?' }));
     expect(
-      await screen.findByRole('button', { name: 'Not that one — show me another' }),
+      await screen.findByRole('button', { name: 'Show another' }),
     ).toBeInTheDocument();
     // The panel is speaking, so its resting prose is not on screen.
     expect(screen.queryByText(/the smallest useful nudge first/)).toBeNull();
@@ -425,7 +425,7 @@ describe('the amber rewind', () => {
     });
 
     expect(await screen.findByText(/No technique can help/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Not that one — show me another' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show another' })).toBeNull();
     // Back to rest: the hint text is gone, not merely covered.
     expect(screen.getByText(/the smallest useful nudge first/)).toBeInTheDocument();
   });
