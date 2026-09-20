@@ -197,6 +197,11 @@ function CellImpl({
       data-match={has(flags, CELL_MATCH) || undefined}
       data-excluded={has(flags, CELL_EXCLUDED) || undefined}
       data-spotlight={has(flags, CELL_SPOTLIGHT) || undefined}
+      // The bitfield itself, alongside the other layers that already publish
+      // themselves this way. A ring's meaning is carried by a border colour
+      // and a border style, and a test that reads those is a test of Tailwind;
+      // this is the fact underneath them.
+      data-mark={mark === 0 ? undefined : mark}
       data-conflict={has(flags, CELL_CONFLICT) || undefined}
       aria-selected={selected}
       aria-label={describe(t, index, value, given, marks, stale)}

@@ -30,9 +30,16 @@ test('reads the rules, the ladder and a technique lesson', async ({ page }, test
   await expect(page.getByText('What it is')).toBeVisible();
   await expect(page.getByText('Why it works')).toBeVisible();
 
-  // The worked example is a real board rendered from the lesson's own grid.
+  // The worked example is a real board rendered from the lesson's own grid,
+  // and it is marked in the same language the board uses for a claim: the two
+  // cells of the pair are rings (mark 1 = present, nothing else), not the
+  // coach's amber spotlight and not targets. A hidden pair is the case that
+  // catches a drawing that confuses a pattern with its own consequence — its
+  // eliminations fall inside its own two cells.
   await expect(page.getByRole('grid', { name: 'Hidden pair' })).toBeVisible();
-  await expect(page.locator('[data-spotlight]')).toHaveCount(2);
+  await expect(page.locator('[data-spotlight]')).toHaveCount(0);
+  await expect(page.locator('[data-mark]')).toHaveCount(2);
+  await expect(page.locator('[data-mark="1"]')).toHaveCount(2);
 });
 
 test('keeps the index on screen while a lesson opens beside it', async ({ page }, testInfo) => {

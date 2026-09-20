@@ -98,3 +98,25 @@ export const exampleMarks = (lesson: Lesson): Map<CellIndex, Digit[]> => {
   }
   return marks;
 };
+
+/**
+ * The example's cells split into the parts the board draws differently: the
+ * pattern itself, the one cell inside it that plays a different part, and the
+ * cells the pattern takes a digit away from.
+ *
+ * `targets` is derived rather than authored — it is whatever `highlight` holds
+ * that the pattern is not built of. That derivation *is* the rule: a hidden
+ * pair's eliminations fall inside the pair's own two cells, and those cells
+ * have to keep reading as the pair rather than as something being cleared.
+ */
+export const exampleRoles = (
+  lesson: Lesson,
+): { pattern: CellIndex[]; pivot: CellIndex | null; targets: CellIndex[] } => {
+  const pattern = lesson.example.pattern.map(parseCellName);
+  const inPattern = new Set(pattern);
+  return {
+    pattern,
+    pivot: lesson.example.pivot === undefined ? null : parseCellName(lesson.example.pivot),
+    targets: (lesson.example.highlight as CellIndex[]).filter((cell) => !inPattern.has(cell)),
+  };
+};

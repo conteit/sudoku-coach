@@ -645,31 +645,55 @@ has already read the front door.
 
 ## Claims are drawn, not described
 
-Three claim shapes, one drawing language, and `ExerciseView` uses it too.
+Three claim shapes, one drawing language, in four places: a claim in progress,
+the coach's "show me the cells", `ExerciseView`, and a lesson's worked example.
 
 | Mark | Means |
 | --- | --- |
-| a ring | a cell the player named |
-| two tones | the pattern **divides** — and nothing else means that |
+| a ring | a cell the pattern is **built of** |
+| an amber square | a cell the pattern takes a digit **away from** — and nothing else is amber |
+| the ring's colour | a colouring's two tints, alternating. Only a chain has this |
+| a dashed ring | a wing, as against the pivot it hangs off. Only a wing has this |
 | a line | a link the technique actually claims |
+| a numbered chip | where in a chain the cell falls |
 
-So a fish's corners share one tone and draw no lines, because they are
-interchangeable and the pattern claims no links between them; an XY-Wing's
-pivot takes the second tone and its two links are drawn; a colouring
-alternates, which is the same statement made link by link. A broken link is
-drawn as the link that broke, which is why the sentence does not have to count
-anything — an earlier version numbered every node so the verdict could say
-"between 3 and 4", which was a drawing problem being solved with a sentence.
+Two channels, one distinction each, and neither borrows the other. Colour is
+the colouring's because that technique *is* two colours; saying so with a
+stroke would describe the idea in a channel that is not the idea. Stroke is
+therefore free for the one distinction that has no colour: the wing's pivot.
+So a fish's corners are four identical rings, because they are interchangeable
+and the pattern claims no links between them.
 
-`PatternOverlay` is an overlay rather than cell tints for two reasons.
-`Cell.tsx` paints exactly one wash and the stack is full, so a chain would be
-fighting the selection, the peer shading and the green — and `excluded` and
-`match` are already separated by opacity alone. But mostly **the links are the
-technique**: a colouring drawn as coloured cells is a bag of cells again.
+The pivot is drawn only once a claim has been **checked** — at most one of
+three cells can be the pivot, nobody is asked which, and a board that implied
+an answer it had not been given would be answering for the player. A broken
+link is drawn as the link that broke, which is why the verdict does not have
+to count anything: an earlier version numbered every node so it could say
+"between 3 and 4", which was a drawing problem solved with a sentence.
 
-It knows nothing about pivots or conjugate pairs — it takes tones and links,
-the division `CoachPanel` keeps. `ui/claim/shape.ts` holds the per-technique
-rule, in one place.
+**The marks live in `Cell`, the chrome in `PatternOverlay`.** A ring belongs
+to a cell, so it has to paint *under* that cell's digit and pencil marks —
+Paolo: "ok the circle, but probably it should be below the numbers in the
+cell" — and nothing stuck on top of the grid can do that at any z-index. The
+links and the chips stay in the overlay, because **the links are the
+technique**: a colouring drawn as coloured cells is a bag of cells again. The
+chips are inverted discs on a cell *vertex*, which is the one point on the
+grid that belongs to no pencil-mark slot, so a chip can never be misread as
+content.
+
+`ui/claim/shape.ts` holds the per-technique rule and the technique→shape
+mapping, in one place, so the four call sites cannot drift. The overlay itself
+still knows nothing about pivots or conjugate pairs — the division
+`CoachPanel` keeps.
+
+A lesson's example joins this through its own data rather than a second
+mechanism: `Lesson.example.pattern` names the cells the technique is built of
+(in the order the argument runs, where the order is part of it) and `pivot`
+names the one that plays a different part. Everything else in `highlight` is a
+target. The pattern wins where the two overlap — a hidden pair's eliminations
+fall inside its own two cells, and those cells still have to read as the pair.
+`lessons.test.ts` checks the authored split against the same claim it
+re-derives from the grid, so the picture and the proof cannot disagree.
 
 **The claim takes the keypad's slot** (`PAD_SLOT`), which is the whole
 placement argument: a claim places no digits, so the pad is exactly the space

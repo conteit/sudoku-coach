@@ -26,6 +26,22 @@ export interface Lesson {
     /** Candidate overrides so the example reads without a full solve. */
     marks?: Record<string, number[]>;
     highlight: number[];
+    /**
+     * The cells the pattern is *built of*, named as `marks` names them and in
+     * the order the argument runs where the order is part of it — a
+     * colouring's chain is read start to end, a fish's corners are not read in
+     * any order at all.
+     *
+     * A subset of `highlight`; whatever `highlight` holds beyond it is what
+     * the pattern takes a digit away from. The split is what lets Learn draw
+     * an example in the same language the board uses when a player claims a
+     * technique, instead of one undifferentiated highlight. The pattern wins
+     * where the two would overlap: a hidden pair loses its own candidates, and
+     * those two cells still have to read as the pair.
+     */
+    pattern: string[];
+    /** The one cell that plays a different part, where the shape has one. */
+    pivot?: string;
     caption: string;
   };
   /**

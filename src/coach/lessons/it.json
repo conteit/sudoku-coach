@@ -8,6 +8,7 @@
     "example": {
       "grid": ".5769.821961528437.2.17.965.36..759..98..637.74293561.275469183.8..51.49.19..2.56",
       "marks": { "r4c1": [1] },
+      "pattern": ["r4c1"],
       "highlight": [27],
       "caption": "Tutte le cifre tranne l’1 compaiono già nella riga 4, nella colonna 1 o nel riquadro 4: a r4c1 resta un solo candidato."
     },
@@ -27,6 +28,7 @@
     "example": {
       "grid": "7..65.1235.623.497.2.79.658..89.6245.5.84237...25.398..6.485712..7329564245167839",
       "marks": { "r6c1": [1, 4, 6] },
+      "pattern": ["r6c1"],
       "highlight": [45],
       "caption": "Alla riga 6 manca ancora il 4 e ogni sua cella vuota ne vede già uno, tranne r6c1, che porta anche 1 e 6."
     },
@@ -46,6 +48,7 @@
     "example": {
       "grid": "5691.324..879246...42..6..92.849716.4.62.19..791.654.2624..8791815749326973612..4",
       "marks": { "r3c4": [5, 8], "r3c5": [5, 7, 8], "r3c7": [5, 8], "r3c8": [1, 3, 5, 7, 8] },
+      "pattern": ["r3c4", "r3c7"],
       "highlight": [21, 22, 24, 25],
       "caption": "r3c4 e r3c7 sono ridotte entrambe a 5 e 8, quindi la riga 3 spende lì tutte e due le cifre: il 5 e l’8 se ne vanno da r3c5 e r3c8."
     },
@@ -65,6 +68,7 @@
     "example": {
       "grid": "781639...5364271899241856..24839.7...5927.....678549.267591..4.49356....812743596",
       "marks": { "r5c7": [3, 4, 8], "r5c9": [1, 3, 4, 8] },
+      "pattern": ["r5c7", "r5c9"],
       "highlight": [42, 44],
       "caption": "Nella riga 5 il 4 e l’8 compaiono solo in r5c7 e r5c9. La coppia si prende entrambe le celle: il 3 lascia r5c7, l’1 e il 3 lasciano r5c9."
     },
@@ -84,6 +88,7 @@
     "example": {
       "grid": "...6927137..841956916...2486472351893..91867419876453226.4..89.5.9.8642.....2936.",
       "marks": { "r7c5": [5, 7], "r7c6": [3, 7], "r7c9": [1, 5, 7] },
+      "pattern": ["r7c5", "r7c6"],
       "highlight": [58, 59, 62],
       "caption": "Nel riquadro 8 il 7 sopravvive solo in r7c5 e r7c6, entrambe nella riga 7. La riga 7 riceverà il suo 7 dal riquadro 8, quindi il 7 se ne va da r7c9."
     },
@@ -103,6 +108,7 @@
     "example": {
       "grid": "84..2..67.79.68243362.47.1879...41.6.2468.73963..794.59.38.26742874963514.67..892",
       "marks": { "r7c5": [1, 5], "r9c5": [1, 3, 5], "r9c6": [1, 3, 5] },
+      "pattern": ["r7c5", "r9c5"],
       "highlight": [58, 76, 77],
       "caption": "La colonna 5 può prendere il suo 1 solo in r7c5 o in r9c5, e stanno tutte e due nel riquadro 8. Il riquadro 8 spende lì il suo 1, quindi l’1 se ne va da r9c6."
     },
@@ -130,6 +136,7 @@
         "r8c4": [3, 4, 6, 8, 9],
         "r9c4": [3, 4, 6]
       },
+      "pattern": ["r2c4", "r7c4", "r9c4"],
       "highlight": [3, 12, 21, 39, 57, 66, 75],
       "caption": "Lungo la colonna 4, r2c4 porta 3 e 6, r7c4 porta 3 e 4, r9c4 porta 3, 4 e 6: tre celle e fra tutte solo 3, 4 e 6. Quelle cifre se ne vanno da r1c4, r3c4, r5c4 e r8c4."
     },
@@ -149,6 +156,7 @@
     "example": {
       "grid": "...6193..96.873.121372546987.953.2.16.3.27.89....9.73.3987651245..3829..276941853",
       "marks": { "r5c2": [1, 4, 5], "r6c2": [1, 2, 4, 5, 8], "r6c3": [1, 2, 4, 5] },
+      "pattern": ["r5c2", "r6c2", "r6c3"],
       "highlight": [37, 46, 47],
       "caption": "Nel riquadro 4 l’1, il 2 e il 5 compaiono solo in r5c2, r6c2 e r6c3. Le tre celle appartengono a loro: il 4 lascia tutte e tre, l’8 lascia r6c2."
     },
@@ -175,6 +183,7 @@
         "r8c5": [1, 2, 6],
         "r9c5": [4, 6, 9]
       },
+      "pattern": ["r2c5", "r3c5", "r4c5", "r7c5"],
       "highlight": [13, 22, 31, 58, 67, 76],
       "caption": "Nella colonna 5, r2c5 porta 5 e 7, r3c5 porta 1 e 5, r4c5 e r7c5 portano 1, 7 e 9: quattro celle e fra tutte solo 1, 5, 7 e 9. L’1 se ne va da r8c5 e il 9 da r9c5."
     },
@@ -201,6 +210,7 @@
         "r8c4": [2, 7],
         "r8c9": [1, 2]
       },
+      "pattern": ["r5c4", "r5c9", "r8c4", "r8c9"],
       "highlight": [39, 44, 48, 57, 66, 71],
       "caption": "Il 2 sta in esattamente due celle della riga 5 e in due della riga 8, e tutte e quattro cadono nelle colonne 4 e 9. I quattro vertici si prendono entrambe le colonne, quindi il 2 se ne va da r6c4 e r7c4."
     },
@@ -226,6 +236,8 @@
         "r3c4": [2, 6],
         "r3c7": [6, 9]
       },
+      "pattern": ["r1c8", "r1c4", "r3c7"],
+      "pivot": "r1c8",
       "highlight": [3, 6, 7, 21, 24],
       "caption": "r1c8 è la cerniera, con 2 e 9. r1c4 porta 2 e 6, r3c7 porta 6 e 9: uno dei due bracci deve valere 6, quindi il 6 se ne va da r1c7 e da r3c4, che li vedono entrambi."
     },
@@ -254,6 +266,7 @@
         "r8c1": [3, 4, 5],
         "r8c2": [3, 4, 5]
       },
+      "pattern": ["r3c1", "r3c9", "r6c2", "r6c9", "r8c1", "r8c2"],
       "highlight": [0, 18, 26, 37, 46, 53, 63, 64],
       "caption": "Il 4 è confinato nelle colonne 1, 2 e 9 in ciascuna delle righe 3, 6 e 8: r3c1 e r3c9, r6c2 e r6c9, r8c1 e r8c2. Quelle tre colonne sono riempite da quelle tre righe, quindi il 4 se ne va da r1c1 e r5c2."
     },
@@ -279,6 +292,7 @@
         "r5c2": [7, 8],
         "r5c5": [5, 7]
       },
+      "pattern": ["r1c6", "r4c6", "r5c5", "r5c2"],
       "highlight": [1, 5, 32, 37, 40],
       "caption": "Per il 7, le coppie r1c6-r4c6, r4c6-r5c5 e r5c5-r5c2 sono ciascuna l’unica alternativa nella propria unità. Colorando a tinte alternate, r1c6 e r5c5 finiscono in una tinta e r4c6 e r5c2 nell’altra: r1c2 ne vede una per tinta, quindi il 7 se ne va."
     },
@@ -304,6 +318,7 @@
         "r7c1": [6, 7],
         "r7c8": [6, 9]
       },
+      "pattern": ["r1c1", "r1c9", "r2c8", "r7c8"],
       "highlight": [0, 8, 16, 54, 61],
       "caption": "r1c1, r1c9, r2c8 e r7c8 portano tutte esattamente 6 e 9, legate attraverso la riga 1, il riquadro 3 e la colonna 8. I capi r1c1 e r7c8 distano tre legami, quindi prendono cifre diverse: r7c1 li vede entrambi e perde il 6."
     },
