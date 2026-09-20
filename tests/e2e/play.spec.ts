@@ -1002,4 +1002,68 @@ test.describe('claiming a technique', () => {
     expect(Math.abs(dx)).toBeLessThan(6);
     expect(Math.abs(dy)).toBeLessThan(6);
   });
+
+  test('marks the cells without covering what is written in them', async ({ page }) => {
+    // Paolo: "please ensure numbering is not preventing me from reading the
+    // cell content". `Cell` lays its pencil marks out as a 3x3 grid filling
+    // the cell, so there is no free corner inside one — every point is inside
+    // some slot. Two things answer that, and this pins both: the ring is
+    // rendered as the cell's first child so the digits and marks paint over
+    // it, and the numbered chip sits on a vertex where four cells meet, which
+    // is the one place on the grid that belongs to no slot.
+    await page.setViewportSize({ width: 393, height: 852 });
+    await startEasyGame(page);
+
+    const empty = (await readBoard(page))
+      .map((cell, index) => ({ cell, index }))
+      .filter(({ cell }) => cell.value === null)
+      .slice(0, 3)
+      .map(({ index }) => index);
+
+    // Notes in the very cells about to be marked, or the claim has nothing to
+    // obscure and the test cannot fail.
+    await page.getByRole('button', { name: /Notes o/ }).click();
+    for (const cell of empty) {
+      await boardCell(page, cell).click();
+      for (const digit of [1, 5, 9]) {
+        await page.getByRole('button', { name: `Note ${digit}` }).click();
+      }
+    }
+    await page.getByRole('button', { name: /Notes o/ }).click();
+
+    const coach = await openCoach(page);
+    await coach.getByRole('button', { name: /spotted something/ }).click();
+    const claim = page.getByRole('region', { name: 'Your claim' });
+    await claim.getByRole('button', { name: 'Show every technique' }).click();
+    await claim.getByRole('button', { name: 'Simple colouring', exact: true }).click();
+    if (await page.getByText(/Which digit/).count()) {
+      await claim.getByRole('button', { name: '5', exact: true }).click();
+    }
+    for (const cell of empty) await boardCell(page, cell).click();
+
+    // The marks are on screen, or the assertions below are about nothing.
+    await expect(page.locator('main svg[viewBox="0 0 9 9"] circle')).not.toHaveCount(0);
+
+    for (const cell of empty) {
+      for (const digit of [1, 5, 9]) {
+        const slot = boardCell(page, cell).locator(`[data-slot="${digit}"]`);
+        const box = await slot.boundingBox();
+        expect(box).not.toBeNull();
+        const centre = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+
+        // No chip's disc may reach the middle of a note.
+        const covered = await page
+          .locator('main svg[viewBox="0 0 9 9"] circle')
+          .evaluateAll((discs, point) => {
+            return discs.some((disc) => {
+              const r = disc.getBoundingClientRect();
+              const cx = r.x + r.width / 2;
+              const cy = r.y + r.height / 2;
+              return Math.hypot(cx - point.x, cy - point.y) < r.width / 2;
+            });
+          }, centre);
+        expect(covered, `chip covers the centre of note ${digit} in cell ${cell}`).toBe(false);
+      }
+    }
+  });
 });

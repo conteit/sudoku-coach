@@ -69,6 +69,12 @@ export interface SudokuGridProps {
   onPromote?: (cell: CellIndex) => void;
   /** Coach spotlight, disclosure level 3+. */
   spotlight?: readonly CellIndex[];
+  /**
+   * Pattern marks, one bitfield per cell — see `patternMark.ts`. Indexed by
+   * cell rather than passed as a list, so a cell's mark is a primitive and the
+   * memo contract survives.
+   */
+  patternMarks?: readonly number[];
   /** Houses the coach is tinting, disclosure level 1+. */
   tintedHouses?: readonly HouseRef[];
   /** Cells to flag as duplicated. Opt-in: conflict flagging is a setting. */
@@ -172,6 +178,7 @@ export function SudokuGrid({
   onClear,
   onPromote,
   spotlight,
+  patternMarks,
   tintedHouses,
   conflicts,
   staleMarks,
@@ -362,6 +369,7 @@ export function SudokuGrid({
                 marks={masks[index]}
                 stale={staleMasks[index]}
                 flags={flags[index]}
+                mark={patternMarks?.[index] ?? 0}
                 matchDigit={
                   highlightMatches && highlightMatchingNotes && !celebrate ? highlightDigit : null
                 }

@@ -7,16 +7,18 @@
  * for a fish, numbered nodes and lines for a colouring, and a third, flatter
  * ring on the exercise screen. This is the one language:
  *
- * - **A cell you have named is a ring.** Always, in every technique.
- * - **Two tones mean the pattern divides**, and nothing else does. A fish's
- *   corners are interchangeable, so they are all one tone; an XY-Wing's pivot
- *   is not its wings, so it takes the second; a colouring alternates, which is
- *   the same statement made link by link.
- * - **A line means a link the technique actually claims.** Fish have none.
+ * What is left here is the part that is **chrome rather than content**: the
+ * links between cells, and the numbered chips that say where in a chain each
+ * cell falls. The rings and squares moved into `Cell`, because a mark that
+ * belongs to a cell has to paint *under* that cell's digits and marks, and
+ * nothing stuck on top of the grid can do that at any z-index.
  *
- * There are no numbers. They were here to make "breaks between 3 and 4"
- * countable, which was solving a problem the drawing can solve better: the
- * link that fails is simply drawn as the one that fails.
+ * The chips are **inverted** — a filled disc with a paper-coloured numeral —
+ * and sit on the vertex where four cells meet. Both decisions answer the same
+ * question, which Paolo put as "how to distinguish notes from circle number":
+ * every digit and every mark on this board is dark ink on paper, so nothing
+ * inverted can be read as content, and a vertex is the one place on the grid
+ * that belongs to no note slot.
  */
 
 import type { CellIndex } from '../../engine/types';
@@ -34,42 +36,39 @@ export interface PatternNode {
  * division `CoachPanel` keeps.
  */
 export interface PatternOverlayProps {
-  nodes: readonly PatternNode[];
   links?: readonly (readonly [CellIndex, CellIndex])[];
+  /** Where in a chain each cell falls; drawn as a chip on the cell's corner. */
+  order?: ReadonlyMap<CellIndex, number>;
   /** The one link that does not hold, drawn as the thing that failed. */
   broken?: readonly [CellIndex, CellIndex] | null;
-  /** The end a chain is being extended from. */
-  active?: CellIndex | null;
 }
-
-const INK: Record<Tone, string> = {
-  a: 'var(--color-entry)',
-  b: 'var(--color-coach)',
-};
 
 const at = (cell: CellIndex) => ({ x: (cell % 9) + 0.5, y: Math.floor(cell / 9) + 0.5 });
 
-export function PatternOverlay({ nodes, links = [], broken = null, active = null }: PatternOverlayProps) {
-  if (nodes.length === 0) return null;
+/**
+ * A vertex of the cell — where four cells meet, which is the one place on the
+ * grid that belongs to no note slot.
+ *
+ * The top-left one, except along the board's top and left edges, where it is
+ * the board's own outer corner and half the chip would be drawn outside the
+ * viewBox and clipped. There the opposite vertex is used: still a vertex, so
+ * still clear of every note, and always inside the board. Nudging it inward
+ * instead would push it onto a note's centre, which is the thing this
+ * placement exists to avoid.
+ */
+const corner = (cell: CellIndex) => {
+  const col = cell % 9;
+  const row = Math.floor(cell / 9);
+  return { x: col === 0 ? 1 : col, y: row === 0 ? 1 : row };
+};
+
+export function PatternOverlay({ links = [], order, broken = null }: PatternOverlayProps) {
+  const chips = [...(order ?? new Map())];
+  if (links.length === 0 && chips.length === 0) return null;
+
   const isBroken = (a: CellIndex, b: CellIndex) =>
     broken !== null && ((broken[0] === a && broken[1] === b) || (broken[0] === b && broken[1] === a));
 
-  /*
-   * `aspect-square` and pinned to the top, **not** `inset-0 h-full`.
-   *
-   * The box this sits in is the board's *slot*, which is the same shape as
-   * the board only when the board is what constrains it. On a phone in
-   * portrait the slot is bound by width and keeps the height nobody else
-   * claimed — measured 369x558 around a 369x369 grid — and an SVG stretched
-   * to that box scales its 9x9 viewBox to the width and then *centres* it
-   * vertically, which is what `preserveAspectRatio` does by default. Every
-   * ring it drew sat 93px, about two rows, below the cell it named. Landscape
-   * is square, so the two coincide there, and landscape is where it was
-   * checked.
-   *
-   * Squaring the element to the width makes the viewBox the grid's own
-   * coordinate space again, in every arrangement.
-   */
   return (
     <svg
       viewBox="0 0 9 9"
@@ -94,20 +93,28 @@ export function PatternOverlay({ nodes, links = [], broken = null, active = null
           />
         );
       })}
-      {nodes.map(({ cell, tone }) => {
-        const point = at(cell);
+      {chips.map(([cell, position]) => {
+        const point = corner(cell);
         return (
-          <circle
-            key={cell}
-            cx={point.x}
-            cy={point.y}
-            r={0.36}
-            fill="none"
-            stroke={INK[tone]}
-            // The end you are extending, so a chain says which way it grows
-            // without numbering every cell to do it.
-            strokeWidth={cell === active ? 0.13 : 0.075}
-          />
+          <g key={cell}>
+            {/* `Cell` lays its marks out as a 3x3 grid with `p-[6%]`, which
+                puts a slot's centre 0.207 of a cell in from the corner on
+                *each axis* — so the distance from the vertex to the nearest
+                note is the diagonal, 0.29, not 0.207. Sized against that:
+                0.19 keeps a tenth of a cell of clearance and still gives the
+                numeral room to be read at phone size. */}
+            <circle cx={point.x} cy={point.y} r={0.19} fill="var(--color-entry)" />
+            <text
+              x={point.x}
+              y={point.y + 0.08}
+              textAnchor="middle"
+              fill="var(--color-paper-raised)"
+              fontSize={0.26}
+              fontWeight={700}
+            >
+              {position}
+            </text>
+          </g>
         );
       })}
     </svg>

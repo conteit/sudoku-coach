@@ -58,7 +58,7 @@ import { SudokuGrid } from '../ui/board/SudokuGrid';
 // claim flow uses gives them the same two tones there as here, which is the
 // consistency Paolo asked for and, on this screen, also a straight
 // improvement: the thing being taught is now drawn.
-import { PatternOverlay, type PatternNode } from '../ui/claim/PatternOverlay';
+import { MARK_DOTTED, MARK_LEAD, MARK_ON } from '../ui/board/patternMark';
 import { Keypad } from '../ui/keypad/Keypad';
 import { ExercisePanel } from '../ui/learn/ExercisePanel';
 import { LessonBody } from '../ui/learn/LessonBody';
@@ -261,18 +261,19 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
   const spotlight = useMemo(() => [...new Set(hint?.spotlight ?? [])], [hint]);
 
   /**
-   * Tone by role, on the rule the overlay is built around: one tone unless the
-   * pattern genuinely divides, and then the distinguished role takes the
-   * second. Only XY-Wing divides, which is `roles.ts`'s own finding.
+   * The cells the player has named, as marks the board draws under its own
+   * content. Only XY-Wing divides, which is `roles.ts`'s own finding — its
+   * pivot is the one cell doing something different, so it is the one that
+   * reads heavier.
    */
-  const named = useMemo<PatternNode[]>(
-    () =>
-      (session?.named ?? []).map((cell) => ({
-        cell,
-        tone: session?.roles.find((role) => role.cells.includes(cell))?.id === 'pivot' ? 'b' : 'a',
-      })),
-    [session?.named, session?.roles],
-  );
+  const named = useMemo(() => {
+    const marks = new Array(81).fill(0);
+    for (const cell of session?.named ?? []) {
+      const role = session?.roles.find((entry) => entry.cells.includes(cell))?.id;
+      marks[cell] = MARK_ON | (role === 'pivot' ? MARK_LEAD : role === 'wings' ? MARK_DOTTED : 0);
+    }
+    return marks;
+  }, [session?.named, session?.roles]);
 
   const title =
     technique !== null
@@ -395,8 +396,8 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
           highlightMatchingNotes={profile.settings.highlightMatchingNotes}
           shadeDigitPeers={profile.settings.shadeDigitPeers}
           colorEntries={profile.settings.colorEntries}
+          patternMarks={named}
         />
-        <PatternOverlay nodes={named} />
       </div>
     </div>
   );
