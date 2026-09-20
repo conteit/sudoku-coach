@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { Board } from './board';
 import { EXAMPLES, PUZZLES } from './techniques/fixtures';
 import { CATALOG } from './techniques';
-import { colouringClaim, xWingHolds, xyWingClaim } from './claim';
+import { colouringClaim, colouringHolds, xWingHolds, xyWingClaim } from './claim';
 
 // `fish.test.ts` proves the detector finds exactly this: a 2 in r2c4, r2c6,
 // r4c4, r4c6, based on columns 4 and 6, eliminating r2c1 and r2c2.
@@ -82,7 +82,7 @@ const CHAIN = [15, 16, 43, 37, 46, 51];
 describe('the colouring verifier', () => {
   it('accepts the chain the detector proves something from', () => {
     const values = Board.fromString(EXAMPLES.simple_coloring).values;
-    expect(colouringClaim(values, 3, CHAIN)).toEqual({ kind: 'proves', cells: 1 });
+    expect(colouringClaim(values, 3, CHAIN)).toEqual({ kind: 'proves', digits: [3], eliminations: 1 });
   });
 
   it('says a real chain that proves nothing is barren, not broken', () => {
@@ -110,7 +110,7 @@ describe('the colouring verifier', () => {
     // two end cells wear the same colour and share a house, so that colour is
     // the false one and both give the digit up.
     const values = Board.fromString(PUZZLES[0].givens).values;
-    expect(colouringClaim(values, 7, [24, 26, 17])).toEqual({ kind: 'proves', cells: 2 });
+    expect(colouringClaim(values, 7, [24, 26, 17])).toEqual({ kind: 'proves', digits: [7], eliminations: 2 });
   });
 
   it('refuses a chain too short to be one', () => {
@@ -221,5 +221,54 @@ describe('the verifiers agree with the detectors they shadow', () => {
     // Without this the test passes on a board where no detector fires at all,
     // which is the shape of an assertion that cannot fail.
     expect(checked).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The digit is never asked for. A chain's links are houses in which some digit
+ * has exactly two homes, so a chain only works for a digit that makes *every*
+ * link conjugate — the cells determine it, as four corners determine a fish's.
+ */
+describe('a chain knows its own digit', () => {
+  it('finds the digit the chain is about', () => {
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    expect(colouringHolds(values, CHAIN)).toEqual({ kind: 'proves', digits: [3], eliminations: 1 });
+  });
+
+  it('reports the digit that proves something, not merely one that fits', () => {
+    // In `EXAMPLES.remote_pairs` these three cells are a valid chain for both
+    // the 1 and the 4 — the links are conjugate pairs either way — but only
+    // the 1 eliminates anything. A verdict naming the 4 would be true and
+    // useless.
+    //
+    // Measured across the fixtures: 18 of 1,216 chains are valid for two
+    // digits like this, and **none proves for two**. The verdict still
+    // carries a list rather than one digit, because nothing rules that case
+    // out mathematically — but it is honest to record that the multi-digit
+    // branch is not exercised by any board in this repo.
+    const values = Board.fromString(EXAMPLES.remote_pairs).values;
+    expect(colouringHolds(values, [63, 9, 10])).toEqual({
+      kind: 'proves',
+      digits: [1],
+      eliminations: 2,
+    });
+  });
+
+  it('reports the break from the digit that got furthest', () => {
+    // r1c1, r1c9, r1c7 in `EXAMPLES.naked_single` break at link 1 for some
+    // digits and at link 2 for others. A chain that holds for nothing still
+    // has a most plausible reading, and that is the one the player building
+    // it had in mind — telling them the first link failed, when their digit
+    // got past it, points at the wrong place.
+    const values = Board.fromString(EXAMPLES.naked_single).values;
+    expect(colouringHolds(values, [0, 8, 6])).toEqual({ kind: 'broken', link: 2 });
+  });
+
+  it('still refuses a chain too short to be one', () => {
+    const values = Board.fromString(EXAMPLES.simple_coloring).values;
+    // `link` is the chain's own length here, as the per-digit check reports
+    // it; the panel disables Check below three cells, so this is the
+    // verifier's answer rather than anything a player sees.
+    expect(colouringHolds(values, [CHAIN[0], CHAIN[1]])).toEqual({ kind: 'broken', link: 2 });
   });
 });
