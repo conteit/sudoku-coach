@@ -62,7 +62,7 @@ import { GameLayout } from './GameLayout';
 // asking the coach for one.
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
 import { PatternOverlay } from '../ui/claim/PatternOverlay';
-import { drawingOf, type ClaimShape } from '../ui/claim/shape';
+import { drawingOf, shapeOf, type ClaimShape } from '../ui/claim/shape';
 import { CLAIMABLE, colouringHolds, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
 import { DIGITS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
@@ -219,14 +219,7 @@ export function GameView({
     [locale],
   );
 
-  const claimShape: ClaimShape | null =
-    claim === null
-      ? null
-      : claim.technique === 'simple_coloring'
-        ? 'chain'
-        : claim.technique === 'xy_wing'
-          ? 'wing'
-          : 'set';
+  const claimShape: ClaimShape | null = claim === null ? null : shapeOf(claim.technique);
   // The coach's own open/closed state, not derived from `speaking`: opening
   // the sheet is how the player asks to be spoken to, and closing it is a
   // deliberate dismissal — neither should flip because a hint arrived.

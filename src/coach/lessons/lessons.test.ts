@@ -34,7 +34,7 @@ import { TECHNIQUE_IDS, type TechniqueId } from '../../engine/types';
 import type { Locale } from '../../state/types';
 import type { Lesson } from '../types';
 import { CHAIN_TECHNIQUES, HINT_TOKENS, TOKENS_ALLOWED_BY_LEVEL } from '../types';
-import { exampleMarks, loadLessons, parseCellName } from './index';
+import { exampleMarks, exampleRoles, loadLessons, parseCellName } from './index';
 
 const LOCALES: readonly Locale[] = ['en', 'it'] as const;
 const LEVELS = ['1', '2', '3', '4'] as const;
@@ -336,6 +336,22 @@ const claimPatternCells = (claim: Claim): string[] => {
   }
 };
 
+/**
+ * The pattern in the order the argument runs, for the shapes where the order
+ * is part of it. A colouring's claim carries its cells as two tints, which is
+ * what proves it; the board draws it as a walk, which is what teaches it, and
+ * the walk is the links read end to end.
+ */
+const claimDrawnOrder = (claim: Claim): string[] => {
+  if (claim.kind !== 'coloring') return claimPatternCells(claim);
+  const walk = [claim.links[0][0]];
+  for (const [from, to] of claim.links) {
+    expect(from, 'the authored links are not a single walk').toBe(walk[walk.length - 1]);
+    walk.push(to);
+  }
+  return walk;
+};
+
 const claimEliminations = (claim: Claim): readonly Elim[] =>
   'eliminations' in claim ? claim.eliminations : [];
 
@@ -385,6 +401,8 @@ describe('lesson library coverage', () => {
     const it = lessonsFor('it')[id].example;
     expect(it.grid).toBe(en.grid);
     expect(it.highlight).toEqual(en.highlight);
+    expect(it.pattern).toEqual(en.pattern);
+    expect(it.pivot).toBe(en.pivot);
     expect(it.marks).toEqual(en.marks);
     // The caption is the one part that is genuinely rewritten per locale.
     expect(it.caption).not.toBe(en.caption);
@@ -539,6 +557,36 @@ describe('worked examples are real positions', () => {
     }
     // Every highlighted cell is marked, so the mini board reads on its own.
     expect([...exampleMarks(lesson).keys()].sort((a, b) => a - b)).toEqual(expected);
+  });
+
+  // `highlight` says which cells the example is about; `pattern` says which of
+  // them the technique is *built of*, and that is what Learn draws as rings
+  // rather than as amber squares. Checked against the same re-derived claim,
+  // so the picture and the proof cannot drift apart.
+  it.each(everyLesson())('%s/%s names the pattern the claim is built of, in its own order', (locale, id, lesson) => {
+    const claim = CLAIMS[id];
+    expect(lesson.example.pattern, `${locale}/${id}`).toEqual(claimDrawnOrder(claim));
+    const pattern = lesson.example.pattern.map(parseCellName);
+    // A subset of `highlight`, and everything else in `highlight` is a target.
+    for (const cell of pattern) expect(lesson.example.highlight).toContain(cell);
+    expect(new Set(pattern).size, `${locale}/${id} repeats a cell`).toBe(pattern.length);
+    const targets = exampleRoles(lesson).targets;
+    const proved = [
+      ...new Set(claimEliminations(claim).map(([cell]) => parseCellName(cell))),
+    ].filter((cell) => !pattern.includes(cell));
+    expect(targets.slice().sort((a, b) => a - b), `${locale}/${id}`).toEqual(
+      proved.sort((a, b) => a - b),
+    );
+  });
+
+  it.each(everyLesson())('%s/%s names a pivot exactly where the shape has one', (locale, id, lesson) => {
+    const claim = CLAIMS[id];
+    if (claim.kind === 'xy_wing') {
+      expect(lesson.example.pivot, `${locale}/${id}`).toBe(claim.pivot);
+      expect(lesson.example.pattern).toContain(claim.pivot);
+    } else {
+      expect(lesson.example.pivot, `${locale}/${id} invents a pivot`).toBeUndefined();
+    }
   });
 });
 

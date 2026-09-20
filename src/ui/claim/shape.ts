@@ -6,9 +6,25 @@
  */
 
 import { MARK_ALT, MARK_DASHED, MARK_ON, MARK_TARGET } from '../board/patternMark';
-import type { CellIndex } from '../../engine/types';
+import type { CellIndex, TechniqueId } from '../../engine/types';
+import { CHAIN_TECHNIQUES } from '../../coach/types';
 
 export type ClaimShape = 'set' | 'chain' | 'wing';
+
+/**
+ * Which of the three a technique draws as.
+ *
+ * Here rather than at a call site because there are three call sites — a claim
+ * in progress, a lesson's worked example, and the practice grid — and Paolo
+ * asked for exactly one visual language across them. A second copy of this
+ * mapping is how the three drift apart.
+ *
+ * The wing is checked before the chain because `CHAIN_TECHNIQUES` counts
+ * XY-Wing as one: it *is* a chain argument, but it is drawn as a hub and two
+ * spokes rather than as a walk, which is what a shape is about.
+ */
+export const shapeOf = (technique: TechniqueId): ClaimShape =>
+  technique === 'xy_wing' ? 'wing' : CHAIN_TECHNIQUES.includes(technique) ? 'chain' : 'set';
 
 export interface Drawing {
   /** One bitfield per cell of the board, zero where there is no mark. */

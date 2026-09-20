@@ -8,13 +8,15 @@
  */
 
 import { parseGrid } from '../../engine/board';
-import type { CellIndex, Digit } from '../../engine/types';
-import { exampleMarks } from '../../coach/lessons';
+import type { Digit } from '../../engine/types';
+import { exampleMarks, exampleRoles } from '../../coach/lessons';
 import type { Lesson } from '../../coach/types';
 import type { Translate } from '../../i18n/locale';
 import type { MessageKey } from '../../i18n/types';
 import type { MasteryStage } from '../../state/types';
 import { SudokuGrid, type GridCell } from '../board/SudokuGrid';
+import { PatternOverlay } from '../claim/PatternOverlay';
+import { drawingOf, shapeOf } from '../claim/shape';
 import { cx } from '../primitives/cx';
 
 const MASTERY_KEYS = {
@@ -72,6 +74,16 @@ export function MasteryChip({ stage, t }: { stage: MasteryStage; t: Translate })
  *
  * Every filled cell is drawn as a given: in an illustration there is no player
  * entry to distinguish, and the difference in weight would suggest one.
+ *
+ * Drawn in the same language a claim is drawn in, which is the point of it —
+ * Paolo: *"I feel the need to have consistent representation also in x and xy
+ * wing and to have this consistent with the exercise area"*, and then, of
+ * Learn: *"remember to align also learn part"*. The example used to paint
+ * every highlighted cell with the coach's amber spotlight, which said two
+ * wrong things at once: that the pattern and what it eliminates are the same
+ * kind of thing, and that amber means *look here* rather than *this cell loses
+ * a digit*. Now the pattern is rings in the drawing's own colours and only the
+ * eliminations are amber, so a lesson and a claim teach the same picture.
  */
 export function Example({ lesson }: { lesson: Lesson }) {
   const marks = exampleMarks(lesson);
@@ -80,17 +92,19 @@ export function Example({ lesson }: { lesson: Lesson }) {
     given: value !== null,
     candidates: (marks.get(index) ?? []) as Digit[],
   }));
+  const { pattern, pivot, targets } = exampleRoles(lesson);
+  const drawing = drawingOf(shapeOf(lesson.id), pattern, { pivot, targets });
 
   return (
     <figure className="mt-4">
       {/* An illustration, not a board to play: taps would only move a selection
           nobody asked for. */}
-      <div className="pointer-events-none">
+      <div className="pointer-events-none relative">
         <SudokuGrid
           cells={cells}
           selected={null}
           onSelect={() => undefined}
-          spotlight={lesson.example.highlight as CellIndex[]}
+          patternMarks={drawing.marks}
           highlightPeers={false}
           highlightMatches={false}
           /* Never in the tab order, wherever it is shown. The grid is
@@ -104,6 +118,7 @@ export function Example({ lesson }: { lesson: Lesson }) {
           focusable={false}
           label={lesson.name}
         />
+        <PatternOverlay links={drawing.links} order={drawing.order} marks={drawing.marks} />
       </div>
       <figcaption className="mt-2.5 text-sm leading-relaxed text-ink-soft">
         {lesson.example.caption}
