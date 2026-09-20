@@ -969,14 +969,18 @@ test.describe('claiming a technique', () => {
     expect(await grid.boundingBox()).toEqual(before);
   });
 
-  test('draws the pattern on the cells it names, not near them', async ({ page }) => {
+  test('draws its chrome in the grid\'s coordinate space, not the slot\'s', async ({ page }) => {
     // Portrait, and that is the point. The overlay sits in the board's *slot*,
     // which is square only when the board is what constrains it: here the slot
     // keeps the height nobody else claimed, and an SVG stretched to it centres
-    // its 9x9 viewBox in a 369x558 box. Every ring landed 93px — about two
-    // rows — below the cell it named, and the chips in the panel named the
-    // right cells the whole time. Landscape is square, so it drew correctly
-    // there, which is where it was looked at.
+    // its 9x9 viewBox in a 369x558 box. Everything it drew landed 93px — about
+    // two rows — from where it belonged. Landscape is square, so it drew
+    // correctly there, which is where it was looked at.
+    //
+    // The rings now live inside the cells, where layout aligns them for free.
+    // What is still positioned by hand is the chrome — the links and the
+    // numbered chips — so that is what this measures, and a chip belongs on a
+    // vertex where four cells meet.
     await page.setViewportSize({ width: 393, height: 852 });
     await startEasyGame(page);
 
@@ -984,23 +988,34 @@ test.describe('claiming a technique', () => {
     await coach.getByRole('button', { name: /spotted something/ }).click();
     const claim = page.getByRole('region', { name: 'Your claim' });
     await claim.getByRole('button', { name: 'Show every technique' }).click();
-    await claim.getByRole('button', { name: 'X-Wing', exact: true }).click();
+    await claim.getByRole('button', { name: 'Simple colouring', exact: true }).click();
+    if (await page.getByText(/Which digit/).count()) {
+      await claim.getByRole('button', { name: '5', exact: true }).click();
+    }
 
-    const target = (await readBoard(page)).findIndex((cell) => cell.value === null);
-    expect(target).toBeGreaterThanOrEqual(0);
-    await boardCell(page, target).click();
+    const empty = (await readBoard(page))
+      .map((cell, index) => ({ cell, index }))
+      .filter(({ cell }) => cell.value === null)
+      .slice(0, 3)
+      .map(({ index }) => index);
+    for (const cell of empty) await boardCell(page, cell).click();
 
-    const cell = await boardCell(page, target).boundingBox();
-    const ring = await page.locator('main svg[viewBox="0 0 9 9"] circle').first().boundingBox();
-    expect(cell).not.toBeNull();
-    expect(ring).not.toBeNull();
+    const grid = await boardGrid(page).boundingBox();
+    const chip = await page.locator('main svg[viewBox="0 0 9 9"] circle').first().boundingBox();
+    expect(grid).not.toBeNull();
+    expect(chip).not.toBeNull();
 
-    // Centres within a few pixels: the ring is drawn slightly inside the cell,
-    // so this is about where it is centred, not how big it is.
-    const dx = ring!.x + ring!.width / 2 - (cell!.x + cell!.width / 2);
-    const dy = ring!.y + ring!.height / 2 - (cell!.y + cell!.height / 2);
-    expect(Math.abs(dx)).toBeLessThan(6);
-    expect(Math.abs(dy)).toBeLessThan(6);
+    // Distance to the nearest crossing of grid lines. Under the old bug the
+    // whole drawing was shifted by 93px, which is two cells and a bit — near a
+    // vertex, but not on one.
+    const step = grid!.width / 9;
+    const cx = chip!.x + chip!.width / 2;
+    const cy = chip!.y + chip!.height / 2;
+    const offset = (value: number, origin: number) => {
+      const steps = Math.round((value - origin) / step);
+      return Math.abs(value - (origin + steps * step));
+    };
+    expect(Math.hypot(offset(cx, grid!.x), offset(cy, grid!.y))).toBeLessThan(6);
   });
 
   test('marks the cells without covering what is written in them', async ({ page }) => {
