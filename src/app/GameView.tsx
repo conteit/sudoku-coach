@@ -63,7 +63,7 @@ import { GameLayout } from './GameLayout';
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
 import { PatternOverlay } from '../ui/claim/PatternOverlay';
 import { drawingOf, type ClaimShape } from '../ui/claim/shape';
-import { CLAIMABLE, colouringClaim, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
+import { CLAIMABLE, colouringHolds, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
 import { DIGITS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
@@ -984,17 +984,16 @@ export function GameView({
         onTechnique={(id) => {
           const technique =
             id === 'simple_coloring' ? 'simple_coloring' : id === 'xy_wing' ? 'xy_wing' : 'x_wing';
-          // A fish needs no digit: once the technique is named, the cells
-          // determine it, and asking was a fix for an ambiguity the technique
-          // picker had already removed. A chain genuinely is *of* a digit —
-          // and the board already has a control that means "I am following
-          // the 7s", so a player who armed the green highlight has already
-          // answered, and is not asked again.
-          const known = technique === 'x_wing' ? null : highlightDigit;
+          // No shape asks for a digit. Once the technique is named the cells
+          // determine it: four corners determine a fish's, and a chain only
+          // works for a digit that makes every one of its links conjugate.
+          // The chain used to ask whenever the green highlight was not armed,
+          // which was an asymmetry with no justification beyond the order the
+          // two shapes were written in.
           setClaim((open) => ({
-            stage: technique !== 'simple_coloring' || known !== null ? 'cells' : 'digit',
+            stage: 'cells',
             technique,
-            digit: known,
+            digit: null,
             // Kept, not cleared: naming the pattern wrongly and pointing at it
             // correctly are different mistakes, and only one of them was made.
             cells: open?.cells ?? [],
@@ -1004,11 +1003,6 @@ export function GameView({
             showingAll: open?.showingAll ?? false,
           }));
         }}
-        onDigit={(digit) =>
-          setClaim((open) =>
-            open === null ? open : { ...open, stage: 'cells', digit, cells: [] },
-          )
-        }
         onDropCell={(cell) =>
           setClaim((open) => {
             if (open === null) return open;
@@ -1023,12 +1017,7 @@ export function GameView({
           setClaim((open) => {
             if (open === null) return open;
             if (open.technique === 'simple_coloring') {
-              if (open.digit === null) return open;
-              return {
-                ...open,
-                stage: 'verdict',
-                chain: colouringClaim(values, open.digit, open.cells),
-              };
+              return { ...open, stage: 'verdict', chain: colouringHolds(values, open.cells) };
             }
             // The digit is inferred rather than asked for. Measured over the
             // 24 fixture boards: of 31,104 rectangles, 5 hold as an x-wing at

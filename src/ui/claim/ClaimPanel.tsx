@@ -17,13 +17,12 @@
 import type { ChainVerdict } from '../../engine/claim';
 import type { ClaimShape } from './shape';
 import type { CellIndex, Digit, TechniqueId } from '../../engine/types';
-import { DIGITS } from '../../engine/types';
 import { cellName } from '../../engine/board';
 import { Button } from '../primitives/Button';
 import { useT } from '../../i18n/locale';
 import { cx } from '../primitives/cx';
 
-export type ClaimStage = 'technique' | 'digit' | 'cells' | 'verdict';
+export type ClaimStage = 'technique' | 'cells' | 'verdict';
 
 /**
  * A claim comes in three shapes, and flattening them into one was the first
@@ -52,7 +51,6 @@ export interface ClaimPanelProps {
   holds: boolean | null;
   chain: ChainVerdict | null;
   onTechnique: (id: TechniqueId) => void;
-  onDigit: (digit: Digit) => void;
   onDropCell: (cell: CellIndex) => void;
   /** Back to the list, keeping the cells. */
   onRename: () => void;
@@ -77,7 +75,6 @@ export function ClaimPanel({
   holds,
   chain,
   onTechnique,
-  onDigit,
   onDropCell,
   onRename,
   onGiveUp,
@@ -143,26 +140,11 @@ export function ClaimPanel({
         </>
       ) : null}
 
-      {stage === 'digit' ? (
-        <>
-          <p className="text-ink-faint">{t('claim.digit')}</p>
-          <ul className="flex flex-wrap gap-1.5">
-            {DIGITS.map((d) => (
-              <li key={d}>
-                <Button variant="secondary" size="sm" onClick={() => onDigit(d)}>
-                  {d}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
       {stage === 'cells' ? (
         <>
           <p className="text-ink-faint">
             {shape === 'chain'
-              ? t('claim.prompt.chain', { digit: String(digit ?? '') })
+              ? t('claim.prompt.chain')
               : t(shape === 'wing' ? 'claim.prompt.wing' : 'claim.prompt.set')}
           </p>
           {/* A chain's chips are numbered and drop everything after them: you
@@ -211,10 +193,18 @@ export function ClaimPanel({
                   : t('claim.verdict.holds', { digit: String(digit) })
                 : t('claim.verdict.no')
               : chain?.kind === 'proves'
-                ? t(chain.cells === 1 ? 'claim.verdict.chainProvesOne' : 'claim.verdict.chainProves', {
-                    digit: String(digit ?? ''),
-                    count: String(chain.cells),
-                  })
+                ? t(
+                    chain.eliminations === 1
+                      ? 'claim.verdict.chainProvesOne'
+                      : 'claim.verdict.chainProves',
+                    {
+                      // Plural because a chain can hold for two digits at
+                      // once — rare, but real, and naming only one of them
+                      // would be the app deciding which one the player meant.
+                      digits: chain.digits.join(' and '),
+                      count: String(chain.eliminations),
+                    },
+                  )
                 : chain?.kind === 'barren'
                   ? // Not a failure. The player did the technique correctly
                     // and it happens to pay nothing; calling that "wrong"

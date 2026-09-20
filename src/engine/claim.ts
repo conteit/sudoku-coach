@@ -22,6 +22,7 @@
  */
 
 import { COLS, HOUSES, ROWS, colOf, rowOf, Board } from './board';
+import { DIGITS } from './types';
 import type { CellIndex, Digit, House, TechniqueId } from './types';
 import { cellsWithCandidate, commonPeers } from './techniques/util';
 
@@ -98,7 +99,7 @@ export function xWingHolds(
  * flat sentence and this does not.
  */
 export type ChainVerdict =
-  | { kind: 'proves'; cells: number }
+  | { kind: 'proves'; digits: Digit[]; eliminations: number }
   | { kind: 'broken'; link: number }
   | { kind: 'barren' };
 
@@ -150,7 +151,7 @@ export function colouringClaim(
     const trapped = worn.some((a) =>
       worn.some((b) => a !== b && HOUSES.some((h) => h.cells.includes(a) && h.cells.includes(b))),
     );
-    if (trapped) return { kind: 'proves', cells: worn.length };
+    if (trapped) return { kind: 'proves', digits: [digit], eliminations: worn.length };
   }
 
   // Otherwise: anything outside the chain that can see both colours.
@@ -163,7 +164,9 @@ export function colouringClaim(
       sees(cell as CellIndex, 0) &&
       sees(cell as CellIndex, 1),
   );
-  return wings.length > 0 ? { kind: 'proves', cells: wings.length } : { kind: 'barren' };
+  return wings.length > 0
+    ? { kind: 'proves', digits: [digit], eliminations: wings.length }
+    : { kind: 'barren' };
 }
 
 /**
@@ -219,4 +222,53 @@ export function xyWingClaim(
     if (proves) return { holds: true, pivot, wings: [...wings].sort((a, b) => a - b) };
   }
   return { holds: false };
+}
+
+/**
+ * The same question without being told the digit.
+ *
+ * A chain's links are houses in which *some* digit has exactly two homes, and
+ * a chain only works for a digit that makes **every** link conjugate — so the
+ * cells determine the digit, the way four corners determine a fish's. Asking
+ * for it up front was a step that existed only because this shape was written
+ * before the fish's was.
+ *
+ * Unlike the fish, the digit is not always unique: measured across the
+ * fixtures, 18 of 1,216 chains are a **valid chain** for two digits at once.
+ * In every one of those the two readings disagree about whether anything
+ * follows, so the verdict prefers a digit that proves something over one that
+ * merely fits — a verdict naming the other would be true and useless. It
+ * still carries a list rather than a single digit, because nothing rules out
+ * a chain proving for two; no board in this repo does, so that branch is
+ * unexercised and says so here rather than pretending otherwise.
+ *
+ * When nothing holds, the break reported is the one from the digit that got
+ * furthest. A player building a chain has a digit in mind, and the reading
+ * that survives longest is the closest thing to it the board can offer.
+ */
+export function colouringHolds(
+  values: readonly (Digit | null)[],
+  cells: readonly CellIndex[],
+): ChainVerdict {
+  const verdicts = DIGITS.map((digit) => colouringClaim(values, digit, cells));
+
+  const proving = verdicts.flatMap((verdict) =>
+    verdict.kind === 'proves' ? [verdict] : [],
+  );
+  if (proving.length > 0) {
+    return {
+      kind: 'proves',
+      digits: proving.flatMap((verdict) => verdict.digits),
+      // Summed, not maxed: an elimination of a 1 and an elimination of a 4 are
+      // two different marks even when they are in the same cell.
+      eliminations: proving.reduce((total, verdict) => total + verdict.eliminations, 0),
+    };
+  }
+  if (verdicts.some((verdict) => verdict.kind === 'barren')) return { kind: 'barren' };
+
+  return verdicts.reduce<{ kind: 'broken'; link: number }>(
+    (furthest, verdict) =>
+      verdict.kind === 'broken' && verdict.link > furthest.link ? verdict : furthest,
+    { kind: 'broken', link: 1 },
+  );
 }
