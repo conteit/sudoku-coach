@@ -5,7 +5,7 @@
  * views so the rule lives in one place — the same division `CoachPanel` keeps.
  */
 
-import { MARK_DASHED, MARK_DOTTED, MARK_LEAD, MARK_ON, MARK_TARGET } from '../board/patternMark';
+import { MARK_ALT, MARK_DASHED, MARK_ON, MARK_TARGET } from '../board/patternMark';
 import type { CellIndex } from '../../engine/types';
 
 export type ClaimShape = 'set' | 'chain' | 'wing';
@@ -40,19 +40,21 @@ export function drawingOf(
   const links: (readonly [CellIndex, CellIndex])[] = [];
 
   if (shape === 'chain') {
-    // Solid and dashed alternate, which is the colouring's two colours said in
-    // a channel that survives a dim screen. The number says where in the order
-    // each cell falls; the overlay draws it as chrome, never as a glyph that
-    // could be mistaken for a pencil mark.
+    // Two colours, because that is what a colouring *is*. The number says
+    // where in the order each cell falls; the overlay draws it as chrome,
+    // never as a glyph that could be mistaken for a pencil mark.
     for (const [i, cell] of cells.entries()) {
-      marks[cell] = MARK_ON | (i % 2 === 1 ? MARK_DASHED : 0);
+      marks[cell] = MARK_ON | (i % 2 === 1 ? MARK_ALT : 0);
       order.set(cell, i + 1);
       if (i > 0) links.push([cells[i - 1], cell] as const);
     }
   } else if (shape === 'wing' && options.pivot != null) {
     for (const cell of cells) {
       const isPivot = cell === options.pivot;
-      marks[cell] = MARK_ON | (isPivot ? MARK_LEAD : MARK_DOTTED);
+      // The wings are dashed and the pivot is not. This is the distinction
+      // with no colour of its own, so it takes the channel the colouring does
+      // not need.
+      marks[cell] = MARK_ON | (isPivot ? 0 : MARK_DASHED);
       if (!isPivot) links.push([options.pivot, cell] as const);
     }
   } else {

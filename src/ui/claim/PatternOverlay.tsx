@@ -21,14 +21,8 @@
  * that belongs to no note slot.
  */
 
+import { MARK_ALT, marked } from '../board/patternMark';
 import type { CellIndex } from '../../engine/types';
-
-export type Tone = 'a' | 'b';
-
-export interface PatternNode {
-  cell: CellIndex;
-  tone: Tone;
-}
 
 /**
  * Presentational, and deliberately ignorant of techniques: it is handed tones
@@ -39,6 +33,13 @@ export interface PatternOverlayProps {
   links?: readonly (readonly [CellIndex, CellIndex])[];
   /** Where in a chain each cell falls; drawn as a chip on the cell's corner. */
   order?: ReadonlyMap<CellIndex, number>;
+  /**
+   * The same per-cell bitfields the board is drawing, read for one thing only:
+   * which of a colouring's two colours the chip belongs to. Without it every
+   * chip is one colour, which says *these are all the same* over rings that
+   * say the opposite — and in a colouring the alternation is the argument.
+   */
+  marks?: readonly number[];
   /** The one link that does not hold, drawn as the thing that failed. */
   broken?: readonly [CellIndex, CellIndex] | null;
 }
@@ -62,7 +63,7 @@ const corner = (cell: CellIndex) => {
   return { x: col === 0 ? 1 : col, y: row === 0 ? 1 : row };
 };
 
-export function PatternOverlay({ links = [], order, broken = null }: PatternOverlayProps) {
+export function PatternOverlay({ links = [], order, marks, broken = null }: PatternOverlayProps) {
   const chips = [...(order ?? new Map())];
   if (links.length === 0 && chips.length === 0) return null;
 
@@ -95,6 +96,9 @@ export function PatternOverlay({ links = [], order, broken = null }: PatternOver
       })}
       {chips.map(([cell, position]) => {
         const point = corner(cell);
+        const tone = marked(marks?.[cell] ?? 0, MARK_ALT)
+          ? 'var(--color-ink-soft)'
+          : 'var(--color-entry)';
         return (
           <g key={cell}>
             {/* `Cell` lays its marks out as a 3x3 grid with `p-[6%]`, which
@@ -103,7 +107,7 @@ export function PatternOverlay({ links = [], order, broken = null }: PatternOver
                 note is the diagonal, 0.29, not 0.207. Sized against that:
                 0.19 keeps a tenth of a cell of clearance and still gives the
                 numeral room to be read at phone size. */}
-            <circle cx={point.x} cy={point.y} r={0.19} fill="var(--color-entry)" />
+            <circle cx={point.x} cy={point.y} r={0.19} fill={tone} />
             <text
               x={point.x}
               y={point.y + 0.08}

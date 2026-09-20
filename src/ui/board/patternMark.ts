@@ -13,10 +13,14 @@
  *
  * - **Shape** says what the cell *is*: a ring is part of the pattern, a square
  *   is a cell the pattern takes a digit away from.
- * - **Stroke** says which part: solid and dashed alternate along a colouring,
- *   and an XY-Wing's wings are dotted where its pivot is solid.
- * - **Colour** reinforces; it never carries anything by itself. A difference
- *   carried by colour alone is no difference on a dim screen (#125).
+ * - **Colour** is the colouring's, because that technique *is* two colours —
+ *   Paolo: "not for colouring where color plays a role". Using a stroke there
+ *   would be describing the idea in a channel that is not the idea.
+ * - **Stroke** is therefore free for the role distinction that has no colour
+ *   of its own: an XY-Wing's wings are dashed where its pivot is solid.
+ *
+ * All of it is drawn quietly. These marks sit under the player's own digits
+ * and notes and are there to be glanced at, not read.
  */
 
 export const MARK_NONE = 0;
@@ -25,9 +29,9 @@ export const MARK_NONE = 0;
 export const MARK_ON = 1 << 0;
 /** A cell the pattern removes a digit from, rather than one it is built of. */
 export const MARK_TARGET = 1 << 1;
-export const MARK_DASHED = 1 << 2;
-export const MARK_DOTTED = 1 << 3;
-/** Heavier: the one cell of a pattern doing something the others are not. */
-export const MARK_LEAD = 1 << 4;
+/** The colouring's second colour. Only a chain alternates. */
+export const MARK_ALT = 1 << 2;
+/** A wing, as against the pivot it hangs off. */
+export const MARK_DASHED = 1 << 3;
 
 export const marked = (mark: number, bit: number): boolean => (mark & bit) !== 0;

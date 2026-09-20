@@ -22,7 +22,7 @@
 
 import { memo, type CSSProperties } from 'react';
 import type { CellIndex, Digit } from '../../engine/types';
-import { MARK_DASHED, MARK_DOTTED, MARK_LEAD, MARK_ON, MARK_TARGET, marked } from './patternMark';
+import { MARK_ALT, MARK_DASHED, MARK_ON, MARK_TARGET, marked } from './patternMark';
 import { DIGITS } from '../../engine/types';
 import { cellName, colOf, rowOf } from '../../engine/board';
 import { useT, type Translate } from '../../i18n/locale';
@@ -233,16 +233,16 @@ function CellImpl({
         <span
           aria-hidden="true"
           className={cx(
-            'pointer-events-none absolute size-[74%]',
-            marked(mark, MARK_LEAD) ? 'border-[0.85cqw]' : 'border-[0.55cqw]',
+            // Thin, and no heavier for any role. These sit under the player's
+            // own digits and notes: loud enough to find, quiet enough that the
+            // cell still reads as theirs.
+            'pointer-events-none absolute size-[74%] border-[0.38cqw]',
             marked(mark, MARK_TARGET)
               ? 'rounded-[0.6cqw] border-coach'
-              : 'rounded-full border-entry',
-            marked(mark, MARK_DASHED)
-              ? 'border-dashed'
-              : marked(mark, MARK_DOTTED)
-                ? 'border-dotted'
-                : 'border-solid',
+              : marked(mark, MARK_ALT)
+                ? 'rounded-full border-ink-soft'
+                : 'rounded-full border-entry',
+            marked(mark, MARK_DASHED) ? 'border-dashed' : 'border-solid',
           )}
         />
       ) : null}

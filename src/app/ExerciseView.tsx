@@ -58,7 +58,7 @@ import { SudokuGrid } from '../ui/board/SudokuGrid';
 // claim flow uses gives them the same two tones there as here, which is the
 // consistency Paolo asked for and, on this screen, also a straight
 // improvement: the thing being taught is now drawn.
-import { MARK_DOTTED, MARK_LEAD, MARK_ON } from '../ui/board/patternMark';
+import { MARK_DASHED, MARK_ON } from '../ui/board/patternMark';
 import { Keypad } from '../ui/keypad/Keypad';
 import { ExercisePanel } from '../ui/learn/ExercisePanel';
 import { LessonBody } from '../ui/learn/LessonBody';
@@ -263,14 +263,14 @@ export function ExerciseView({ technique, profile, onExit, onLearn }: ExerciseVi
   /**
    * The cells the player has named, as marks the board draws under its own
    * content. Only XY-Wing divides, which is `roles.ts`'s own finding — its
-   * pivot is the one cell doing something different, so it is the one that
-   * reads heavier.
+   * pivot is the one cell doing something different, so the wings are the ones
+   * drawn dashed.
    */
   const named = useMemo(() => {
     const marks = new Array(81).fill(0);
     for (const cell of session?.named ?? []) {
       const role = session?.roles.find((entry) => entry.cells.includes(cell))?.id;
-      marks[cell] = MARK_ON | (role === 'pivot' ? MARK_LEAD : role === 'wings' ? MARK_DOTTED : 0);
+      marks[cell] = MARK_ON | (role === 'wings' ? MARK_DASHED : 0);
     }
     return marks;
   }, [session?.named, session?.roles]);
