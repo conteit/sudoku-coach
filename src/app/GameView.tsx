@@ -723,6 +723,19 @@ export function GameView({
   // showing, over anything the coach had up. Reusing the spotlight ring
   // rather than inventing a wash — the wash stack is full, and `excluded`
   // and `match` are already separated by opacity alone (#125).
+  /**
+   * The claim's marks and chrome. One computation, two consumers: the rings
+   * and squares go into the cells, where they paint under the digits, and the
+   * links and chips stay in the overlay on top.
+   */
+  const claimDrawing = useMemo(
+    () =>
+      claim === null || claimShape === null
+        ? null
+        : drawingOf(claimShape, claim.cells, { pivot: claim.pivot }),
+    [claim, claimShape],
+  );
+
   const spotlight =
     claim !== null
       ? // The overlay is the whole marking language now, for every shape.
@@ -904,6 +917,7 @@ export function GameView({
           onClear={claim === null ? (cell) => dispatchMove({ type: 'clearCell', cell }) : undefined}
           onPromote={playerPaused || solved || claim !== null ? undefined : promote}
           spotlight={spotlight}
+          patternMarks={claimDrawing?.marks}
           tintedHouses={coach.hint?.houses ?? []}
           conflicts={conflicts}
           staleMarks={flaggedStale}
@@ -919,27 +933,17 @@ export function GameView({
           celebrate={solved || previewWin}
           className={playerPaused ? 'pointer-events-none blur-md select-none' : undefined}
         />
-        {claim !== null && claimShape !== null
-          ? (() => {
-              const drawing = drawingOf(claimShape, claim.cells, claim.pivot);
-              return (
-                <PatternOverlay
-                  nodes={drawing.nodes}
-                  links={drawing.links}
-                  broken={
-                    claim.chain?.kind === 'broken'
-                      ? [claim.cells[claim.chain.link - 1], claim.cells[claim.chain.link]]
-                      : null
-                  }
-                  active={
-                    claimShape === 'chain' && claim.stage === 'cells'
-                      ? (claim.cells.at(-1) ?? null)
-                      : null
-                  }
-                />
-              );
-            })()
-          : null}
+        {claimDrawing === null ? null : (
+          <PatternOverlay
+            links={claimDrawing.links}
+            order={claimDrawing.order}
+            broken={
+              claim?.chain?.kind === 'broken'
+                ? [claim.cells[claim.chain.link - 1], claim.cells[claim.chain.link]]
+                : null
+            }
+          />
+        )}
         {playerPaused ? (
           <div className="absolute inset-0 grid place-items-center bg-paper/80">
             <Button

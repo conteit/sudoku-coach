@@ -22,6 +22,7 @@
 
 import { memo, type CSSProperties } from 'react';
 import type { CellIndex, Digit } from '../../engine/types';
+import { MARK_DASHED, MARK_DOTTED, MARK_LEAD, MARK_ON, MARK_TARGET, marked } from './patternMark';
 import { DIGITS } from '../../engine/types';
 import { cellName, colOf, rowOf } from '../../engine/board';
 import { useT, type Translate } from '../../i18n/locale';
@@ -41,6 +42,18 @@ import {
 
 export interface CellProps {
   index: CellIndex;
+  /**
+   * The pattern mark, if this cell is carrying one.
+   *
+   * A bitfield, like `flags` and for the same reason — see `patternMark.ts`.
+   *
+   * Rendered as the cell's **first child**, which is what puts it above the
+   * wash and below the digit and the pencil marks. Paolo, on the version that
+   * drew it over the top: "ok the circle, but probably it should be below the
+   * numbers in the cell". An overlay stuck on the grid cannot do that at any
+   * z-index — the content is inside the cells, so the mark has to be too.
+   */
+  mark?: number;
   value: Digit | null;
   given: boolean;
   /** 9-bit candidate mask — see `marksToMask`. */
@@ -158,6 +171,7 @@ function describe(
 
 function CellImpl({
   index,
+  mark = 0,
   value,
   given,
   marks,
@@ -215,6 +229,23 @@ function CellImpl({
         winDelayMs !== null && 'cell-win',
       )}
     >
+      {marked(mark, MARK_ON) ? (
+        <span
+          aria-hidden="true"
+          className={cx(
+            'pointer-events-none absolute size-[74%]',
+            marked(mark, MARK_LEAD) ? 'border-[0.85cqw]' : 'border-[0.55cqw]',
+            marked(mark, MARK_TARGET)
+              ? 'rounded-[0.6cqw] border-coach'
+              : 'rounded-full border-entry',
+            marked(mark, MARK_DASHED)
+              ? 'border-dashed'
+              : marked(mark, MARK_DOTTED)
+                ? 'border-dotted'
+                : 'border-solid',
+          )}
+        />
+      ) : null}
       {value !== null ? (
         <span className={cx('digit text-[6.4cqw]', digitClass(flags, given, colorEntries))}>
           {value}
