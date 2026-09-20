@@ -17,7 +17,7 @@
     "verify": "npm run lint && tsc -b && npm run test && npm run build"
   },
   "dependencies": {
-    "dexie": "^4.4.5",
+    "dexie": "^4.4.6",
     "firebase": "^12.19.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
