@@ -937,6 +937,7 @@ export function GameView({
           <PatternOverlay
             links={claimDrawing.links}
             order={claimDrawing.order}
+            marks={claimDrawing.marks}
             broken={
               claim?.chain?.kind === 'broken'
                 ? [claim.cells[claim.chain.link - 1], claim.cells[claim.chain.link]]
