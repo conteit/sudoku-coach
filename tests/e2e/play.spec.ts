@@ -1078,6 +1078,41 @@ test.describe('claiming a technique', () => {
             });
           }, centre);
         expect(covered, `chip covers the centre of note ${digit} in cell ${cell}`).toBe(false);
+
+        // And the cell's own mark may not run through the slot at all. Paolo,
+        // on the version that drew a circle inside the cell: "it feels like
+        // the circle crosses all the numbers, it is disturbing." A ring big
+        // enough to read passes through four of the nine slots at any size,
+        // so the mark is the cell's edge now and this is the claim that says
+        // so — box against box, not centre against radius, because a stroke
+        // clipping the corner of a note is exactly the complaint.
+        const mark = await boardCell(page, cell)
+          .locator('span[aria-hidden="true"]')
+          .first()
+          .boundingBox();
+        expect(mark, `cell ${cell} is not marked`).not.toBeNull();
+        const overlaps =
+          mark!.x < box!.x + box!.width &&
+          mark!.x + mark!.width > box!.x &&
+          mark!.y < box!.y + box!.height &&
+          mark!.y + mark!.height > box!.y;
+        // The mark surrounds every slot, so their boxes do overlap — what must
+        // not happen is the *stroke* landing inside one. The mark's interior
+        // starts one stroke width in from its edge, so a slot is safe exactly
+        // when it sits wholly inside that interior. Measured, not assumed:
+        // the stroke is sized in `cqw` and so scales with the board.
+        expect(overlaps).toBe(true);
+        const inset = await boardCell(page, cell)
+          .locator('span[aria-hidden="true"]')
+          .first()
+          .evaluate((el) => parseFloat(getComputedStyle(el).borderTopWidth));
+        expect(inset).toBeGreaterThan(0);
+        expect(box!.x, `note ${digit} in cell ${cell} crosses the mark`).toBeGreaterThanOrEqual(
+          mark!.x + inset,
+        );
+        expect(box!.y).toBeGreaterThanOrEqual(mark!.y + inset);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(mark!.x + mark!.width - inset);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(mark!.y + mark!.height - inset);
       }
     }
   });
