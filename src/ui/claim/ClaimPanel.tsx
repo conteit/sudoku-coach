@@ -48,6 +48,13 @@ export interface ClaimPanelProps {
   onShowAll: () => void;
   digit: Digit | null;
   cells: readonly CellIndex[];
+  /**
+   * How many cells this technique takes, or `null` where that is not fixed.
+   * Passed in rather than derived from `shape`: a fish's size is a property of
+   * the technique, not of being a fish — an X-Wing has four corners and a
+   * Swordfish six.
+   */
+  size: number | null;
   holds: boolean | null;
   chain: ChainVerdict | null;
   onTechnique: (id: TechniqueId) => void;
@@ -72,6 +79,7 @@ export function ClaimPanel({
   onShowAll,
   digit,
   cells,
+  size,
   holds,
   chain,
   onTechnique,
@@ -146,6 +154,14 @@ export function ClaimPanel({
             {shape === 'chain'
               ? t('claim.prompt.chain')
               : t(shape === 'wing' ? 'claim.prompt.wing' : 'claim.prompt.set')}
+            {/* Where you are, for the shapes that have a destination. The
+                board stops taking cells at the size, and a limit the player
+                cannot see is a limit that reads as the app ignoring them. */}
+            {size === null ? null : (
+              <span className="ml-1 tabular-nums text-ink-soft">
+                {t('claim.taken', { taken: cells.length, total: size })}
+              </span>
+            )}
           </p>
           {/* A chain's chips are numbered and drop everything after them: you
               cannot pull a link out of the middle and still have a chain. */}
@@ -162,11 +178,7 @@ export function ClaimPanel({
             variant="primary"
             size="sm"
             className="self-start"
-            disabled={
-              shape === 'chain'
-                ? cells.length < 3
-                : cells.length !== (shape === 'wing' ? 3 : 4)
-            }
+            disabled={size === null ? cells.length < 3 : cells.length !== size}
             onClick={onCheck}
           >
             {t('claim.check')}

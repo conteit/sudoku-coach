@@ -1018,6 +1018,47 @@ test.describe('claiming a technique', () => {
     expect(Math.hypot(offset(cx, grid!.x), offset(cy, grid!.y))).toBeLessThan(6);
   });
 
+  test('an XY-Wing takes three cells and refuses a fourth', async ({ page }) => {
+    // Paolo: "you letting me select more than 3 cells and render them the same
+    // color". An XY-Wing is a hinge and two arms; a fourth cell makes the
+    // claim something the technique cannot be, and the board used to take it
+    // without a word.
+    await page.setViewportSize({ width: 393, height: 852 });
+    await startEasyGame(page);
+
+    const empty = (await readBoard(page))
+      .map((cell, index) => ({ cell, index }))
+      .filter(({ cell }) => cell.value === null)
+      .slice(0, 4)
+      .map(({ index }) => index);
+
+    const coach = await openCoach(page);
+    await coach.getByRole('button', { name: /spotted something/ }).click();
+    const claim = page.getByRole('region', { name: 'Your claim' });
+    await claim.getByRole('button', { name: 'Show every technique' }).click();
+    await claim.getByRole('button', { name: 'XY-Wing', exact: true }).click();
+
+    // Check is dead until the pattern is the size it has to be.
+    const check = claim.getByRole('button', { name: 'Check', exact: true });
+    await expect(check).toBeDisabled();
+    for (const cell of empty.slice(0, 3)) await boardCell(page, cell).click();
+    await expect(check).toBeEnabled();
+    await expect(page.locator('[data-mark]')).toHaveCount(3);
+
+    // The fourth tap does nothing at all — not marked, not listed, and Check
+    // stays live rather than going dead on a cell the player cannot see.
+    await boardCell(page, empty[3]).click();
+    await expect(page.locator('[data-mark]')).toHaveCount(3);
+    await expect(boardCell(page, empty[3])).not.toHaveAttribute('data-mark', /.*/);
+    await expect(check).toBeEnabled();
+
+    // ...and a cell already in the claim still comes back out, or the cap
+    // would have taken the player's way to correct a mistake with it.
+    await boardCell(page, empty[0]).click();
+    await expect(page.locator('[data-mark]')).toHaveCount(2);
+    await expect(check).toBeDisabled();
+  });
+
   test('marks the cells without covering what is written in them', async ({ page }) => {
     // Paolo: "please ensure numbering is not preventing me from reading the
     // cell content". `Cell` lays its pencil marks out as a 3x3 grid filling

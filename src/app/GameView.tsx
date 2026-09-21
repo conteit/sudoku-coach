@@ -62,7 +62,7 @@ import { GameLayout } from './GameLayout';
 // asking the coach for one.
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
 import { PatternOverlay } from '../ui/claim/PatternOverlay';
-import { drawingOf, shapeOf, type ClaimShape } from '../ui/claim/shape';
+import { claimSize, drawingOf, shapeOf, type ClaimShape } from '../ui/claim/shape';
 import { CLAIMABLE, colouringHolds, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
 import { DIGITS } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
@@ -606,12 +606,19 @@ export function GameView({
             const at = open.cells.indexOf(cell);
             return { ...open, cells: at === -1 ? [...open.cells, cell] : open.cells.slice(0, at) };
           }
-          return {
-            ...open,
-            cells: open.cells.includes(cell)
-              ? open.cells.filter((c) => c !== cell)
-              : [...open.cells, cell],
-          };
+          if (open.cells.includes(cell)) {
+            return { ...open, cells: open.cells.filter((c) => c !== cell) };
+          }
+          // A shape with a fixed size stops accepting cells once it has them.
+          // Silently taking a fourth cell into an XY-Wing left the player
+          // pointing at something that is not the pattern they named, with
+          // nothing on the board saying so.
+          const size = claimSize(open.technique);
+          if (size !== null && open.cells.length >= size) {
+            haptic('blocked');
+            return open;
+          }
+          return { ...open, cells: [...open.cells, cell] };
         });
         return;
       }
@@ -977,6 +984,7 @@ export function GameView({
         technique={claim.stage === 'technique' ? null : getLesson(locale, claim.technique).name}
         digit={claim.digit}
         cells={claim.cells}
+        size={claim.stage === 'technique' ? null : claimSize(claim.technique)}
         holds={claim.holds}
         chain={claim.chain}
         onTechnique={(id) => {
