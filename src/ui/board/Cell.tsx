@@ -272,7 +272,16 @@ function CellImpl({
                   ? 'text-danger line-through decoration-[0.4cqw]'
                   : matchDigit === digit && maskHas(marks, digit)
                     ? 'font-semibold text-match'
-                    : 'text-ink-faint',
+                    : // Heavier wherever a mark is drawn behind them. Paolo:
+                      // "can't we make notes bold to better stand out?" — the
+                      // ring is quiet, but `ink-faint` is quieter still, and a
+                      // cell the app has drawn on is exactly the cell whose
+                      // contents the player is trying to read. Only there:
+                      // pencil marks are working, not content, and eighty-one
+                      // cells of bold would make the board shout.
+                      marked(mark, MARK_ON)
+                      ? 'font-semibold text-ink-soft'
+                      : 'text-ink-faint',
               )}
             >
               {maskHas(marks, digit) ? digit : ''}

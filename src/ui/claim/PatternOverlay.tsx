@@ -47,6 +47,40 @@ export interface PatternOverlayProps {
 const at = (cell: CellIndex) => ({ x: (cell % 9) + 0.5, y: Math.floor(cell / 9) + 0.5 });
 
 /**
+ * Half the ring's width, plus a hair, in cell units — `Cell` draws the ring at
+ * `size-[74%]`, so it reaches 0.37 from the centre.
+ */
+const RING = 0.41;
+
+/**
+ * A link, drawn between the two rings rather than between the two centres.
+ *
+ * Paolo: *"why the circle is crossed by the connecting lines?"* Because they
+ * were drawn centre to centre, which puts a stroke straight through both rings
+ * and through whatever the cells contain. A link is a statement about the two
+ * cells, not a line that has to reach their middles, so it stops where each
+ * ring begins and the rings stay closed.
+ *
+ * Trimming is clamped: two cells could in principle sit closer together than
+ * two ring radii, and a segment that has been shortened past its own midpoint
+ * would be drawn backwards.
+ */
+const between = (a: CellIndex, b: CellIndex) => {
+  const from = at(a);
+  const to = at(b);
+  const span = Math.hypot(to.x - from.x, to.y - from.y);
+  const trim = Math.min(RING, span / 2 - 0.02);
+  const ux = (to.x - from.x) / span;
+  const uy = (to.y - from.y) / span;
+  return {
+    x1: from.x + ux * trim,
+    y1: from.y + uy * trim,
+    x2: to.x - ux * trim,
+    y2: to.y - uy * trim,
+  };
+};
+
+/**
  * A vertex of the cell — where four cells meet, which is the one place on the
  * grid that belongs to no note slot.
  *
@@ -77,16 +111,11 @@ export function PatternOverlay({ links = [], order, marks, broken = null }: Patt
       className="pointer-events-none absolute inset-x-0 top-0 aspect-square w-full"
     >
       {links.map(([a, b]) => {
-        const from = at(a);
-        const to = at(b);
         const failed = isBroken(a, b);
         return (
           <line
             key={`${a}-${b}`}
-            x1={from.x}
-            y1={from.y}
-            x2={to.x}
-            y2={to.y}
+            {...between(a, b)}
             stroke={failed ? 'var(--color-danger)' : 'var(--color-ink)'}
             strokeOpacity={failed ? 1 : 0.4}
             strokeWidth={failed ? 0.07 : 0.045}
