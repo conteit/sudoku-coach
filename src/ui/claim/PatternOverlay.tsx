@@ -47,31 +47,41 @@ export interface PatternOverlayProps {
 const at = (cell: CellIndex) => ({ x: (cell % 9) + 0.5, y: Math.floor(cell / 9) + 0.5 });
 
 /**
- * Half the ring's width, plus a hair, in cell units — `Cell` draws the ring at
- * `size-[74%]`, so it reaches 0.37 from the centre.
+ * Half the marked box, in cell units. `Cell` insets a pattern cell's mark by
+ * 2% on every side, so it reaches 0.48 from the centre.
  */
-const RING = 0.41;
+const HALF = 0.48;
+/** Clear air between the end of a link and the border it points at. */
+const GAP = 0.04;
 
 /**
- * A link, drawn between the two rings rather than between the two centres.
+ * A link, drawn between the two marked boxes rather than between the two
+ * centres.
  *
- * Paolo: *"why the circle is crossed by the connecting lines?"* Because they
- * were drawn centre to centre, which puts a stroke straight through both rings
- * and through whatever the cells contain. A link is a statement about the two
- * cells, not a line that has to reach their middles, so it stops where each
- * ring begins and the rings stay closed.
+ * Paolo, twice: *"why the circle is crossed by the connecting lines?"*, and
+ * then *"review how the arrow connecting chain's cell to not enter the
+ * coloured border"*. The first version ran centre to centre; the second
+ * trimmed by a circle's radius, which stopped being the right shape the
+ * moment the marks became boxes — a diagonal link cleared the old ring and
+ * still ran through the corner of the new box.
  *
- * Trimming is clamped: two cells could in principle sit closer together than
- * two ring radii, and a segment that has been shortened past its own midpoint
- * would be drawn backwards.
+ * So the trim is where the ray actually leaves the box: the nearer of the two
+ * axis crossings, which is what a box intersection is. Clamped at the
+ * midpoint, because two diagonally adjacent cells have boxes that all but
+ * touch, and a segment shortened past its own middle would be drawn
+ * backwards.
  */
 const between = (a: CellIndex, b: CellIndex) => {
   const from = at(a);
   const to = at(b);
   const span = Math.hypot(to.x - from.x, to.y - from.y);
-  const trim = Math.min(RING, span / 2 - 0.02);
   const ux = (to.x - from.x) / span;
   const uy = (to.y - from.y) / span;
+  const exit = Math.min(
+    ux === 0 ? Infinity : HALF / Math.abs(ux),
+    uy === 0 ? Infinity : HALF / Math.abs(uy),
+  );
+  const trim = Math.min(exit + GAP, span / 2 - 0.02);
   return {
     x1: from.x + ux * trim,
     y1: from.y + uy * trim,
