@@ -11,8 +11,12 @@ import { describe, expect, it } from 'vitest';
 import { PatternOverlay } from './PatternOverlay';
 import type { CellIndex } from '../../engine/types';
 
-/** The ring `Cell` draws reaches this far from the cell's centre: half of 74%. */
-const RING_RADIUS = 0.37;
+/** The box `Cell` draws reaches this far from the centre along each axis. */
+const HALF = 0.48;
+
+/** How far outside the marked box a point lies, along the axis it exits by. */
+const clearance = (p: { x: number; y: number }, centre: { x: number; y: number }) =>
+  Math.max(Math.abs(p.x - centre.x), Math.abs(p.y - centre.y)) - HALF;
 
 const centreOf = (cell: CellIndex) => ({ x: (cell % 9) + 0.5, y: Math.floor(cell / 9) + 0.5 });
 
@@ -28,26 +32,28 @@ const lineOf = (container: HTMLElement) => {
 const gap = (p: { x: number; y: number }, q: { x: number; y: number }) =>
   Math.hypot(p.x - q.x, p.y - q.y);
 
-describe('a link is drawn between two rings, not between two centres', () => {
-  // Paolo: "why the circle is crossed by the connecting lines?" — because they
-  // ran centre to centre, straight through both rings and whatever the cells
-  // hold.
+describe('a link is drawn between two marked boxes, not between two centres', () => {
+  // Paolo, on the version trimmed by a radius: "review how the arrow
+  // connecting chain's cell to not enter the coloured border". A circle's
+  // radius is the wrong measure for a box — the diagonal is the case that
+  // exposes it, because that is where a box reaches furthest from its centre.
   it.each([
-    ['along a column', 0, 9],
-    ['along a row', 0, 8],
-    ['on a diagonal', 0, 40],
-  ] as const)('clears both rings %s', (_how, from, to) => {
+    ['along a column', 0, 27],
+    ['along a row', 0, 3],
+    ['on a diagonal', 0, 30],
+    ['on a shallow slant', 0, 20],
+  ] as const)('stops outside both boxes %s', (_how, from, to) => {
     const { container } = render(
       <PatternOverlay links={[[from as CellIndex, to as CellIndex]]} />,
     );
     const line = lineOf(container);
-    expect(gap(line.a, centreOf(from as CellIndex))).toBeGreaterThanOrEqual(RING_RADIUS);
-    expect(gap(line.b, centreOf(to as CellIndex))).toBeGreaterThanOrEqual(RING_RADIUS);
+    expect(clearance(line.a, centreOf(from as CellIndex))).toBeGreaterThan(0);
+    expect(clearance(line.b, centreOf(to as CellIndex))).toBeGreaterThan(0);
   });
 
   it('still runs the right way round, and still spans most of the distance', () => {
     // A trim applied past the midpoint would draw the segment backwards.
-    const { container } = render(<PatternOverlay links={[[0 as CellIndex, 9 as CellIndex]]} />);
+    const { container } = render(<PatternOverlay links={[[0 as CellIndex, 27 as CellIndex]]} />);
     const line = lineOf(container);
     expect(line.a.y).toBeLessThan(line.b.y);
     expect(gap(line.a, line.b)).toBeGreaterThan(0);

@@ -42,6 +42,33 @@ test('reads the rules, the ladder and a technique lesson', async ({ page }, test
   await expect(page.locator('[data-mark="1"]')).toHaveCount(2);
 });
 
+test('a cleared cell is washed amber without losing its notes', async ({ page }) => {
+  await page.goto('/play');
+  await page.getByRole('button', { name: 'Learn' }).click();
+  // X-Wing, because its two targets sit outside the pattern — a hidden pair's
+  // eliminations fall inside its own cells, so it has none to draw.
+  await page.getByRole('button', { name: /X-Wing/ }).first().click();
+  const target = page.locator('[data-mark="3"]').first();
+  await expect(target).toBeVisible();
+
+  // The mark is absolutely positioned, and a positioned element paints over a
+  // static sibling however late that sibling comes in the DOM. That was
+  // invisible while the mark was a bare border and became a bug the moment a
+  // target gained its wash: the fill went straight over the cell's own pencil
+  // marks. The content is positioned too, so DOM order decides again.
+  const notes = target.locator('[data-slot]').first().locator('..');
+  await expect(notes).toBeVisible();
+  const positioned = await notes.evaluate((el) => getComputedStyle(el).position);
+  expect(positioned, 'the notes would be painted over by the wash').not.toBe('static');
+
+  // ...and the wash is really there, or the claim above is about nothing.
+  const fill = await target
+    .locator('span[aria-hidden="true"]')
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(fill).not.toBe('rgba(0, 0, 0, 0)');
+});
+
 test('keeps the index on screen while a lesson opens beside it', async ({ page }, testInfo) => {
   test.skip(!['laptop', 'wide'].includes(testInfo.project.name), 'one column below laptop');
   await page.goto('/play');

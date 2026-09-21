@@ -249,32 +249,43 @@ function CellImpl({
             //
             // `inset-[5%]` puts it between the box rule and the note grid,
             // which starts at `p-[6%]` — clear of both.
-            // On the cell's boundary, not inset: the note grid's own `p-[6%]`
-            // is then the clearance, and it is wider than the stroke at every
-            // board size, because both scale with the grid.
-            'pointer-events-none absolute inset-0 border-[0.38cqw]',
+            'pointer-events-none absolute rounded-[0.6cqw]',
             marked(mark, MARK_TARGET)
-              ? // Amber, and square where a pattern cell is rounded. This is
-                // the cell that loses a digit — the answer to "so what" — and
-                // corner radius carries that as well as hue does, without
-                // spending stroke width the notes need.
-                'rounded-none border-coach'
-              : marked(mark, MARK_ALT)
-                ? 'rounded-[0.6cqw] border-ink-soft'
-                : 'rounded-[0.6cqw] border-entry',
+              ? // The whole cell, filled — the treatment Paolo picked out of
+                // the old Learn screenshot for "cells I can clear notes from".
+                // A wash is right here and nowhere else in this language: the
+                // pattern is cells to look *at*, and a target is a cell
+                // something happens *to*.
+                'inset-0 border-[0.38cqw] border-coach bg-coach-wash'
+              : // A box *inside* the cell rather than a second cell border —
+                // Paolo: "not exactly on the edge". The inset plus the stroke
+                // has to stay inside the note grid's own `p-[6%]` gutter, or
+                // the mark is back to crossing the notes; 2% + 0.3cqw is 4.7%
+                // of a cell, and both scale with the grid, so that holds at
+                // every board size.
+                cx(
+                  'inset-[2%] border-[0.3cqw]',
+                  marked(mark, MARK_ALT) ? 'border-ink-soft' : 'border-entry',
+                ),
             marked(mark, MARK_DASHED) ? 'border-dashed' : 'border-solid',
           )}
         />
       ) : null}
+      {/* `relative` on both, and it is load-bearing rather than tidy: the mark
+          above is absolutely positioned, and a positioned element paints over
+          a static sibling however late that sibling comes in the DOM. While
+          the mark was a bare border that was invisible; the moment a target
+          gained its wash it painted straight over the cell's own notes.
+          Positioning the content puts DOM order back in charge. */}
       {value !== null ? (
-        <span className={cx('digit text-[6.4cqw]', digitClass(flags, given, colorEntries))}>
+        <span className={cx('digit relative text-[6.4cqw]', digitClass(flags, given, colorEntries))}>
           {value}
         </span>
       ) : (
         // All nine slots are always rendered, empty or not: a pencil mark's
         // position is a property of the digit, not of how many siblings it has
         // (R2). Aria-hidden because the cell's own label already lists them.
-        <div aria-hidden="true" className="grid size-full grid-cols-3 grid-rows-3 p-[6%]">
+        <div aria-hidden="true" className="relative grid size-full grid-cols-3 grid-rows-3 p-[6%]">
           {DIGITS.map((digit) => (
             <span
               key={digit}
