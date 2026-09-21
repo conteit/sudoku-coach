@@ -238,15 +238,30 @@ function CellImpl({
         <span
           aria-hidden="true"
           className={cx(
-            // Thin, and no heavier for any role. These sit under the player's
-            // own digits and notes: loud enough to find, quiet enough that the
-            // cell still reads as theirs.
-            'pointer-events-none absolute size-[74%] border-[0.38cqw]',
+            // The cell's own edge, not a shape drawn inside it. Paolo, on the
+            // circle that was: "it feels like the circle crosses all the
+            // numbers, it is disturbing... the idea of a shape in the cell is
+            // a bit annoying". He was right, and not only about the look: a
+            // ring big enough to read is a ring wide enough to pass through
+            // four of the nine pencil-mark slots, so *every* size was a choice
+            // about which notes to strike through. An outline hugging the cell
+            // crosses nothing at any size.
+            //
+            // `inset-[5%]` puts it between the box rule and the note grid,
+            // which starts at `p-[6%]` — clear of both.
+            // On the cell's boundary, not inset: the note grid's own `p-[6%]`
+            // is then the clearance, and it is wider than the stroke at every
+            // board size, because both scale with the grid.
+            'pointer-events-none absolute inset-0 border-[0.38cqw]',
             marked(mark, MARK_TARGET)
-              ? 'rounded-[0.6cqw] border-coach'
+              ? // Amber, and square where a pattern cell is rounded. This is
+                // the cell that loses a digit — the answer to "so what" — and
+                // corner radius carries that as well as hue does, without
+                // spending stroke width the notes need.
+                'rounded-none border-coach'
               : marked(mark, MARK_ALT)
-                ? 'rounded-full border-ink-soft'
-                : 'rounded-full border-entry',
+                ? 'rounded-[0.6cqw] border-ink-soft'
+                : 'rounded-[0.6cqw] border-entry',
             marked(mark, MARK_DASHED) ? 'border-dashed' : 'border-solid',
           )}
         />
