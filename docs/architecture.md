@@ -695,6 +695,23 @@ fall inside its own two cells, and those cells still have to read as the pair.
 `lessons.test.ts` checks the authored split against the same claim it
 re-derives from the grid, so the picture and the proof cannot disagree.
 
+**A verified claim is not a hint, and may say what it proves.** Invariant 4
+governs the *coach's* ladder: what the app volunteers to a player who asked
+for help. A claim runs the other way — the player asserts the pattern and the
+app checks it — so the eliminations that follow are the player's own
+conclusion being confirmed, not a rung being handed out. Concretely, a claim
+that holds may draw its amber targets and offer to take those notes off; a
+claim in progress may not, because nothing has been established yet, and the
+coach's own "show me the cells" still obeys the ladder.
+
+The offer is an offer. `applyEliminations` is handed the list the player was
+shown rather than recomputing it, so what gets written is exactly what they
+read — a board that moved in between cannot smuggle in a deduction nobody
+made. It is the same bargain `clearStaleCandidates` and the note check strike
+with invariant 1, with one difference worth keeping straight: those marks are
+dead by the rules alone, these are dead by an argument, and the argument was
+the player's.
+
 **The claim takes the keypad's slot** (`PAD_SLOT`), which is the whole
 placement argument: a claim places no digits, so the pad is exactly the space
 that can be spent, in all three arrangements, with no new chrome. It also

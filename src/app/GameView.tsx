@@ -63,8 +63,9 @@ import { GameLayout } from './GameLayout';
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
 import { PatternOverlay } from '../ui/claim/PatternOverlay';
 import { claimSize, drawingOf, shapeOf, type ClaimShape } from '../ui/claim/shape';
-import { CLAIMABLE, colouringHolds, xWingHolds, xyWingClaim, type ChainVerdict } from '../engine/claim';
+import { CLAIMABLE, colouringHolds, xWingClaim, xyWingClaim, type ChainVerdict } from '../engine/claim';
 import { DIGITS } from '../engine/types';
+import type { Elimination } from '../engine/types';
 import { selectHighlight, sweepRefuses, toggleHighlight } from './greenHighlight';
 import { useBoardShortcuts } from './useBoardShortcuts';
 import { contradictionAt, DEFAULT_STUCK_MS, deadEndCells } from '../coach/triggers';
@@ -204,6 +205,13 @@ export function GameView({
     holds: boolean | null;
     chain: ChainVerdict | null;
     pivot: CellIndex | null;
+    /**
+     * What the claim clears, once it has been checked and holds. Empty until
+     * then, and empty forever on a claim that does not.
+     */
+    eliminations: readonly Elimination[];
+    /** The player has taken them off their own notes; the offer is spent. */
+    applied: boolean;
     showingAll: boolean;
   } | null>(null);
   const claiming = claim !== null && claim.stage === 'cells';
@@ -732,7 +740,12 @@ export function GameView({
     () =>
       claim === null || claimShape === null
         ? null
-        : drawingOf(claimShape, claim.cells, { pivot: claim.pivot }),
+        : drawingOf(claimShape, claim.cells, {
+            pivot: claim.pivot,
+            // Only after a check, and only for a claim that holds: this is the
+            // "so what", and before the check nothing has been established.
+            targets: claim.eliminations.map((e) => e.cell),
+          }),
     [claim, claimShape],
   );
 
@@ -987,6 +1000,19 @@ export function GameView({
         size={claim.stage === 'technique' ? null : claimSize(claim.technique)}
         holds={claim.holds}
         chain={claim.chain}
+        roles={
+          claim.pivot === null
+            ? null
+            : { pivot: claim.pivot, wings: claim.cells.filter((c) => c !== claim.pivot) }
+        }
+        eliminations={claim.eliminations}
+        applied={claim.applied}
+        onApply={() => {
+          // The list is handed to the reducer rather than recomputed there,
+          // so what is written is exactly what the player was shown.
+          dispatch({ type: 'applyEliminations', eliminations: claim.eliminations });
+          setClaim((open) => (open === null ? open : { ...open, applied: true }));
+        }}
         onTechnique={(id) => {
           const technique =
             id === 'simple_coloring' ? 'simple_coloring' : id === 'xy_wing' ? 'xy_wing' : 'x_wing';
@@ -1006,6 +1032,8 @@ export function GameView({
             holds: null,
             chain: null,
             pivot: null,
+            eliminations: [],
+            applied: false,
             showingAll: open?.showingAll ?? false,
           }));
         }}
@@ -1023,7 +1051,13 @@ export function GameView({
           setClaim((open) => {
             if (open === null) return open;
             if (open.technique === 'simple_coloring') {
-              return { ...open, stage: 'verdict', chain: colouringHolds(values, open.cells) };
+              const chain = colouringHolds(values, open.cells);
+              return {
+                ...open,
+                stage: 'verdict',
+                chain,
+                eliminations: chain.kind === 'proves' ? chain.eliminations : [],
+              };
             }
             // The digit is inferred rather than asked for. Measured over the
             // 24 fixture boards: of 31,104 rectangles, 5 hold as an x-wing at
@@ -1035,10 +1069,20 @@ export function GameView({
                 stage: 'verdict',
                 holds: wing.holds,
                 pivot: wing.holds ? wing.pivot : null,
+                eliminations: wing.holds ? wing.eliminations : [],
               };
             }
-            const holds = DIGITS.filter((digit) => xWingHolds(values, digit, open.cells));
-            return { ...open, stage: 'verdict', holds: holds.length > 0, digit: holds[0] ?? null };
+            const fish = DIGITS.flatMap((digit) => {
+              const verdict = xWingClaim(values, digit, open.cells);
+              return verdict.holds ? [{ digit, eliminations: verdict.eliminations }] : [];
+            });
+            return {
+              ...open,
+              stage: 'verdict',
+              holds: fish.length > 0,
+              digit: fish[0]?.digit ?? null,
+              eliminations: fish[0]?.eliminations ?? [],
+            };
           })
         }
         // Back to the cells with them still marked: adjusting one corner, or
@@ -1046,13 +1090,17 @@ export function GameView({
         // and nothing else — no miss, no rung, no correction.
         onRetry={() =>
           setClaim((open) =>
-            open === null ? open : { ...open, stage: 'cells', holds: null, chain: null, pivot: null },
+            open === null
+              ? open
+              : { ...open, stage: 'cells', holds: null, chain: null, pivot: null, eliminations: [] },
           )
         }
         // Back to the list with the cells kept.
         onRename={() =>
           setClaim((open) =>
-            open === null ? open : { ...open, stage: 'technique', holds: null, chain: null },
+            open === null
+              ? open
+              : { ...open, stage: 'technique', holds: null, chain: null, eliminations: [] },
           )
         }
         // "I cannot find it" has an answer that is not "start over": the
@@ -1200,6 +1248,8 @@ export function GameView({
               holds: null,
               chain: null,
               pivot: null,
+              eliminations: [],
+              applied: false,
               showingAll: false,
             });
           }}

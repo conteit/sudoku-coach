@@ -23,7 +23,7 @@
 
 import { COLS, HOUSES, ROWS, colOf, rowOf, Board } from './board';
 import { DIGITS } from './types';
-import type { CellIndex, Digit, House, TechniqueId } from './types';
+import type { CellIndex, Digit, Elimination, House, TechniqueId } from './types';
 import { cellsWithCandidate, commonPeers } from './techniques/util';
 
 /**
@@ -48,13 +48,22 @@ export const CLAIMABLE: readonly TechniqueId[] = Object.freeze([
   'simple_coloring',
 ]);
 
-export function xWingHolds(
+/**
+ * What a claim on a set-shaped technique turns out to be.
+ *
+ * It carries the eliminations rather than a bare yes, because the player who
+ * just proved the pattern has earned the *"so what"* — see `docs/architecture.md`
+ * on why a verified claim is not the coach's disclosure ladder.
+ */
+export type SetVerdict = { holds: false } | { holds: true; eliminations: Elimination[] };
+
+export function xWingClaim(
   values: readonly (Digit | null)[],
   digit: Digit,
   cells: readonly CellIndex[],
-): boolean {
+): SetVerdict {
   const claimed = new Set(cells);
-  if (claimed.size !== 4) return false;
+  if (claimed.size !== 4) return { holds: false };
 
   const board = Board.fromValues(values);
 
@@ -62,7 +71,7 @@ export function xWingHolds(
   // full cross product of them, which is the shape an X-Wing has.
   const rows = [...new Set([...claimed].map(rowOf))];
   const cols = [...new Set([...claimed].map(colOf))];
-  if (rows.length !== 2 || cols.length !== 2) return false;
+  if (rows.length !== 2 || cols.length !== 2) return { holds: false };
 
   // The pigeonhole has to be tight: in each base house the digit must have
   // exactly these two homes and no third one, or it proves nothing.
@@ -79,12 +88,16 @@ export function xWingHolds(
     });
 
   const byRow = tight(ROWS, rows);
-  if (!byRow && !tight(COLS, cols)) return false;
+  if (!byRow && !tight(COLS, cols)) return { holds: false };
 
   const covers = byRow ? cols.map((c) => COLS[c]) : rows.map((r) => ROWS[r]);
-  return covers.some((house) =>
-    house.cells.some((cell) => !claimed.has(cell) && board.trueCandidates(cell).has(digit)),
+  const eliminations = covers.flatMap((house) =>
+    house.cells
+      .filter((cell) => !claimed.has(cell) && board.trueCandidates(cell).has(digit))
+      .map((cell) => ({ cell, digit })),
   );
+  // A fish that clears nothing is a rectangle, not an argument.
+  return eliminations.length > 0 ? { holds: true, eliminations } : { holds: false };
 }
 
 /**
@@ -99,7 +112,7 @@ export function xWingHolds(
  * flat sentence and this does not.
  */
 export type ChainVerdict =
-  | { kind: 'proves'; digits: Digit[]; eliminations: number }
+  | { kind: 'proves'; digits: Digit[]; eliminations: Elimination[] }
   | { kind: 'broken'; link: number }
   | { kind: 'barren' };
 
@@ -151,7 +164,9 @@ export function colouringClaim(
     const trapped = worn.some((a) =>
       worn.some((b) => a !== b && HOUSES.some((h) => h.cells.includes(a) && h.cells.includes(b))),
     );
-    if (trapped) return { kind: 'proves', digits: [digit], eliminations: worn.length };
+    if (trapped) {
+      return { kind: 'proves', digits: [digit], eliminations: worn.map((cell) => ({ cell, digit })) };
+    }
   }
 
   // Otherwise: anything outside the chain that can see both colours.
@@ -165,7 +180,11 @@ export function colouringClaim(
       sees(cell as CellIndex, 1),
   );
   return wings.length > 0
-    ? { kind: 'proves', digits: [digit], eliminations: wings.length }
+    ? {
+        kind: 'proves',
+        digits: [digit],
+        eliminations: wings.map((cell) => ({ cell: cell as CellIndex, digit })),
+      }
     : { kind: 'barren' };
 }
 
@@ -180,7 +199,9 @@ export function colouringClaim(
  * at most one of three cells can be — so asking would be a question with one
  * possible answer, which is the same mistake the digit stage was.
  */
-export type WingVerdict = { holds: false } | { holds: true; pivot: CellIndex; wings: CellIndex[] };
+export type WingVerdict =
+  | { holds: false }
+  | { holds: true; pivot: CellIndex; wings: CellIndex[]; eliminations: Elimination[] };
 
 export function xyWingClaim(
   values: readonly (Digit | null)[],
@@ -212,14 +233,16 @@ export function xyWingClaim(
     if (grips.some((g) => g.length !== 1) || grips[0][0] === grips[1][0]) continue;
 
     // And, as everywhere else here, it has to eliminate something.
-    const proves = commonPeers(board, wings[0], wings[1]).some(
-      (cell) => cell !== pivot && board.trueCandidates(cell).has(outside[0]),
-    );
+    const eliminations = commonPeers(board, wings[0], wings[1])
+      .filter((cell) => cell !== pivot && board.trueCandidates(cell).has(outside[0]))
+      .map((cell) => ({ cell, digit: outside[0] }));
     // Sorted, so the verdict is a function of the cells and not of the order
     // they were tapped in. The two wings are interchangeable — the same
     // argument `roles.ts` makes about the corners of a fish, and the reason
     // the overlay gives them one colour between them.
-    if (proves) return { holds: true, pivot, wings: [...wings].sort((a, b) => a - b) };
+    if (eliminations.length > 0) {
+      return { holds: true, pivot, wings: [...wings].sort((a, b) => a - b), eliminations };
+    }
   }
   return { holds: false };
 }
@@ -259,9 +282,11 @@ export function colouringHolds(
     return {
       kind: 'proves',
       digits: proving.flatMap((verdict) => verdict.digits),
-      // Summed, not maxed: an elimination of a 1 and an elimination of a 4 are
-      // two different marks even when they are in the same cell.
-      eliminations: proving.reduce((total, verdict) => total + verdict.eliminations, 0),
+      // Concatenated, not merged: an elimination of a 1 and an elimination of
+      // a 4 are two different marks even when they are in the same cell, and
+      // no two readings can produce the same (cell, digit) twice because each
+      // reading owns its digit.
+      eliminations: proving.flatMap((verdict) => verdict.eliminations),
     };
   }
   if (verdicts.some((verdict) => verdict.kind === 'barren')) return { kind: 'barren' };

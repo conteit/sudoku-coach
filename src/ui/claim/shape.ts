@@ -108,6 +108,11 @@ export function drawingOf(
     for (const cell of cells) marks[cell] = MARK_ON;
   }
 
-  for (const cell of options.targets ?? []) marks[cell] = MARK_ON | MARK_TARGET;
+  // OR-ed, not assigned: a colouring whose trapped colour is the conclusion
+  // eliminates the digit from *its own chain cells*, so overwriting would
+  // erase the tint that says which colour was trapped — the reason the cell
+  // is a target at all. Every other shape's targets lie outside the pattern
+  // and this is a no-op for them.
+  for (const cell of options.targets ?? []) marks[cell] |= MARK_ON | MARK_TARGET;
   return { marks, links, order };
 }
