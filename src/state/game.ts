@@ -27,7 +27,7 @@
  */
 
 import { Board, CELL_COUNT, parseGrid } from '../engine/board';
-import type { Cell, CellIndex, Difficulty, Digit } from '../engine/types';
+import type { Cell, CellIndex, Difficulty, Digit, Elimination } from '../engine/types';
 import type { CoachExchange, Game, LiveGame, Move, MoveBatch, MoveKind, StoredCell } from './types';
 import { deadNotes } from './deadNotes';
 
@@ -98,6 +98,22 @@ export type GameAction =
       fixes: readonly { cell: CellIndex; digit: Digit; kind: 'missing' | 'invalid' }[];
       at: number;
     }
+  /**
+   * Takes the notes a *verified claim* has ruled out, in one undoable step.
+   *
+   * Same safety argument as `applyNoteFixes`, and it matters more here: the
+   * eliminations are handed in, so the reducer can only act on the list the
+   * player was shown after their own claim was checked. Nothing is recomputed,
+   * so a board that has moved since cannot smuggle in a deduction the player
+   * never made.
+   *
+   * This is not `clearStaleCandidates`. Those marks are dead by the rules
+   * alone; these are dead by an argument — the player's own, which the app has
+   * just confirmed. Offering to write it down is not doing the thinking for
+   * them (invariant 1), because the thinking already happened and they did it.
+   * A cell filled since is skipped, as there too.
+   */
+  | { type: 'applyEliminations'; eliminations: readonly Elimination[]; at: number }
   /**
    * Puts the board back to a save point, in one undoable step.
    *
@@ -529,6 +545,26 @@ export function reduce(game: LiveGame, action: GameAction): LiveGame {
           moves.push({ kind: 'removeCandidate', cell: i, digit, prev: snapshot(cell), at: stamp });
         }
       }
+      return commit(game, applyAll(game.cells, moves), moves, stamp);
+    }
+
+    case 'applyEliminations': {
+      const stamp = nextAt(game, action.at);
+      const moves: Move[] = [];
+      for (const { cell, digit } of action.eliminations) {
+        // Every snapshot is taken from `game.cells`, which does not change as
+        // this loop runs, so a cell losing two digits gets the same pre-batch
+        // snapshot twice and one undo restores it whole — the discipline
+        // `clearStaleCandidates` keeps, and for the same reason.
+        const current = game.cells[cell];
+        // The only check needed. A given and a filled cell both carry no
+        // candidates, so this covers them; guards naming them explicitly were
+        // written first and deleted when no mutation could kill them.
+        if (!current.candidates.has(digit)) continue;
+        moves.push({ kind: 'removeCandidate', cell, digit, prev: snapshot(current), at: stamp });
+      }
+      // `commit` returns the game untouched for an empty batch, so nothing
+      // here has to say so a second time.
       return commit(game, applyAll(game.cells, moves), moves, stamp);
     }
 

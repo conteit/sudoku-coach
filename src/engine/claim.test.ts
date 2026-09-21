@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { Board } from './board';
 import { EXAMPLES, PUZZLES } from './techniques/fixtures';
 import { CATALOG } from './techniques';
-import { colouringClaim, colouringHolds, xWingHolds, xyWingClaim } from './claim';
+import { colouringClaim, colouringHolds, xWingClaim, xyWingClaim } from './claim';
 
 // `fish.test.ts` proves the detector finds exactly this: a 2 in r2c4, r2c6,
 // r4c4, r4c6, based on columns 4 and 6, eliminating r2c1 and r2c2.
@@ -19,21 +19,21 @@ const CORNERS = [12, 14, 30, 32];
 
 describe('the x-wing verifier', () => {
   it('accepts the x-wing the detector finds', () => {
-    expect(xWingHolds(VALUES, 2, CORNERS)).toBe(true);
+    expect(xWingClaim(VALUES, 2, CORNERS).holds).toBe(true);
   });
 
   it('accepts it whatever order the corners were tapped in', () => {
-    expect(xWingHolds(VALUES, 2, [32, 12, 30, 14])).toBe(true);
+    expect(xWingClaim(VALUES, 2, [32, 12, 30, 14]).holds).toBe(true);
   });
 
   it('refuses the right cells on the wrong digit', () => {
     // The claim carries its digit for exactly this reason: four cells alone
     // do not say what pattern they are.
-    expect(xWingHolds(VALUES, 5, CORNERS)).toBe(false);
+    expect(xWingClaim(VALUES, 5, CORNERS).holds).toBe(false);
   });
 
   it('refuses three of the four corners', () => {
-    expect(xWingHolds(VALUES, 2, CORNERS.slice(0, 3))).toBe(false);
+    expect(xWingClaim(VALUES, 2, CORNERS.slice(0, 3)).holds).toBe(false);
   });
 
   it('refuses a rectangle whose base lines have a third home for the digit', () => {
@@ -41,7 +41,7 @@ describe('the x-wing verifier', () => {
     // row 2 has more than two homes for a 2 — so read row-wise the pigeonhole
     // is not tight. It holds only because the *columns* are tight, which is
     // what this cross-checks: swap in a rectangle with no tight axis at all.
-    expect(xWingHolds(VALUES, 2, [12, 14, 21, 23])).toBe(false);
+    expect(xWingClaim(VALUES, 2, [12, 14, 21, 23]).holds).toBe(false);
   });
 
   it('refuses a pattern that eliminates nothing', () => {
@@ -52,11 +52,11 @@ describe('the x-wing verifier', () => {
     const spent = [...VALUES];
     spent[9] = 1;
     spent[10] = 4;
-    expect(xWingHolds(spent, 2, CORNERS)).toBe(false);
+    expect(xWingClaim(spent, 2, CORNERS).holds).toBe(false);
   });
 
   it('refuses four cells that are not a rectangle', () => {
-    expect(xWingHolds(VALUES, 2, [12, 14, 30, 33])).toBe(false);
+    expect(xWingClaim(VALUES, 2, [12, 14, 30, 33]).holds).toBe(false);
   });
 
   it('refuses two tight columns that do not share their rows', () => {
@@ -68,7 +68,7 @@ describe('the x-wing verifier', () => {
     // simply false, which is the one failure mode this whole feature cannot
     // have.
     const values = Board.fromString(EXAMPLES.hidden_single).values;
-    expect(xWingHolds(values, 7, [54, 72, 16, 25])).toBe(false);
+    expect(xWingClaim(values, 7, [54, 72, 16, 25]).holds).toBe(false);
   });
 });
 
@@ -82,7 +82,15 @@ const CHAIN = [15, 16, 43, 37, 46, 51];
 describe('the colouring verifier', () => {
   it('accepts the chain the detector proves something from', () => {
     const values = Board.fromString(EXAMPLES.simple_coloring).values;
-    expect(colouringClaim(values, 3, CHAIN)).toEqual({ kind: 'proves', digits: [3], eliminations: 1 });
+    const verdict = colouringClaim(values, 3, CHAIN);
+    expect(verdict).toEqual({
+      kind: 'proves',
+      digits: [3],
+      // The cells, not a count. What the claim clears is what the player is
+      // offered afterwards, so a verdict that only counted could not be acted
+      // on without the app deducing it a second time.
+      eliminations: [{ cell: 64, digit: 3 }],
+    });
   });
 
   it('says a real chain that proves nothing is barren, not broken', () => {
@@ -110,7 +118,15 @@ describe('the colouring verifier', () => {
     // two end cells wear the same colour and share a house, so that colour is
     // the false one and both give the digit up.
     const values = Board.fromString(PUZZLES[0].givens).values;
-    expect(colouringClaim(values, 7, [24, 26, 17])).toEqual({ kind: 'proves', digits: [7], eliminations: 2 });
+    expect(colouringClaim(values, 7, [24, 26, 17])).toEqual({
+      kind: 'proves',
+      digits: [7],
+      // Both cells of the trapped colour, each losing the 7.
+      eliminations: [
+        { cell: 24, digit: 7 },
+        { cell: 17, digit: 7 },
+      ],
+    });
   });
 
   it('refuses a chain too short to be one', () => {
@@ -135,7 +151,12 @@ describe('the xy-wing verifier', () => {
       [8, 0, 6],
       [6, 8, 0],
     ]) {
-      expect(xyWingClaim(VALUES, order)).toEqual({ holds: true, pivot: 0, wings: [6, 8] });
+      expect(xyWingClaim(VALUES, order)).toEqual({
+        holds: true,
+        pivot: 0,
+        wings: [6, 8],
+        eliminations: [{ cell: 17, digit: 5 }],
+      });
     }
   });
 
@@ -175,7 +196,16 @@ describe('the xy-wing verifier', () => {
     // the pivot of a second, equally valid xy-wing, with r1c1 and r2c9 as its
     // wings. A player who sees that one and claims it is right, and any check
     // built on the detector would tell them they are wrong.
-    expect(xyWingClaim(VALUES, [0, 6, 17])).toEqual({ holds: true, pivot: 6, wings: [0, 17] });
+    expect(xyWingClaim(VALUES, [0, 6, 17])).toEqual({
+      holds: true,
+      pivot: 6,
+      wings: [0, 17],
+      eliminations: [
+        { cell: 8, digit: 7 },
+        { cell: 9, digit: 7 },
+        { cell: 10, digit: 7 },
+      ],
+    });
   });
 
   it('refuses two cells', () => {
@@ -212,7 +242,7 @@ describe('the verifiers agree with the detectors they shadow', () => {
       if (finding === null) continue;
       checked += 1;
       if (finding.technique === 'x_wing') {
-        expect(xWingHolds(board.values, finding.digits[0], finding.cells)).toBe(true);
+        expect(xWingClaim(board.values, finding.digits[0], finding.cells).holds).toBe(true);
       } else if (finding.technique === 'xy_wing') {
         expect(xyWingClaim(board.values, finding.cells)).toMatchObject({ holds: true });
       }
@@ -232,7 +262,11 @@ describe('the verifiers agree with the detectors they shadow', () => {
 describe('a chain knows its own digit', () => {
   it('finds the digit the chain is about', () => {
     const values = Board.fromString(EXAMPLES.simple_coloring).values;
-    expect(colouringHolds(values, CHAIN)).toEqual({ kind: 'proves', digits: [3], eliminations: 1 });
+    expect(colouringHolds(values, CHAIN)).toEqual({
+      kind: 'proves',
+      digits: [3],
+      eliminations: [{ cell: 64, digit: 3 }],
+    });
   });
 
   it('reports the digit that proves something, not merely one that fits', () => {
@@ -250,7 +284,10 @@ describe('a chain knows its own digit', () => {
     expect(colouringHolds(values, [63, 9, 10])).toEqual({
       kind: 'proves',
       digits: [1],
-      eliminations: 2,
+      eliminations: [
+        { cell: 12, digit: 1 },
+        { cell: 13, digit: 1 },
+      ],
     });
   });
 

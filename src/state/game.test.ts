@@ -415,6 +415,77 @@ describe('progress', () => {
   });
 });
 
+describe('taking a verified claim off the notes', () => {
+  // Not the same action as clearing dead marks, and the difference is the
+  // point: those marks are dead by the rules alone, these by an argument the
+  // player made and the app checked.
+  it('removes exactly the notes it was handed, and nothing else', () => {
+    const game = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'addCandidate', cell: OPEN, digit: 6, at: 2001 },
+      { type: 'addCandidate', cell: 5, digit: 4, at: 2002 },
+      { type: 'applyEliminations', eliminations: [{ cell: OPEN, digit: 4 }], at: 2003 },
+    );
+
+    expect(marks(game, OPEN)).toEqual([6]);
+    // A note the claim said nothing about survives, even though it is the
+    // same digit in a neighbouring cell.
+    expect(marks(game, 5)).toEqual([4]);
+  });
+
+  it('is one press to clear and one to take back, however many cells it touched', () => {
+    const cleared = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'addCandidate', cell: OPEN, digit: 6, at: 2001 },
+      { type: 'addCandidate', cell: 5, digit: 4, at: 2002 },
+      {
+        type: 'applyEliminations',
+        eliminations: [
+          { cell: OPEN, digit: 4 },
+          { cell: OPEN, digit: 6 },
+          { cell: 5, digit: 4 },
+        ],
+        at: 2003,
+      },
+    );
+    expect(marks(cleared, OPEN)).toEqual([]);
+    expect(marks(cleared, 5)).toEqual([]);
+
+    // Two digits came off the same cell; one undo has to restore both, which
+    // is what the shared snapshot is for.
+    const undone = reduce(cleared, { type: 'undo', at: 2004 });
+    expect(marks(undone, OPEN)).toEqual([4, 6]);
+    expect(marks(undone, 5)).toEqual([4]);
+  });
+
+  it('leaves the game untouched when there is nothing of it left to remove', () => {
+    const game = run(start(), { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 });
+
+    // The note is not there, so this is not an empty undo step waiting to
+    // confuse the player.
+    expect(
+      reduce(game, { type: 'applyEliminations', eliminations: [{ cell: OPEN, digit: 9 }], at: 2001 }),
+    ).toBe(game);
+  });
+
+  it('skips a cell the player has filled since the claim was checked', () => {
+    // Invariant 1: the player's own later move outranks a reading taken
+    // before it. Writing into a filled cell's hidden marks would resurrect
+    // notes they can no longer see.
+    const game = run(
+      start(),
+      { type: 'addCandidate', cell: OPEN, digit: 4, at: 2000 },
+      { type: 'setValue', cell: OPEN, digit: 9, at: 2001 },
+      { type: 'applyEliminations', eliminations: [{ cell: OPEN, digit: 4 }], at: 2002 },
+    );
+
+    expect(game.cells[OPEN].value).toBe(9);
+    expect(marks(game, OPEN)).toEqual([]);
+  });
+});
+
 describe('clearing dead marks', () => {
   it('removes only the marks a placed peer killed', () => {
     const game = run(

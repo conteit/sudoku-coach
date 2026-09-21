@@ -10,13 +10,15 @@
  * or a gesture nobody taught.
  *
  * Strictly presentational, like `CoachPanel`: it is handed a stage, a shape
- * and a verdict, and knows nothing about pivots, conjugate pairs or which
- * techniques the engine can check.
+ * and a verdict, and works out none of them. It *renders* roles and
+ * eliminations once a check has produced them, which is not the same as
+ * knowing what a pivot or a conjugate pair is — it is handed the cells and
+ * puts names to them.
  */
 
 import type { ChainVerdict } from '../../engine/claim';
 import type { ClaimShape } from './shape';
-import type { CellIndex, Digit, TechniqueId } from '../../engine/types';
+import type { CellIndex, Digit, Elimination, TechniqueId } from '../../engine/types';
 import { cellName } from '../../engine/board';
 import { Button } from '../primitives/Button';
 import { useT } from '../../i18n/locale';
@@ -57,6 +59,17 @@ export interface ClaimPanelProps {
   size: number | null;
   holds: boolean | null;
   chain: ChainVerdict | null;
+  /**
+   * The roles a checked wing turned out to have. `null` before the check and
+   * on anything that is not a wing — the board draws the three cells alike
+   * until then, and this says nothing either.
+   */
+  roles: { pivot: CellIndex; wings: readonly CellIndex[] } | null;
+  /** What a verified claim clears. Empty unless it holds and pays. */
+  eliminations: readonly Elimination[];
+  /** The player has already taken them off; the offer is spent. */
+  applied: boolean;
+  onApply: () => void;
   onTechnique: (id: TechniqueId) => void;
   onDropCell: (cell: CellIndex) => void;
   /** Back to the list, keeping the cells. */
@@ -82,6 +95,10 @@ export function ClaimPanel({
   size,
   holds,
   chain,
+  roles,
+  eliminations,
+  applied,
+  onApply,
   onTechnique,
   onDropCell,
   onRename,
@@ -206,7 +223,7 @@ export function ClaimPanel({
                 : t('claim.verdict.no')
               : chain?.kind === 'proves'
                 ? t(
-                    chain.eliminations === 1
+                    chain.eliminations.length === 1
                       ? 'claim.verdict.chainProvesOne'
                       : 'claim.verdict.chainProves',
                     {
@@ -214,7 +231,7 @@ export function ClaimPanel({
                       // once — rare, but real, and naming only one of them
                       // would be the app deciding which one the player meant.
                       digits: chain.digits.join(' and '),
-                      count: String(chain.eliminations),
+                      count: String(chain.eliminations.length),
                     },
                   )
                 : chain?.kind === 'barren'
@@ -226,7 +243,41 @@ export function ClaimPanel({
                     // the sentence does not have to count anything.
                     t('claim.verdict.chainBroken')}
           </p>
+          {/* The roles, once the check has settled them. Before that the three
+              cells are drawn alike and nothing here names them, because at
+              most one of them can be the hinge and the player was never asked
+              which — saying it early would be the app answering for them. */}
+          {roles === null ? null : (
+            <p className="text-ink-soft">
+              {t('claim.roles.wing', {
+                pivot: cellName(roles.pivot),
+                wings: roles.wings.map(cellName).join(' and '),
+              })}
+            </p>
+          )}
+
+          {/* What it buys, and the offer to write it down. The board has the
+              amber squares; this is the sentence and the button. */}
+          {eliminations.length === 0 ? null : (
+            <p className={applied ? 'text-match' : 'text-ink-soft'}>
+              {applied
+                ? t('claim.applied')
+                : t(eliminations.length === 1 ? 'claim.clearsOne' : 'claim.clears', {
+                    count: String(eliminations.length),
+                  })}
+            </p>
+          )}
+
           <div className="flex gap-2">
+            {/* Offered, never taken. The player's notes are theirs, and this
+                is the same bargain `clearStaleCandidates` and the note check
+                already strike: the app will do the typing once, on a press,
+                for a conclusion the player reached themselves. */}
+            {eliminations.length === 0 || applied ? null : (
+              <Button variant="primary" size="sm" onClick={onApply}>
+                {t('claim.apply')}
+              </Button>
+            )}
             {holds === true || chain?.kind === 'proves' ? null : (
               <Button variant="primary" size="sm" onClick={onRetry}>
                 {t('claim.retry')}
