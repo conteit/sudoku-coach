@@ -160,6 +160,7 @@ export const it: Dictionary = {
   'claim.pick': 'Che cosa vedi?',
   'claim.none': 'Non hai ancora incontrato nessuna delle tecniche che puoi ipotizzare.',
   'claim.showAll': 'Mostra tutte le tecniche',
+  'claim.taken': '{taken} su {total}',
   'claim.prompt.set': 'Tocca le celle dello schema.',
   'claim.prompt.wing': 'Tocca le tre celle. Non devi dire quale sia il perno.',
   'claim.prompt.chain': 'Tocca la catena in ordine. Ogni anello è una zona in cui solo due celle possono ancora prendere la stessa cifra.',

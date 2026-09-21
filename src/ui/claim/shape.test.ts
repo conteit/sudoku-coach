@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { drawingOf } from './shape';
+import { claimSize, drawingOf } from './shape';
 import {
   MARK_ALT,
   MARK_DASHED,
@@ -22,6 +22,30 @@ import type { CellIndex } from '../../engine/types';
 
 const cells = (drawing: { marks: number[] }): CellIndex[] =>
   drawing.marks.flatMap((mark, cell) => (mark === 0 ? [] : [cell as CellIndex]));
+
+describe('how many cells a technique takes', () => {
+  // One table, read by the board (which stops accepting taps) and by the panel
+  // (which decides when Check is live). Paolo could tap a fourth cell into an
+  // XY-Wing because only the panel knew the number.
+  it.each([
+    ['xy_wing', 3],
+    ['x_wing', 4],
+    ['swordfish', 6],
+    ['naked_pair', 2],
+  ] as const)('%s takes %i', (technique, size) => {
+    expect(claimSize(technique)).toBe(size);
+  });
+
+  it.each(['simple_coloring', 'remote_pairs', 'pointing', 'claiming'] as const)(
+    '%s has no fixed size, and says so rather than guessing one',
+    (technique) => {
+      // A chain is as long as it is; an intersection confines a digit to two
+      // cells of a line or to three. A number here would be a cap on a
+      // legitimate pattern.
+      expect(claimSize(technique)).toBeNull();
+    },
+  );
+});
 
 describe('a chain is drawn in two colours', () => {
   const chain = [0, 9, 11, 29] as CellIndex[];

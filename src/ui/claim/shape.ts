@@ -26,6 +26,34 @@ export type ClaimShape = 'set' | 'chain' | 'wing';
 export const shapeOf = (technique: TechniqueId): ClaimShape =>
   technique === 'xy_wing' ? 'wing' : CHAIN_TECHNIQUES.includes(technique) ? 'chain' : 'set';
 
+/**
+ * How many cells the pattern is made of, where that is fixed by the technique
+ * rather than by the board.
+ *
+ * `null` means genuinely variable: a chain is as long as it is, and an
+ * intersection confines a digit to two cells of a line or three. Everything
+ * else has a size that is part of its definition — an XY-Wing is a hinge and
+ * two arms, never four cells, and a fish is one cell per base line.
+ *
+ * The board reads this to stop accepting taps, and the panel reads it to
+ * decide when Check is live. Paolo, on being able to tap a fourth cell into an
+ * XY-Wing: "you letting me select more than 3 cells and render them the same
+ * color". The panel already knew the number and the board did not, which is
+ * the whole defect — one table, read by both.
+ */
+const SIZE: Partial<Record<TechniqueId, number>> = {
+  naked_pair: 2,
+  hidden_pair: 2,
+  naked_triple: 3,
+  hidden_triple: 3,
+  naked_quad: 4,
+  xy_wing: 3,
+  x_wing: 4,
+  swordfish: 6,
+};
+
+export const claimSize = (technique: TechniqueId): number | null => SIZE[technique] ?? null;
+
 export interface Drawing {
   /** One bitfield per cell of the board, zero where there is no mark. */
   marks: number[];

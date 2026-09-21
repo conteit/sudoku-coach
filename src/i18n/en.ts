@@ -163,6 +163,7 @@ export const en = {
   'claim.pick': 'What do you see?',
   'claim.none': 'You have not met any of the techniques you can claim yet.',
   'claim.showAll': 'Show every technique',
+  'claim.taken': '{taken} of {total}',
   'claim.prompt.set': 'Tap the cells of the pattern.',
   'claim.prompt.wing': 'Tap the three cells. You do not have to say which one is the pivot.',
   'claim.prompt.chain': 'Tap the chain in order. Each link is a house where only two cells can still take the same digit.',
