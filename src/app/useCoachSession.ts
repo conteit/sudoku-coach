@@ -68,6 +68,16 @@ export interface Drill {
 
 export interface CoachSession {
   hint: Hint | null;
+  /**
+   * The finding `hint` was rendered from, so the board can *draw* the pattern
+   * instead of flat-spotlighting it. `Hint` is a frozen contract carrying only
+   * the cells; the roles, the links and the eliminations are all here.
+   *
+   * Exposing it discloses nothing on its own — what may be shown is decided by
+   * `hint.level` where the drawing is built. #165 is the reason this exists,
+   * and the reason it is this rather than a wider `Hint`.
+   */
+  finding: Finding | null;
   drill: Drill | null;
   /** Null when the board has nothing left for a challenge to be about. */
   startDrill: () => void;
@@ -164,7 +174,16 @@ export function useCoachSession({
   onCoachLog,
   now = Date.now,
 }: CoachSessionInput): CoachSession {
-  const [hint, setHint] = useState<Hint | null>(null);
+  /**
+   * The hint on screen and the finding it was rendered from, kept together so
+   * they cannot drift. The finding is what the board needs in order to *draw*
+   * the pattern rather than flat-spotlight it — `Hint` carries only the cells
+   * (frozen contract), and roles, links and eliminations all live on the
+   * finding. Nothing is disclosed by holding it: what may be shown is decided
+   * by the hint's level, at the point of drawing.
+   */
+  const [shown, setShown] = useState<{ hint: Hint; finding: Finding } | null>(null);
+  const hint = shown?.hint ?? null;
   const [review, setReview] = useState<ReviewSnapshot | null>(null);
   /*
    * Findings the player has set aside on *this* board. Cleared whenever the
@@ -207,7 +226,7 @@ export function useCoachSession({
   // than no hint at all.
   if (shownGame !== game.id) {
     setShownGame(game.id);
-    setHint(null);
+    setShown(null);
     setReview(null);
     setExhausted(false);
     setNotesBlocked(false);
@@ -226,7 +245,7 @@ export function useCoachSession({
     if (hint !== null) {
       const coach = createCoach({ cells: coachCells(game.cells), locale });
       const finding = coach.nextFinding();
-      setHint(finding === null ? null : coach.hint(finding, hint.level));
+      setShown(finding === null ? null : { hint: coach.hint(finding, hint.level), finding });
     }
   }
 
@@ -305,7 +324,7 @@ export function useCoachSession({
       const coach = createCoach({ cells: coachCells(game.cells), locale });
       const finding = coach.nextFinding(skip ?? skipped);
       if (finding === null) {
-        setHint(null);
+        setShown(null);
         setExhausted(true);
         // Only asked when there is nothing to say, which is the one moment
         // the answer changes what the player is told — and the one moment a
@@ -322,7 +341,7 @@ export function useCoachSession({
       onCoachLog(recordExchange(game.coachLog, next, at));
       setExhausted(false);
       setNotesBlocked(false);
-      setHint(next);
+      setShown({ hint: next, finding });
     },
     [game, locale, now, onCoachLog, updateProfile, skipped],
   );
@@ -345,7 +364,7 @@ export function useCoachSession({
     updateProfile((profile) => masteryAfterHint(profile, game.coachLog, named, at));
     onCoachLog(recordExchange(game.coachLog, named, at, true));
     drillFinding.current = { game: game.id, finding };
-    setHint(null);
+    setShown(null);
     setExhausted(false);
     setNotesBlocked(false);
     setDrill({
@@ -394,13 +413,13 @@ export function useCoachSession({
   }, [game.cells, locale]);
 
   const clearHint = useCallback(() => {
-    setHint(null);
+    setShown(null);
     setExhausted(false);
     setNotesBlocked(false);
   }, []);
 
   const dismiss = useCallback(() => {
-    setHint(null);
+    setShown(null);
     setReview(null);
     setExhausted(false);
     setNotesBlocked(false);
@@ -415,6 +434,8 @@ export function useCoachSession({
 
   return {
     hint,
+    /** The finding `hint` is about, for the board's own drawing. */
+    finding: shown?.finding ?? null,
     drill,
     review,
     exhausted,

@@ -77,13 +77,31 @@ const empty = (): number[] => new Array(81).fill(0);
 export function drawingOf(
   shape: ClaimShape,
   cells: readonly CellIndex[],
-  options: { pivot?: CellIndex | null; targets?: readonly CellIndex[] } = {},
+  options: {
+    pivot?: CellIndex | null;
+    targets?: readonly CellIndex[];
+    /**
+     * A chain whose structure is known rather than tapped.
+     *
+     * A claim is a walk — the player built it cell by cell, so the order is
+     * real and gets numbered. A chain the *engine* found is a connected
+     * component of the conjugate-pair graph: it can branch, and its cells
+     * arrive in ascending order, which is no order at all. Given this, the
+     * drawing uses the real colours and the real links and numbers nothing,
+     * because there is nothing to number.
+     */
+    chain?: { alt: readonly CellIndex[]; links: readonly (readonly [CellIndex, CellIndex])[] } | null;
+  } = {},
 ): Drawing {
   const marks = empty();
   const order = new Map<CellIndex, number>();
   const links: (readonly [CellIndex, CellIndex])[] = [];
 
-  if (shape === 'chain') {
+  if (shape === 'chain' && options.chain != null) {
+    const alt = new Set(options.chain.alt);
+    for (const cell of cells) marks[cell] = MARK_ON | (alt.has(cell) ? MARK_ALT : 0);
+    links.push(...options.chain.links);
+  } else if (shape === 'chain') {
     // Two colours, because that is what a colouring *is*. The number says
     // where in the order each cell falls; the overlay draws it as chrome,
     // never as a glyph that could be mistaken for a pencil mark.

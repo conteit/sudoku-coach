@@ -63,6 +63,7 @@ import { GameLayout } from './GameLayout';
 import { ClaimPanel, type ClaimStage } from '../ui/claim/ClaimPanel';
 import { PatternOverlay } from '../ui/claim/PatternOverlay';
 import { claimSize, drawingOf, shapeOf, type ClaimShape } from '../ui/claim/shape';
+import { hintDrawing as drawingOfHint } from './hintDrawing';
 import { CLAIMABLE, colouringHolds, xWingClaim, xyWingClaim, type ChainVerdict } from '../engine/claim';
 import { DIGITS } from '../engine/types';
 import type { Elimination } from '../engine/types';
@@ -749,10 +750,29 @@ export function GameView({
     [claim, claimShape],
   );
 
+  /**
+   * The coach's own pattern, drawn in the same language a claim is drawn in.
+   *
+   * Paolo, repeatedly: with a colouring "it is not clear how the chain is
+   * created". A flat ring on every cell is why — it says *these five* and
+   * nothing about which alternates with which, or what joins them.
+   *
+   * The disclosure ladder decides what may be drawn, and it is read here
+   * rather than trusted to the caller: **nothing below level 3**, because
+   * withholding the cells is the whole point of the rungs above it; the
+   * pattern at 3; the amber targets only at 4, where the coach is allowed to
+   * state what it eliminates (invariant 4).
+   */
+  const hintDrawing = useMemo(
+    () => drawingOfHint(coach.finding, coach.hint?.level ?? 0, values),
+    [coach.finding, coach.hint?.level, values],
+  );
+
   const spotlight =
-    claim !== null
-      ? // The overlay is the whole marking language now, for every shape.
-        []
+    claim !== null || hintDrawing !== null
+      ? // The overlay is the whole marking language now, for every shape. A
+        // second, flatter ring under it would say the same thing worse.
+        reviewSpotlight
       : reviewSpotlight.length > 0
         ? reviewSpotlight
         : (coach.hint?.spotlight ?? []);
@@ -930,7 +950,7 @@ export function GameView({
           onClear={claim === null ? (cell) => dispatchMove({ type: 'clearCell', cell }) : undefined}
           onPromote={playerPaused || solved || claim !== null ? undefined : promote}
           spotlight={spotlight}
-          patternMarks={claimDrawing?.marks}
+          patternMarks={claimDrawing?.marks ?? hintDrawing?.marks}
           tintedHouses={coach.hint?.houses ?? []}
           conflicts={conflicts}
           staleMarks={flaggedStale}
@@ -946,6 +966,13 @@ export function GameView({
           celebrate={solved || previewWin}
           className={playerPaused ? 'pointer-events-none blur-md select-none' : undefined}
         />
+        {claimDrawing === null && hintDrawing !== null ? (
+          <PatternOverlay
+            links={hintDrawing.links}
+            order={hintDrawing.order}
+            marks={hintDrawing.marks}
+          />
+        ) : null}
         {claimDrawing === null ? null : (
           <PatternOverlay
             links={claimDrawing.links}
