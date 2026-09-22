@@ -695,6 +695,26 @@ fall inside its own two cells, and those cells still have to read as the pair.
 `lessons.test.ts` checks the authored split against the same claim it
 re-derives from the grid, so the picture and the proof cannot disagree.
 
+**The coach draws in the same language, and the ladder decides how much.**
+"Show me the cells" used to be a flat ring on every cell of the finding,
+which for a colouring says *these five* and nothing about which alternates
+with which. It draws through `drawingOf` now, gated in `app/hintDrawing.ts`:
+nothing below level 3, the pattern at 3, the amber targets only at 4. The
+gate is a pure function precisely so it can be tested — a rule that lives in
+a `useMemo` is a rule nothing can pin.
+
+**A found chain is a graph, not a walk, and is not numbered.** A claim is a
+sequence the player tapped, so its cells carry chips. A colouring the engine
+found is a connected component of the conjugate-pair graph: it can branch,
+and `chainComponents` returns its cells ascending. Numbering that would
+invent an order the pattern does not have — the same mistake a fish's
+interchangeable corners are spared. What it does have is the two-colouring
+and the links, and neither survives in `Finding`, which carries the cells and
+the *houses*. Rather than widen a frozen contract, `coach/chainShape.ts`
+re-derives them from the board. It returns null rather than guess when the
+cells are not one two-colourable component on that digit, and the caller then
+draws them plainly.
+
 **A verified claim is not a hint, and may say what it proves.** Invariant 4
 governs the *coach's* ladder: what the app volunteers to a player who asked
 for help. A claim runs the other way — the player asserts the pattern and the
